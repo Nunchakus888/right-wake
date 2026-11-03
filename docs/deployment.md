@@ -2,7 +2,7 @@
 
 Place execution beside the host that owns the existing conversation. A public receiver or relay can run elsewhere, but moving Waking to a VPS does not move a Mac's Codex thread, credentials, worktree, or session history. A thread ID is meaningful only on the host that actually serves it.
 
-Recommended starting point: **native Waking on the local computer, Docker + Compose for the VPS relay**. Both include SQLite in the binary, so neither needs a separate database service. The [native installation guide](installation.md) and [container guide](../deploy/README.md) cover the two installation paths; v0.1.1 release downloads remain conditional on publication.
+Recommended starting point: **native Waking on the local computer, Docker + Compose for the VPS relay**. Both include SQLite in the binary, so neither needs a separate database service. The [native installation guide](installation.md) and [container guide](../deploy/README.md) cover the published v0.1.1 packages and explicit setup.
 
 Waking currently has two host adapters: Codex App Server over an explicitly configured Unix-domain WebSocket, and a trusted fixed executable implementing the GenericCommand JSON contract. It has no implemented or accepted adapter that attaches to an existing managed Codex Cloud task. See the [host compatibility guide](host-compatibility.md) for the exact protocol and remaining real-host validation boundaries.
 
@@ -84,7 +84,7 @@ On Docker Desktop, a macOS host and a Linux container do not share one kernel. D
 
 [Container smoke run 41619362708](https://github.com/Nunchakus888/waking/actions/runs/41619362708) succeeded for commit [`52dff8a4fd2522c793ef2b6bc709d561922f4790`](https://github.com/Nunchakus888/waking/commit/52dff8a4fd2522c793ef2b6bc709d561922f4790). It built the image, ran the explicit synthetic demo, started the real receiver, and preserved the original two completed job records and two unsent drafts across restart and container replacement with the same volume.
 
-That v0.1.0 run did not use a real Codex model, provider write, public webhook, or public relay connection. It also predates the v0.1.1 Docker-load installer and Compose distribution; those need their own successful checks. The [container verification levels](../deploy/README.md#container-verification-levels) distinguish source-image smoke, release-image/Compose checks, and deployment integration.
+The [v0.1.1 release run](https://github.com/Nunchakus888/waking/actions/runs/41634516676) also passed actual image build/load and Compose checks on Linux amd64 and arm64. It verified SQLite 3.54.1, original jobs/drafts, and a pending synthetic event across restart and container replacement. See [verification](releases/v0.1.1-verification.md) for the exact evidence. These local container checks did not use a real Codex model, provider write, public webhook, or public relay connection.
 
 ## Cloud relay plus local worker
 

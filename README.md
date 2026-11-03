@@ -17,7 +17,7 @@ Start with [the Codex plugin](#use-from-codex), [Linear setup](docs/linear.md), 
 
 ## Project status
 
-**v0.1.1 is being prepared; publication and its new release checks are pending.** It updates bundled SQLite and adds Docker image downloads with Compose deployment. Use the commands below after the [release assets](https://github.com/Nunchakus888/waking/releases) are available. [v0.1.0 verification](docs/releases/v0.1.0-verification.md) remains a historical record, separate from the [v0.1.1 changes](docs/releases/v0.1.1.md) and [integration acceptance](docs/acceptance.md).
+**[v0.1.1 is available as an experimental prerelease](https://github.com/Nunchakus888/waking/releases/tag/v0.1.1).** It includes bundled SQLite 3.54.1, four native packages, and Linux amd64/arm64 Docker images with Compose deployment. Each native platform passed **94 tests, with no failures or ignored tests**; both Linux Docker/Compose checks also passed. See [verification](docs/releases/v0.1.1-verification.md) for the exact runs and [acceptance](docs/acceptance.md) for live integration boundaries.
 
 The recorded v0.1.0 checks with official **Codex CLI 0.166.0** passed a no-model host probe and clean-profile plugin installation from both the local repository and the **real GitHub marketplace URL**. The cached MCP launcher passed initialization, tool listing, setup, and status checks. Real model continuation, desktop concurrency, and provider read/write E2E remain separate acceptance work. Automatic Codex dispatch requires a supported host, exclusive writer ownership, and restricted mutation tools; see [host compatibility](docs/host-compatibility.md).
 
@@ -27,7 +27,7 @@ Waking is an independent project; it is not an official OpenAI, Linear, GitHub, 
 
 **Use native installation beside your original local agent; use [Docker + Compose](deploy/README.md) for a VPS relay.** Native installation needs a shell, `curl`, `tar`, and a system SHA-256 tool, with **no Node.js, Python, Docker, Rust, or sudo**. It supports macOS and glibc Linux on arm64/x86_64. The installer verifies the archive and version, installs in `~/.local/bin`, and starts no service.
 
-After the pinned `v0.1.1` assets are published:
+Install the pinned `v0.1.1` release:
 
 ```sh
 curl --proto '=https' --tlsv1.2 --fail --location \

@@ -4,18 +4,18 @@
 
 Waking's ordinary runtime is one Rust binary with bundled SQLite. No separate database service or SQLite command-line installation is needed. It requires no Node.js, Python, Docker, Rust compiler, or elevated installation. The release installer uses system shell tools, `curl`, `tar`, and either `sha256sum` or `shasum`.
 
-The current installer is pinned to **v0.1.1**, whose publication and release validation are still pending. The following table records the prior v0.1.0 baseline; it does not transfer those results to the new dependency build.
+The installer is pinned to the published **v0.1.1** prerelease. Each of its four native platforms passed 94 tests with no failures or ignored tests, plus release build and installer smoke. See [verification](releases/v0.1.1-verification.md) for the exact runs.
 
-| Archive target | Build and smoke runner | Previous release evidence |
+| Archive target | Build and smoke runner | v0.1.1 release evidence |
 | --- | --- | --- |
-| `x86_64-unknown-linux-gnu` | Ubuntu 22.04 x86_64 | v0.1.0: 93 native tests, release build, and installer smoke passed; older glibc and musl are not claimed |
-| `aarch64-unknown-linux-gnu` | Ubuntu 22.04 arm64 | v0.1.0: 93 native tests, release build, and installer smoke passed |
-| `x86_64-apple-darwin` | macOS 15 Intel | v0.1.0: 93 native tests, release build, and installer smoke passed; older OS versions are not claimed |
-| `aarch64-apple-darwin` | macOS 15 arm64 | v0.1.0: 93 native tests, release build, and installer smoke passed |
+| `x86_64-unknown-linux-gnu` | Ubuntu 22.04 x86_64 | Native tests, build, and installer smoke passed; older glibc and musl are not claimed |
+| `aarch64-unknown-linux-gnu` | Ubuntu 22.04 arm64 | Native tests, build, and installer smoke passed |
+| `x86_64-apple-darwin` | macOS 15 Intel | Native tests, build, and installer smoke passed; older OS versions are not claimed |
+| `aarch64-apple-darwin` | macOS 15 arm64 | Native tests, build, and installer smoke passed |
 
-v0.1.1 native artifacts are named `waking-v0.1.1-TARGET.tar.gz`. Its `SHA256SUMS` is designed to cover four native archives and two Linux Docker image archives. The native installer selects only its matching native archive, then verifies its hash, permitted members, and runnable version before replacing the destination. These checks detect mismatches; checksums hosted with the release are not an independent publisher signature.
+v0.1.1 native artifacts are named `waking-v0.1.1-TARGET.tar.gz`. Its `SHA256SUMS` covers four native archives and two Linux Docker image archives. The native installer selects only its matching native archive, then verifies its hash, permitted members, and runnable version before replacing the destination. These checks detect mismatches; checksums hosted with the release are not an independent publisher signature.
 
-The [README](../README.md#install) gives the new pinned download path, usable once the v0.1.1 assets exist. [v0.1.0 verification](releases/v0.1.0-verification.md) retains the earlier published checksums and test results. Source installation remains available with `cargo install --locked --path .`, followed by `waking setup`.
+The [README](../README.md#install) gives the pinned download path. [v0.1.0 verification](releases/v0.1.0-verification.md) retains the earlier published checksums and test results. Source installation remains available with `cargo install --locked --path .`, followed by `waking setup`.
 
 Offline installation from a directory containing the matching archive and `SHA256SUMS`:
 
@@ -34,7 +34,7 @@ Use the native binary beside the local agent whose history you want to continue.
 - `waking-v0.1.1-container-linux-amd64.tar.gz`
 - `waking-v0.1.1-container-linux-arm64.tar.gz`
 
-The resulting image is tagged `waking:0.1.1`. The installer loads the image only; configuration, secrets, volume initialization, and startup are explicit. The supplied Compose service runs `relay serve`, uses a named volume at `/data`, and binds its published port to host loopback for your TLS proxy. No GHCR login or image-registry publication is required. These download commands require the corresponding v0.1.1 assets to be published first.
+The resulting image is tagged `waking:0.1.1`. The installer loads the image only; configuration, secrets, volume initialization, and startup are explicit. The supplied Compose service runs `relay serve`, uses a named volume at `/data`, and binds its published port to host loopback for your TLS proxy. No GHCR login or image-registry publication is required. Both image archives and the deployment files are attached to the [published v0.1.1 release](https://github.com/Nunchakus888/waking/releases/tag/v0.1.1).
 
 The image embeds the same Waking binary and SQLite library used by the corresponding Linux native release. A separate database container is unnecessary. Cloud receipt does not move local Codex history or execute work while its local host is offline; [deployment choices](deployment.md) explains that boundary.
 

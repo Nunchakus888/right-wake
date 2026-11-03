@@ -4,7 +4,7 @@ Run Waking natively beside the local agent whose original conversation you want 
 
 The image includes Waking and **bundled SQLite**. One persistent `/data` volume stores configuration and database state; there is no separate database service. It runs as UID/GID `10001` and publishes only a loopback host port for your HTTPS/WSS reverse proxy.
 
-**v0.1.1 release assets and new Docker/Compose checks are pending.** The commands below become usable when the assets are published. Earlier successful container evidence is recorded under [verification levels](#container-verification-levels), separately from this release.
+**[v0.1.1 Docker release assets are available](https://github.com/Nunchakus888/waking/releases/tag/v0.1.1).** Both Linux amd64 and arm64 passed actual image and Compose release checks. See [verification](../docs/releases/v0.1.1-verification.md) for the exact runs and [verification levels](#container-verification-levels) for their scope.
 
 ## Install the release image
 
@@ -105,7 +105,7 @@ docker compose up -d
 
 ## Build from source
 
-Before release assets exist, or for development, build the optional source Dockerfile from the repository root:
+For development or a custom build, build the optional source Dockerfile from the repository root:
 
 ```sh
 docker build --file deploy/Dockerfile --tag waking:0.1.1 .
@@ -123,7 +123,7 @@ The historical [Container smoke run 41619362708](https://github.com/Nunchakus888
 | Check | Evidence and limit |
 | --- | --- |
 | Source container smoke | The historical v0.1.0 run passed. New-version results must identify their own commit. |
-| v0.1.1 release image / Compose | Implementation supplied; successful amd64/arm64 jobs and published archives are still pending. Loading, version checks, explicit relay startup, and volume persistence need actual Docker execution. |
+| v0.1.1 release image / Compose | [Release run 41634516676](https://github.com/Nunchakus888/waking/actions/runs/41634516676) passed on Linux amd64/arm64: image build/load, SQLite 3.54.1, relay startup, signed synthetic receipt, and unchanged jobs/drafts and pending-event state across restart and container replacement. |
 | Real deployment | Public HTTPS/WSS, provider receipt, offline-local replay, original-thread model continuation, and provider replies require separate authorized integration evidence. |
 
 Repository validation commands are `sh scripts/container-smoke.sh` for the source build, and `sh scripts/compose-smoke.sh waking:0.1.1` for an already-built image. The test host needs Docker/Compose and Python 3; the runtime image does not need Python. The release packaging script reuses its native Linux binary, checks the image and Compose behavior, saves the archive, and exercises the real loader against that archive. A passing fixture does not establish a live Codex or provider integration; keep those results separate in [acceptance](../docs/acceptance.md).

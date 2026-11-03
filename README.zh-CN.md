@@ -17,7 +17,7 @@ Waking 以一个原生 Rust 二进制提供 CLI 和 Codex 插件，**内嵌 SQLi
 
 ## 当前状态
 
-**v0.1.1 正在准备中，新版发布和验证结果尚待确认。** 本轮升级内嵌 SQLite，并增加 Docker 镜像包与 Compose 部署。下方下载命令需等 [Release 资产](https://github.com/Nunchakus888/waking/releases)可用后执行。[v0.1.0 验证](docs/releases/v0.1.0-verification.md)保留为历史记录，与 [v0.1.1 变更](docs/releases/v0.1.1.md)及[真实平台验收](docs/acceptance.md)分别记录。
+**[v0.1.1 实验性预览版已发布](https://github.com/Nunchakus888/waking/releases/tag/v0.1.1)。** 包含内嵌 SQLite 3.54.1、四个平台的原生安装包，以及 Linux amd64/arm64 Docker 镜像和 Compose 配置。每个原生平台均通过 **94 项测试，0 失败、0 忽略**；两个 Linux 平台的真实 Docker/Compose 检查也已通过。具体运行证据见[验证记录](docs/releases/v0.1.1-verification.md)，真实平台集成边界仍见[验收记录](docs/acceptance.md)。
 
 已记录的 v0.1.0 验证中，官方 **Codex CLI 0.166.0** 通过了无模型宿主探测，以及隔离空配置中的本地仓库和**真实 GitHub marketplace URL** 插件安装；缓存 MCP 的启动、工具发现、setup 和 status 也已通过。真实模型续接、桌面并发和平台授权读写仍需分别验收。自动向 Codex 提交工作要求支持的宿主、已落实的独占写入条件与工具权限隔离，详见[宿主兼容性](docs/host-compatibility.md)。
 
@@ -27,7 +27,7 @@ Waking 是独立项目，不是 OpenAI、Linear、GitHub、GitLab 或 Anthropic 
 
 **续接本机原会话用原生安装；VPS Relay 用 [Docker + Compose](deploy/README.md)。** 原生安装只需 shell、`curl`、`tar` 和 SHA-256 工具，**无需 Node.js、Python、Docker、Rust 或 sudo**，支持 macOS / glibc Linux 的 arm64 与 x86_64。安装器校验压缩包和版本，安装到 `~/.local/bin`，不自动启动服务。
 
-固定版本 `v0.1.1` 的 Release 资产可用后：
+安装固定版本 `v0.1.1`：
 
 ```sh
 curl --proto '=https' --tlsv1.2 --fail --location \
