@@ -17,6 +17,12 @@ In a compatible local Codex host, open `/plugins` and install Waking. The packag
 
 The MCP launcher is inside the cached plugin. It tries an explicit `WAKING_BIN`, then `~/.local/bin/waking`, then PATH. It respects `WAKING_DATA_DIR`. It runs `waking mcp` over stdio and never downloads code or starts a background receiver implicitly. Diagnostic messages go to stderr so stdout remains protocol-only. A separate bundled installer lets the setup skill install the pinned native release when the user requests installation; the metadata check ensures this copy matches the release installer.
 
+## Use the same local profile
+
+If CLI setup or a deployment guide uses a custom `--data-dir`, configure `WAKING_DATA_DIR` with that same absolute path in the environment of the plugin's MCP process. A `--data-dir` flag on a previous CLI command does not change the plugin's default. For a Codex process launched from your terminal, export `WAKING_DATA_DIR` before starting that process; an already running desktop app does not inherit later shell changes. Use the host's supported environment configuration and restart the relevant MCP connection when needed.
+
+Ask `waking_setup` to report its `data_dir` and compare it with the receiver/local worker's configured directory before adding a binding. In a hybrid deployment, the plugin manages the **local worker's** profile, while the cloud relay keeps its separate profile. Do not copy the receiver's secret values into plugin metadata to select a profile.
+
 An onboarding skill may run in a new setup conversation. That conversation is not automatically the destination for work. Resolve a real existing work thread through the supported host and the user's intended scope. Never derive ownership from a window title or event payload.
 
 Agents read the installed `schema` and MCP tool list instead of guessing flags. Setup preserves existing configuration. Source credentials are named environment references. Bindings are explicit and versioned. Draft review does not authorize a send; a separate configured approver must sign the exact current action. The agent must not create or access the approver's private signing key to satisfy its own approval check.

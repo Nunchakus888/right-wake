@@ -61,6 +61,8 @@ waking --data-dir "$WAKING_LINEAR_DATA" --json source list
 
 This example admits one exact issue into automatic routing. Other signed events can be retained as outside-scope records without waking a model. `--resource` is repeatable; its values are canonical resource keys, or configured prefixes ending in `*`. An empty resource list allows the configured tenant's supported resources, so scope it deliberately.
 
+If the Codex plugin will manage this named profile, set `WAKING_DATA_DIR` to the same absolute directory in its MCP process environment and verify the `data_dir` reported by `waking_setup`. The plugin otherwise uses its default profile, even when a CLI command used `--data-dir`. See [plugin profile selection](plugin.md#use-the-same-local-profile).
+
 `source add` with an existing ID replaces that source object. To update a source that already has a review key, sending identity, special limits, or other configuration, preserve the complete object and use `source add --file /absolute/path/to/source.json`. Do not accidentally reset those fields by rerunning an incomplete flag example.
 
 ## 4. Register the Linear webhook and its secret

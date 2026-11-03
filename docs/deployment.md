@@ -171,6 +171,8 @@ Put the matching `WAKING_RELAY_DEVICE_TOKEN` value in the local file. It need no
 
 Configure the actual local App Server and exact binding by following [the Linear host/thread steps](linear.md#5-select-the-actual-existing-host-and-thread), using this local profile path. The host must meet both exclusive-writer and tool-isolation prerequisites. Do not create that binding only on the cloud relay and expect it to select a local session.
 
+For management through the Codex plugin, set its MCP process's `WAKING_DATA_DIR` to this local profile, not the cloud relay profile. Check the `data_dir` returned by `waking_setup` before assigning work. [Plugin profile selection](plugin.md#use-the-same-local-profile) explains terminal and already-running desktop environments.
+
 ### C. Start the outbound local worker
 
 If a `serve` process already owns this local profile, stop it first. For an existing service-managed direct receiver, use `waking --data-dir /absolute/path/to/waking-local service stop`; do not run both processes against the same profile.
