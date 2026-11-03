@@ -39,6 +39,13 @@ def check():
     require((PLUGIN / "scripts/install.sh").read_text() == installer, "cached plugin installer differs from the release installer")
     require(f"version=${{WAKING_VERSION:-v{version}}}" in installer, "native installer default differs from crate")
     require(f"scripts/install.sh --version v{version}" in (PLUGIN / onboarding).read_text(), "setup skill installer pin differs from crate")
+    for document in (PLUGIN / "skills").rglob("*.md"):
+        for link in re.findall(r"\]\(([^)]+)\)", document.read_text()):
+            if re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*:", link) or link.startswith("#"):
+                continue
+            target = (document.parent / link.split("#", 1)[0]).resolve()
+            require(target.is_relative_to(PLUGIN.resolve()), f"skill link escapes cached plugin: {document}: {link}")
+            require(target.exists(), f"skill reference is missing: {document}: {link}")
 
     market = json.loads((ROOT / ".agents/plugins/marketplace.json").read_text())
     entries = market["plugins"]

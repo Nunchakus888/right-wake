@@ -61,11 +61,13 @@ codex plugin marketplace add https://github.com/Nunchakus888/waking
 codex plugin add waking@waking --json
 ```
 
-You can also install **Waking** through `/plugins` in a compatible local Codex host. After installation, ask:
+You can also install **Waking** through `/plugins` in a compatible local Codex host. For Linear, invoke the setup skill **from the existing local work conversation you want to continue**, replacing the example issue:
 
-> Set up Waking for this work resource so incoming events continue its existing Codex conversation. Inspect schema, doctor, and existing bindings first; confirm the exact destination and keep replies as drafts.
+> Use $waking-setup to install and configure Waking for Linear issue ENG-123, bound to this existing work conversation. Reuse my authorized connections and existing configuration, start the required local receiver, and verify each available stage. Keep replies as drafts and report any concrete blocker.
 
-The plugin provides setup, routing, and review skills plus local MCP tools. It does not install or start a daemon through hidden lifecycle hooks. Its setup conversation is not automatically the work destination. See [the plugin guide](docs/plugin.md) for local prerequisites and the clean-install verification procedure.
+The same setup skill includes a [Linear workflow](docs/linear.md#agent-led-setup) for discovering existing settings, installing, configuring, and checking the result. With the required access, endpoint, and exact host/thread available, the agent can proceed in one invocation. First-time login, a missing public endpoint, or ambiguous ownership may require one focused interaction.
+
+The plugin still has three skills plus local MCP tools. Setup automation comes from the skill coordinating existing native CLI commands. Plugin installation has no hidden daemon-start hook, and a new setup conversation is not automatically the work destination. See [the plugin guide](docs/plugin.md).
 
 ## First work event
 

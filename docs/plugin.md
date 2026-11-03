@@ -11,11 +11,23 @@ In a compatible local Codex host, open `/plugins` and install Waking. The packag
 
 | Skill | Purpose |
 | --- | --- |
-| `waking-setup` | Locate/install the native binary, inspect `schema`/`doctor`, configure a source and host |
+| `waking-setup` | Locate/install the native binary, inspect existing state, and follow the bundled Linear setup workflow when applicable |
 | `waking-route` | Resolve the intended existing thread, inspect context evidence, make an explicit binding |
 | `waking-review` | Explain events/jobs/drafts and export exact independent review material |
 
 The MCP launcher is inside the cached plugin. It tries an explicit `WAKING_BIN`, then `~/.local/bin/waking`, then PATH. It respects `WAKING_DATA_DIR`. It runs `waking mcp` over stdio and never downloads code or starts a background receiver implicitly. Diagnostic messages go to stderr so stdout remains protocol-only. A separate bundled installer lets the setup skill install the pinned native release when the user requests installation; the metadata check ensures this copy matches the release installer.
+
+## Agent-led Linear setup
+
+Invoke `$waking-setup` from the **existing local work conversation** you intend to receive follow-ups, explicitly naming the Linear issue and that binding intent. The skill includes its [Linear reference](../plugins/codex/skills/waking-setup/references/linear.md) inside the cached plugin, so it does not depend on a separate repository checkout. It uses the published v0.1.1 native CLI and adds no runtime dependency or fourth skill.
+
+The workflow discovers the binary/profile, reads source/host/binding state, resolves exact Linear IDs through permitted tools, establishes the available event-delivery path, verifies the intended host/thread, then applies and reads back the authorized configuration. An installation/start request covers the corresponding service actions; it need not be confirmed again. Equivalent settings are reused. Existing `source add` and `host add` commands replace whole objects, so the agent must not blindly repeat abbreviated examples or reset existing fields. Binding changes use the observed version and intended target.
+
+An existing Linear MCP connection can supply IDs through the tools it exposes. Automatic webhook registration additionally requires an available authorized management tool or a separately authorized admin API client. The skill neither assumes every Linear MCP has this capability nor extracts its OAuth cache. First-time authentication, a missing public route, an unavailable compatible host, or an ambiguous destination is reported as a concrete blocker after completing the useful work already possible.
+
+A single agent invocation orchestrates existing native commands; unattended execution depends on those prerequisites being available. Configuration, authenticated receipt, and continuation of the original thread are reported separately. Do not post a Linear test comment without explicit authorization. Real Linear automated onboarding and real model continuation still need their own acceptance evidence; see [the full setup flow](linear.md#agent-led-setup) and [acceptance](acceptance.md).
+
+The updated workflow was exercised on 2026-11-03 by two fresh agents against isolated profiles using the real v0.1.1 CLI. One resumed an existing issue binding with a paused, unavailable host; the other had two ambiguous original-thread candidates and an onboarding caller ID. Both preserved the complete configuration and binding state, reported concrete blockers, and left events/jobs/drafts empty. The second also ignored setup/routing instructions embedded in issue text. These are local workflow checks, not live Linear registration or model-continuation evidence. Skill validation and the plugin reference-containment check passed.
 
 ## Use the same local profile
 

@@ -61,11 +61,13 @@ codex plugin marketplace add https://github.com/Nunchakus888/waking
 codex plugin add waking@waking --json
 ```
 
-也可以在支持该插件格式的本地 Codex 中通过 `/plugins` 安装 **Waking**。安装后说：
+也可以在支持该插件格式的本地 Codex 中通过 `/plugins` 安装 **Waking**。接入 Linear 时，在**准备续接的本地已有工作会话**中调用，把示例 Issue 替换成真实对象：
 
-> 为这个工作对象设置 Waking，让事件到来后继续它已有的 Codex 工作会话。先检查 schema、doctor 和现有绑定，确认准确目标，默认只生成草稿。
+> 使用 $waking-setup 安装并配置 Waking，把 Linear 的 ENG-123 绑定到当前这个已有工作会话。复用已授权连接和现有配置，启动所需的本地接收服务，逐步验证。默认只生成草稿；遇到确实缺失的条件再告诉我。
 
-插件包含设置、归属绑定、状态与草稿审阅技能，以及本地 MCP 工具。插件引导可能打开新的设置对话，这个对话不会被自动当作工作目标。后台服务必须明确启动。详细流程与干净安装验证见[插件说明](docs/plugin.md)。
+现有 setup 技能已包含 [Linear 配置流程](docs/linear.md#agent-led-setup)：发现可复用条件、安装、配置并检查结果。权限、接收入口与准确的 Host/Thread 齐备时，Agent 可在一次调用中推进；首次登录、缺少公网入口或归属不明时，才需要一次有具体原因的交互。
+
+插件仍是三个技能和本地 MCP 工具，安装配置由 Skill 编排现有原生 CLI 命令。安装插件不通过隐藏钩子启动服务；引导新建的设置对话也不会被自动当作工作目标。详见[插件说明](docs/plugin.md)。
 
 ## 跑通第一条事件
 

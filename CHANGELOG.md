@@ -1,5 +1,11 @@
 # Changelog
 
+## Plugin workflow update after 0.1.1
+
+- Extend the existing `waking-setup` skill with a bundled Linear onboarding reference: discover and reuse authorization/profile/source/host/binding state, configure available delivery, and report exact unresolved prerequisites.
+- Preserve existing configuration on repeat runs, require trusted original-thread ownership, and distinguish configuration from actual provider receipt and model continuation.
+- Keep the published native binary and installer at v0.1.1. The workflow adds no runtime dependency; refresh the installed plugin package to receive the updated skill. Authorized webhook administration remains a prerequisite for automatic provider registration.
+
 ## 0.1.1 — SQLite update and Docker distribution
 
 - Upgrade bundled SQLite from 3.46.0 to 3.54.1 through `rusqlite` 0.41.1 / `libsqlite3-sys` 0.39.1, including the upstream WAL-reset fix. Refuse state access with a linked SQLite older than 3.51.3 and report the actual runtime version in `doctor`.

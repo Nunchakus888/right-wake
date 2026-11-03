@@ -6,7 +6,28 @@ If Linear MCP is already connected to your agent, keep that connection for its p
 
 Receiving events and producing drafts do not require a Linear API token. They require the webhook signing secret at the receiver and a separately working execution host. Sending a draft adds an independently configured API credential, verified sending identity, and human Ed25519 approval.
 
-Install the published [v0.1.0 native release](https://github.com/Nunchakus888/waking/releases/tag/v0.1.0) using the [installation guide](installation.md), then use `waking --json schema` to inspect the installed command contract.
+Install the published [v0.1.1 native release](https://github.com/Nunchakus888/waking/releases/tag/v0.1.1) using the [installation guide](installation.md), then use `waking --json schema` to inspect the installed command contract.
+
+## Agent-led setup
+
+The existing **`waking-setup`** skill includes a Linear workflow. Invoke it from the local existing work conversation you want to continue, with an explicit request such as:
+
+> Use $waking-setup to connect Linear issue ENG-123 to this existing work conversation. Install and configure what is needed, reuse authorized connections and existing settings, start the local receiver, and report the verified result or concrete blocker. Keep replies as drafts.
+
+Replace the example issue with your intended resource. The skill uses the installed CLI and its bundled installer/reference; it does not require another runtime or a fourth skill. These are the minimum stages it coordinates:
+
+| Stage | Automatic work when the prerequisites are available |
+| --- | --- |
+| Install and select state | Reuse the binary and existing profile, install v0.1.1 if needed, run idempotent setup, and align the CLI/MCP data directory. |
+| Resolve Linear identity | Use permitted MCP/API results to resolve the exact organization and issue UUIDs; reuse the current source scope. |
+| Establish delivery | Reuse an existing HTTPS route or paired relay and signing-secret reference. Inspect and register a webhook only through an available authorized management tool or separately authorized admin API client. |
+| Verify the destination | Reuse the binding or resolve the explicitly intended existing thread through its configured host; verify the exact thread/cwd and host prerequisites. |
+| Apply and start | Read before writing, skip equivalent source/host/binding settings, preserve unrelated fields, and start the appropriate already-authorized process. |
+| Check the result | Distinguish configured state, real signed receipt, original-thread completion, and local draft creation. |
+
+When the required access, endpoint, and exact target are already available, the agent can carry out these steps without another conversational handoff. It should first discover and reuse what exists, then ask only for a genuinely missing authorization, public route, or ambiguous work destination. A new onboarding conversation is not automatically the target. Reusing Linear MCP means invoking its allowed tools; never export its OAuth cache or treat that credential as the webhook signing secret.
+
+The skill coordinates the existing native CLI commands. The native service helper starts a direct `serve` receiver; a relay client needs the separate lifecycle described in the [deployment guide](deployment.md#d-supervise-the-actual-commands-and-verify-offline-recovery). Configuration checks and local fixtures do not establish live Linear/model continuation, and this workflow has not yet completed that real integration acceptance. Do not send a test comment without explicit authorization; an actual incoming event or an authorized provider delivery test can supply receipt evidence.
 
 ## 1. Choose where the receiver runs
 
@@ -63,11 +84,11 @@ This example admits one exact issue into automatic routing. Other signed events 
 
 If the Codex plugin will manage this named profile, set `WAKING_DATA_DIR` to the same absolute directory in its MCP process environment and verify the `data_dir` reported by `waking_setup`. The plugin otherwise uses its default profile, even when a CLI command used `--data-dir`. See [plugin profile selection](plugin.md#use-the-same-local-profile).
 
-`source add` with an existing ID replaces that source object. To update a source that already has a review key, sending identity, special limits, or other configuration, preserve the complete object and use `source add --file /absolute/path/to/source.json`. Do not accidentally reset those fields by rerunning an incomplete flag example.
+Read `source list` before creating a source. Reuse an equivalent existing source without rewriting it. `source add` with an existing ID replaces that source object. To make an intended update to a source that already has a review key, sending identity, special limits, or other configuration, preserve the complete object and use `source add --file /absolute/path/to/source.json`. Do not accidentally reset those fields by rerunning an incomplete flag example.
 
 ## 4. Register the Linear webhook and its secret
 
-Using a Linear account with permission to administer webhooks, create a webhook in Linear's API settings. Linear documents workspace-admin or appropriately scoped OAuth-admin authorization for this operation. Waking does not perform the registration for you.
+Linear documents workspace-admin or appropriately scoped OAuth-admin authorization for webhook administration. The Waking binary has no registration command. An agent can perform registration when its available tools expose authorized webhook management, or through a separately authorized admin API client. Inspect the actual capability and existing registrations first, and reuse a matching webhook instead of duplicating it. An existing Linear MCP connection alone does not establish that capability, and its OAuth cache must not be exported. If no authorized management path is available, create the webhook in Linear's API settings with an account that has the required permission.
 
 Set the webhook URL to your receiver's real public HTTPS address, preserving the exact source path, for example:
 
@@ -86,7 +107,7 @@ touch "$WAKING_LINEAR_DATA/private.env"
 chmod 600 "$WAKING_LINEAR_DATA/private.env"
 ```
 
-In a trusted local editor, add the actual signing secret as the value of `WAKING_LINEAR_WEBHOOK_SECRET` in that file. The file format is plain `NAME=VALUE`, one entry per line: no `export`, shell expansion, or surrounding shell quotes. Keep the actual value out of commands, chat, the repository, and logs. Do not paste its contents into a diagnostic report.
+Use a trusted local editor or authorized secret mechanism to place the actual signing secret in that file as `WAKING_LINEAR_WEBHOOK_SECRET`. An agent may reuse an existing private file or securely store a secret obtained through an authorized client without printing it. The file format is plain `NAME=VALUE`, one entry per line: no `export`, shell expansion, or surrounding shell quotes. Keep the actual value out of command arguments, chat, the repository, and logs. Do not paste its contents into a diagnostic report.
 
 The public proxy must preserve the request body bytes and the `Linear-Signature` and `Linear-Delivery` headers. Waking verifies HMAC over the original bytes and checks the signed `webhookTimestamp`; the default Linear timestamp window is 60 seconds. Keep the receiving machine's clock synchronized. A valid receipt is committed before Waking responds successfully, and model execution is not part of that HTTP acknowledgement. Proxy timeouts and body-size limits still need to permit that delivery path; see [Linear's current delivery requirements](https://linear.app/developers/webhooks).
 
@@ -104,7 +125,7 @@ codex app-server --listen unix:///absolute/path/to/owned-codex.sock
 
 Run it only in the intended host environment containing the original sessions. If that host already exists, use its supported endpoint instead of starting another server or guessing private history paths. Waking's `--socket` takes the filesystem path below, not the `unix://` URL. The supported `stdio://` and TCP `ws://` Codex modes do not replace Waking's current Unix adapter.
 
-Register the host and inspect its available threads without enabling automatic submission:
+Read `host list` first and reuse a matching host. `host add` replaces the whole entry with that ID, including its declarations and timeout; do not rerun the following new-host example against an existing configured host. For a new host, register it and inspect its available threads without enabling automatic submission:
 
 ```sh
 waking --data-dir "$WAKING_LINEAR_DATA" host add \
@@ -136,7 +157,7 @@ waking --data-dir "$WAKING_LINEAR_DATA" bind \
 waking --data-dir "$WAKING_LINEAR_DATA" --json bindings
 ```
 
-Use the worktree path observed by that App Server, which must also be available to the executor. `--expected-version 0` refuses to overwrite an existing binding. If a binding already exists, inspect its target/version before deliberately changing it. The two host flags assert conditions you have established; they do not configure an OS sandbox, disable MCP tools, or create an atomic lock across Codex clients.
+Use the worktree path observed by that App Server, which must also be available to the executor. Read `bindings` first and skip an equivalent enabled assignment. `--expected-version 0` creates only a previously absent binding; it will conflict when repeated after creation. If the intended change affects an existing binding, use its observed version and exact target. The two host flags assert conditions you have established; they do not configure an OS sandbox, disable MCP tools, or create an atomic lock across Codex clients. Preserve the existing host's other fields when adding these declarations.
 
 A narrower discussion binding takes precedence over the issue binding. A known target that is busy, offline, or paused keeps its assignment; Waking does not silently choose another conversation. A configured semantic router can suggest an existing candidate for unbound work, but this release still requires a trusted binding/claim before that candidate owns the resource.
 
@@ -161,7 +182,7 @@ waking --data-dir "$WAKING_LINEAR_DATA" --json jobs list
 waking --data-dir "$WAKING_LINEAR_DATA" --json drafts list
 ```
 
-Create one deliberate test comment in the selected issue from an allowed human actor, containing the plain-text token `@waking` and the requested follow-up. **`@waking` is a configured text trigger, not a Linear bot identity that Waking registers.** Do not assume selecting a similarly named mention automatically emits that literal token in the webhook body. The native source supports Issue and Comment events; it does not provision a Linear agent or claim full personal Inbox/agent-session coverage.
+For an explicitly authorized comment test, create one deliberate comment in the selected issue from an allowed human actor, containing the plain-text token `@waking` and the requested follow-up. An agent must not post this comment solely because installation was requested. **`@waking` is a configured text trigger, not a Linear bot identity that Waking registers.** Do not assume selecting a similarly named mention automatically emits that literal token in the webhook body. The native source supports Issue and Comment events; it does not provision a Linear agent or claim full personal Inbox/agent-session coverage.
 
 After an issue/discussion is bound, actionable follow-up comments can reuse the binding without repeating the token. Ordinary status updates do not become new requests merely because an older description contains `@waking`. A model turn may conclude that no reply is needed.
 
