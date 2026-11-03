@@ -70,6 +70,14 @@ codex plugin add waking@waking --json
 
 ## 跑通第一条事件
 
+安装后可以立即运行无需凭证的演示：
+
+```sh
+waking --json demo
+```
+
+它会验签、落盘、沿已有绑定续接两条**模拟会话**并生成草稿；不调用真实模型或平台。真实 Codex 原会话续接单独验收。
+
 最小闭环需要一个合法事件源、一个可安全续接的本地 Host，以及一个指向已有工作会话的显式绑定。
 
 ```sh
@@ -125,6 +133,7 @@ Python 只用于仓库与发布检查，不是产品运行时依赖。Rust 工�
 - [Codex 插件与 Agent 流程](docs/plugin.md)
 - [32 项验收及证据](docs/acceptance.md)
 - [配置与执行器示例](examples/README.md)
+- [独立审阅与发送](docs/approvals.md)
 - [官方资料与能力边界](docs/references.md)
 - [参与贡献](CONTRIBUTING.md) · [安全报告](SECURITY.md) · [Apache 2.0 许可证](LICENSE)
 

@@ -20,11 +20,6 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: Review dependency changes
-        if: github.event_name == 'pull_request'
-        uses: actions/dependency-review-action@v4
-        with:
-          fail-on-severity: high
       - name: Install pinned Rust toolchain
         run: rustup show active-toolchain
       - name: Check formatting
@@ -39,3 +34,7 @@ jobs:
         run: sh scripts/smoke.sh target/debug/waking
       - name: Check plugin metadata
         run: python3 scripts/check-plugin.py
+      - name: Audit locked dependencies against RustSec
+        run: |
+          cargo install cargo-audit --version 0.22.2 --locked --no-default-features
+          cargo audit --deny warnings

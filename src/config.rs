@@ -72,6 +72,9 @@ pub struct Config {
     pub schema_version: u32,
     pub listen: String,
     pub paused: bool,
+    /// Operator control; bindings and queued work remain intact while paused.
+    #[serde(default)]
+    pub paused_hosts: Vec<String>,
     pub sources: Vec<SourceConfig>,
     pub hosts: Vec<HostConfig>,
     pub router: Option<RouterConfig>,
@@ -87,6 +90,7 @@ impl Default for Config {
             schema_version: 1,
             listen: "127.0.0.1:7433".into(),
             paused: false,
+            paused_hosts: vec![],
             sources: vec![],
             hosts: vec![],
             router: None,
@@ -179,6 +183,9 @@ impl Config {
             .find(|h| h.id() == id)
             .context("host not configured; run host add")
     }
+    pub fn host_paused(&self, id: &str) -> bool {
+        self.paused_hosts.iter().any(|paused| paused == id)
+    }
     pub fn validate(&self) -> Result<()> {
         if self.schema_version != 1 {
             bail!("unsupported configuration schema {}", self.schema_version);
@@ -233,6 +240,13 @@ impl Config {
                     bail!("host timeout must be greater than zero");
                 }
                 _ => {}
+            }
+        }
+        ids.clear();
+        for host in &self.paused_hosts {
+            self.host(host)?;
+            if !ids.insert(host) {
+                bail!("duplicate paused host id");
             }
         }
         ids.clear();

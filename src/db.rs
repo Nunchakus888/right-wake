@@ -72,8 +72,17 @@ impl Db {
         let parent = path
             .parent()
             .filter(|parent| !parent.as_os_str().is_empty())
-            .unwrap_or_else(|| Path::new("."));
-        let (staging, file) = BackupStaging::create(parent)?;
+            .unwrap_or_else(|| Path::new("."))
+            .canonicalize()
+            .context("backup parent directory must exist and be accessible")?;
+        // macOS commonly reaches its temporary directory through /var ->
+        // /private/var. Resolve existing ancestors once, without following or
+        // replacing the final destination entry. SQLite NOFOLLOW stays enabled.
+        let destination_path = parent.join(
+            path.file_name()
+                .context("backup destination needs a filename")?,
+        );
+        let (staging, file) = BackupStaging::create(&parent)?;
         let source = self.conn()?;
         let mut destination = Connection::open_with_flags(
             &staging.path,
@@ -91,9 +100,9 @@ impl Db {
         }
         destination.close().map_err(|(_, error)| error)?;
         file.sync_all()?;
-        std::fs::hard_link(&staging.path,path).context("cannot publish backup without overwriting; choose a new path on a filesystem supporting hard links")?;
+        std::fs::hard_link(&staging.path,&destination_path).context("cannot publish backup without overwriting; choose a new path on a filesystem supporting hard links")?;
         #[cfg(unix)]
-        std::fs::File::open(parent)?.sync_all()?;
+        std::fs::File::open(&parent)?.sync_all()?;
         Ok(())
     }
     pub fn audit(&self, kind: &str, subject: &str, detail: &Value) -> Result<()> {

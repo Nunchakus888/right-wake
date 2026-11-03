@@ -88,7 +88,9 @@ struct ReviewTarget<'a> {
     allowed_resources: &'a [String],
 }
 
-pub fn approval_digest(source: &SourceConfig, draft: &Draft) -> anyhow::Result<String> {
+/// Exact public review bytes. The independent reviewer can hash these bytes
+/// and display this same target before signing; no API credential is exported.
+pub fn approval_target_bytes(source: &SourceConfig, draft: &Draft) -> anyhow::Result<Vec<u8>> {
     let credential_fingerprint = source
         .token_env
         .as_ref()
@@ -121,7 +123,11 @@ pub fn approval_digest(source: &SourceConfig, draft: &Draft) -> anyhow::Result<S
         configured_tenant: &source.tenant_id,
         allowed_resources: &source.allowed_resources,
     };
-    Ok(sha256_hex(&serde_json::to_vec(&value)?))
+    Ok(serde_json::to_vec(&value)?)
+}
+
+pub fn approval_digest(source: &SourceConfig, draft: &Draft) -> anyhow::Result<String> {
+    Ok(sha256_hex(&approval_target_bytes(source, draft)?))
 }
 
 /// Public review data only. Creating a statement does not approve an action.

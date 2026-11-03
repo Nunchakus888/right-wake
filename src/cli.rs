@@ -78,18 +78,23 @@ pub enum Command {
     Service(ServiceCommand),
     #[command(subcommand)]
     Relay(RelayCommand),
-    /// Pause all automatic work, a source, or one binding; input remains durable.
+    /// Pause automatic work globally, for a host/source, or one binding; retain input.
     Pause {
-        #[arg(long)]
+        #[arg(long, conflicts_with = "host")]
         source: Option<String>,
-        #[arg(long)]
+        #[arg(long, requires = "source", conflicts_with = "host")]
         resource: Option<String>,
+        #[arg(long, conflicts_with_all = ["source", "resource"])]
+        host: Option<String>,
     },
+    /// Resume the selected scope; host resume explicitly wakes its durable waiters.
     Resume {
-        #[arg(long)]
+        #[arg(long, conflicts_with = "host")]
         source: Option<String>,
-        #[arg(long)]
+        #[arg(long, requires = "source", conflicts_with = "host")]
         resource: Option<String>,
+        #[arg(long, conflicts_with_all = ["source", "resource"])]
+        host: Option<String>,
     },
     /// Submit a signed local fixture through the same verification and durable inbox.
     Ingest {
@@ -446,7 +451,7 @@ pub async fn execute(cli: Cli) -> Result<Option<Value>> {
     let db = Db::open(&dir)?;
     let engine = Engine::new(dir.clone(), db.clone());
     let value=match cli.command {
-        Command::Status=>{let mut status=db.status()?;status["paused"]=json!(cfg.paused);status["daemon_running"]=json!(daemon_running(&dir));status["next_action"]=json!("Inspect events/jobs for the exact waiting reason. Received, completed, and sent are separate states.");status}
+        Command::Status=>{let mut status=db.status()?;status["paused"]=json!(cfg.paused);status["paused_hosts"]=json!(cfg.paused_hosts);status["daemon_running"]=json!(daemon_running(&dir));status["next_action"]=json!("Inspect events/jobs for the exact waiting reason. Received, completed, and sent are separate states.");status}
         Command::Doctor{probe}=>doctor(&engine,&cfg,probe).await?,
         Command::Serve{listen,relay_only}=>{crate::server::serve(engine,listen,relay_only).await?;return Ok(None);}
         Command::Source(SourceCommand::List)=>serde_json::to_value(&cfg.sources)?,
@@ -524,7 +529,7 @@ pub async fn execute(cli: Cli) -> Result<Option<Value>> {
         Command::Drafts(DraftCommand::List)=>serde_json::to_value(db.drafts()?)?,
         Command::Drafts(DraftCommand::Show{id})=>serde_json::to_value(db.draft(&id)?)?,
         Command::Drafts(DraftCommand::Export{id,expires_in})=>{
-            if expires_in==0||expires_in>86400{bail!("approval expiry must be within 1..86400 seconds");}let draft=db.draft(&id)?;let source=cfg.source(&draft.source_id)?;let statement=outbound::prepare_approval_statement(source,&draft,now_ms()+(expires_in as i64)*1000)?;use base64::Engine as _;json!({"draft":draft,"statement":statement,"signing_bytes_base64":base64::engine::general_purpose::STANDARD.encode(outbound::approval_signing_bytes(&statement)?),"approved":false,"next_action":"Review exact text, target and identity on a separate reviewer device; return a signed ApprovalEnvelope"})
+            if expires_in==0||expires_in>86400{bail!("approval expiry must be within 1..86400 seconds");}let draft=db.draft(&id)?;let source=cfg.source(&draft.source_id)?;let statement=outbound::prepare_approval_statement(source,&draft,now_ms()+(expires_in as i64)*1000)?;use base64::Engine as _;json!({"draft":draft,"statement":statement,"review_target_json":String::from_utf8(outbound::approval_target_bytes(source,&draft)?)?,"signing_bytes_base64":base64::engine::general_purpose::STANDARD.encode(outbound::approval_signing_bytes(&statement)?),"approved":false,"next_action":"Review exact text, target and identity on a separate reviewer device; return a signed ApprovalEnvelope"})
         }
         Command::Drafts(DraftCommand::Edit{id,body})=>{let body=String::from_utf8(read_bounded(&body,65536)?)?;serde_json::to_value(db.edit_draft(&id,&body)?)?}
         Command::Drafts(DraftCommand::Skip{id})=>{db.skip_draft(&id)?;json!({"draft_id":id,"state":"skipped"})}
@@ -544,8 +549,8 @@ pub async fn execute(cli: Cli) -> Result<Option<Value>> {
         Command::Relay(RelayCommand::Serve{listen})=>{crate::server::serve(engine,listen,true).await?;return Ok(None);}
         Command::Relay(RelayCommand::Device{id,token_env,source,revoke})=>{crate::config::validate_id(&id)?;crate::config::validate_env(&token_env)?;for s in &source{cfg.source(s)?;}let device=crate::config::RelayDevice{id:id.clone(),token_env,source_ids:source,enabled:!revoke};if let Some(old)=cfg.relay_devices.iter_mut().find(|d|d.id==id){*old=device;}else{cfg.relay_devices.push(device);}cfg.save(&dir)?;crate::server::poke(&dir);json!({"device_id":id,"enabled":!revoke})}
         Command::Relay(RelayCommand::Connect{url,token_env,source,allow_loopback})=>{crate::relay::connect(engine,&url,&token_env,&source,allow_loopback).await?;return Ok(None);}
-        Command::Pause{source,resource}=>set_paused(&dir,&db,&mut cfg,source,resource,true)?,
-        Command::Resume{source,resource}=>set_paused(&dir,&db,&mut cfg,source,resource,false)?,
+        Command::Pause{source,resource,host}=>set_paused(&dir,&db,&mut cfg,source,resource,host,true)?,
+        Command::Resume{source,resource,host}=>set_paused(&dir,&db,&mut cfg,source,resource,host,false)?,
         Command::Ingest{source,body,headers}=>{let raw=read_bounded(&body,cfg.max_payload_bytes)?;let headers=serde_json::from_value(read_json(&headers)?)?;match provider::ingest(cfg.source(&source)?,&headers,&raw,now_ms())?{IngestOutcome::Event(e)=>{let receipt=db.receive(&e,&raw,&cfg)?;crate::server::poke(&dir);receipt},IngestOutcome::Ignored{reason}=>json!({"state":"ignored","reason":reason})}}
         Command::RunOnce=>{let _lock=acquire_worker_lock(&dir)?;let recovered=db.recover()?;json!({"processed":engine.run_once().await?,"recovered_unknown":recovered})}
         Command::Backup{output}=>{db.backup(&output)?;json!({"backup":output})}
@@ -576,8 +581,32 @@ fn set_paused(
     cfg: &mut Config,
     source: Option<String>,
     resource: Option<String>,
+    host: Option<String>,
     paused: bool,
 ) -> Result<Value> {
+    if let Some(host) = host {
+        if source.is_some() || resource.is_some() {
+            bail!("--host conflicts with --source and --resource");
+        }
+        cfg.host(&host)?;
+        if paused {
+            if !cfg.host_paused(&host) {
+                cfg.paused_hosts.push(host.clone());
+            }
+        } else {
+            cfg.paused_hosts.retain(|id| id != &host);
+        }
+        cfg.save(dir)?;
+        if !paused {
+            // Required even without a resident worker: run-once does not
+            // recover held work, and a filesystem notification alone is lost.
+            db.wake_waiters(Some(&host))?;
+        }
+        crate::server::poke(dir);
+        return Ok(
+            json!({"paused":paused,"host_id":host,"paused_hosts":cfg.paused_hosts,"data_retained":true}),
+        );
+    }
     match (source, resource) {
         (Some(source), Some(key)) => db.pause_binding(&source, &key, paused)?,
         (Some(source), None) => {
@@ -604,7 +633,7 @@ async fn doctor(engine: &Engine, cfg: &Config, probe: bool) -> Result<Value> {
     }
     let mut hosts = vec![];
     for host in &cfg.hosts {
-        let result = match host {
+        let mut result = match host {
             HostConfig::Codex {
                 exclusive_writer,
                 restricted_tools,
@@ -622,6 +651,7 @@ async fn doctor(engine: &Engine, cfg: &Config, probe: bool) -> Result<Value> {
                 json!({"id":host.id(),"kind":"command","program_exists":program.is_file(),"sandboxed":false,"next_action":"Use a trusted adapter with the stdin correlation contract"})
             }
         };
+        result["paused"] = json!(cfg.host_paused(host.id()));
         hosts.push(result);
     }
     Ok(

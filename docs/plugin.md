@@ -56,6 +56,8 @@ env -i PATH="$PATH" LANG=C.UTF-8 \
 
 Separately, the **cached package's** `scripts/mcp.sh` launched the real Waking 0.1.0 binary with an isolated data directory. MCP initialization, listing 11 tools, `waking_setup`, and `waking_status` passed. This was a direct cached-launcher protocol check; it did not involve a Codex model invoking a tool.
 
-Not established by these checks: installing through the GitHub URL, automatic onboarding dialogue, the missing-binary download path from a published release, desktop live display, or a real model continuing an existing work thread. Those require their own evidence in [acceptance](acceptance.md).
+A second fresh isolated profile successfully installed the real Git marketplace URL `https://github.com/Nunchakus888/waking` at commit `a9e8f2878dc4f82bb5a9f320b2c0a4b49fb9934d`. The official CLI reported `marketplaceSource.sourceType: git`, `installed: true`, and `enabled: true`. All three cached skills were present. The cached launcher again passed MCP initialization, 11 tools, setup, and status using the local 0.1.0 release binary. Standard existing proxy and CA variables were preserved for network transport; no API credential or login was inherited.
+
+Not established by these checks: automatic onboarding dialogue, the missing-binary download path from a published release, desktop live display, or a real model continuing an existing work thread. Those require their own evidence in [acceptance](acceptance.md).
 
 Repository installation is distinct from official public-directory review. The package does not use lifecycle hooks. Current local-MCP public submission eligibility is a separate host policy described in the [official local-plugin documentation](https://developers.openai.com/plugins/deploy/desktop-only).

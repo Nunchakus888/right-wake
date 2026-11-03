@@ -16,7 +16,7 @@ pub fn tool_definitions() -> Vec<Value> {
     let empty = json!({"type":"object","additionalProperties":false,"properties":{}});
     let spec = |name: &str, description: &str, input: Value, read_only: bool| json!({"name":name,"description":description,"inputSchema":input,"annotations":{"readOnlyHint":read_only,"destructiveHint":false,"idempotentHint":read_only || name == "waking_setup","openWorldHint":false}});
     vec![
-        spec("waking_status","Inspect durable inbox, jobs, drafts and bindings; distinguish receipt, execution and publication.",empty.clone(),true),
+        spec("waking_status","Inspect durable inbox, jobs, drafts, bindings and paused hosts; distinguish receipt, execution and publication.",empty.clone(),true),
         spec("waking_doctor","Check setup without a model turn. probe=true reads host capabilities but does not execute work.",json!({"type":"object","additionalProperties":false,"properties":{"probe":{"type":"boolean"}}}),true),
         spec("waking_setup","Initialize private Waking state idempotently; no credentials, daemon, webhook or model is started.",empty.clone(),false),
         spec("waking_identity","Inspect the current caller thread metadata if the host supplies it. Never infer identity from the visible window or title.",empty.clone(),true),
@@ -43,6 +43,7 @@ fn describe_command(command: &clap::Command) -> Value {
             "short":arg.get_short().map(|value| value.to_string()),
             "required":arg.is_required_set(),
             "action":format!("{:?}",arg.get_action()),
+            "conflicts_with":command.get_arg_conflicts_with(arg).iter().map(|other| other.get_id().as_str()).collect::<Vec<_>>(),
             "help":arg.get_help().map(ToString::to_string),
             "defaults":arg.get_default_values().iter().map(|value| value.to_string_lossy()).collect::<Vec<_>>()
         })).collect::<Vec<_>>(),

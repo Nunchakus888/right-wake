@@ -63,7 +63,7 @@ To remove the product, first stop and uninstall its service, then remove the ins
 
 ## Release process
 
-Routine CI uses one Linux runner for formatting, Clippy, tests, CLI/installer smoke, plugin metadata, and dependency-change review. Dependabot proposes Cargo and Actions updates monthly. Toolchain updates are deliberate changes to `rust-toolchain.toml`; dependency versions are resolved in `Cargo.lock`.
+Routine CI uses one Linux runner for formatting, Clippy, tests, CLI/installer smoke, plugin metadata, and a pinned `cargo-audit` scan of `Cargo.lock` against the RustSec advisory database. The audit runs on main and pull requests and fails on advisories or warnings; it does not require the optional GitHub Dependency graph setting. GitHub Actions updates remain pinned and reviewable through Dependabot. Dependabot proposes Cargo and Actions updates monthly. Toolchain updates are deliberate changes to `rust-toolchain.toml`; dependency versions are resolved in `Cargo.lock`.
 
 After a successful **push CI run on this repository's `main` branch**, the release workflow checks out that exact CI commit and reads the package version. Pull-request, fork, failed-CI, and unrelated-branch completions cannot enter this automatic publication path. If the version is already publicly released, all four native jobs are skipped. A new version runs native tests (including the isolated socket fixtures), build, and installer smoke on all four targets, assembles checksums, and automatically publishes an experimental prerelease at the tested commit. Release attempts are serialized so repeated pushes do not race into duplicate four-platform builds.
 

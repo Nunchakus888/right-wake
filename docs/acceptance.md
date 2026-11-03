@@ -9,13 +9,15 @@ The latest user requirement supersedes automatic new work-thread creation. Crite
 | Check | Current evidence |
 | --- | --- |
 | Plugin metadata and paths | Local structural validator passes; three repository skills pass the skill validator; official Codex CLI 0.166.0 also installed the local marketplace package in an isolated empty profile |
-| Native CLI/core/provider/host tests | Linux x86_64: `cargo test --locked` passed 78 tests, 0 failed; 7 native socket fixtures are explicitly ignored in this restricted environment and enabled by the release matrix. Clippy with `-D warnings` passed. These are local contract tests, not live provider acceptance |
+| Native CLI/core/provider/host tests | Linux x86_64: `cargo test --locked` passed 85 tests, 0 failed; 8 native socket fixtures are explicitly ignored in this restricted environment and enabled by the release matrix. Clippy with `-D warnings` passed. These are local contract tests, not live provider acceptance |
 | Installer/package smoke | `cargo build --locked` and `sh scripts/smoke.sh target/debug/waking` passed on Linux x86_64: native CLI JSON, repeated setup, packaging, installation in a path with spaces, backup, and checksum rejection. Other release platforms/fresh machines remain separate |
 | Service manager | Four targeted Rust tests passed for ownership, escaping, idempotent definition writes, and data preservation. Read-only `systemd-analyze verify` accepted spaces, literal `$`/`%`, and Unicode executable paths; unsupported quote/backslash paths now fail before definition writes. No actual user launchd/systemd service was registered or started |
 | Real Codex | Official CLI 0.166.0: real no-model handshake, protocol schema, thread listing, and rejection of missing thread read/resume passed. [Archived probe evidence](../tests/fixtures/codex-0.166.0/README.md). Real continuation of an existing work thread and desktop/cross-client concurrency remain unverified |
 | Real Linear/GitHub/GitLab write E2E | Requires authorized test resources and credentials; do not post in production discussions to create evidence |
-| Clean Codex plugin profile | Codex CLI 0.166.0: local marketplace add/install/list passed, installed and enabled at 0.1.0, three cached skills present. Cached MCP launcher: initialize, 11 tools, setup/status passed. GitHub URL download/onboarding/model use not tested; see [plugin details](plugin.md#recorded-local-installation-result) |
-| Four release targets | Prepared workflow; each actual native build/test result and release URL must be recorded |
+| Clean Codex plugin profile | Codex CLI 0.166.0: local marketplace add/install/list passed, installed and enabled at 0.1.0, three cached skills present. Cached MCP launcher: initialize, 11 tools, setup/status passed. Real GitHub URL retrieval/install also passed at commit `a9e8f28`; onboarding/model use not tested; see [plugin details](plugin.md#recorded-local-installation-result) |
+| Four release targets | The initial native run passed Linux x86_64 and arm64 and found a macOS backup-ancestor symlink incompatibility. The regression and fix are included; publication requires a fresh successful four-platform run. See the release workflow for exact commit results |
+| Independent review preparation | 14 fixture checks passed; a real native demo/export produced Python signing bytes identical to Rust, with exact body/target matching and no credential value exported. No provider send occurred |
+| Dependency audit | `cargo-audit` 0.22.2 against RustSec database commit `6c5fedf8ff03c485ed674d8f941e0180f3f72d70`: no known vulnerabilities and no warnings in the resolved lockfile. CI repeats the audit with the current database |
 | Container | Source recipe supplied; image build/run/restart not yet established |
 
 ## Required scenarios
@@ -25,7 +27,7 @@ The latest user requirement supersedes automatic new work-thread creation. Crite
 | ID | Required outcome | Evidence needed / current qualification |
 | --- | --- | --- |
 | 1 | Fresh native install without Node/Python/Docker/sudo | Linux x86_64 native archive/package/install smoke passed locally; fresh-machine and other-target release checks remain |
-| 2 | Clean Codex marketplace install and binary discovery/install | Official CLI 0.166.0 local marketplace install in an empty profile passed; cached MCP binary launch passed. GitHub download and conversational onboarding still need evidence |
+| 2 | Clean Codex marketplace install and binary discovery/install | Official CLI 0.166.0 local marketplace install in an empty profile passed; cached MCP binary launch passed. Real GitHub marketplace retrieval and cached-launcher checks passed; conversational onboarding remains separate |
 | 3 | Repeated setup creates no duplicates | Native CLI repeated setup preserves existing configuration; live service repetition and full onboarding remain separate |
 | 4 | Missing permissions, expired credentials, and network failure explain next action | Provider/host failure cases plus actual setup diagnostics |
 | 5 | Stop/upgrade/uninstall touches only owned resources and preserves recovery | Installer plus owned service/data tests; live managers still require verification |

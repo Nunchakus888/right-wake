@@ -53,3 +53,7 @@ Installation success identifies a runnable binary and version. Plugin success id
 After establishing concrete evidence on the host, an operator may use `--not-started-evidence TEXT` to release an unknown attempt for a fresh routing attempt, or `--completed-evidence TEXT` to record completion and leave ownership for explicit assignment. Neither option creates a thread or automatically accepts a semantic candidate. These recovery mutations are not exposed through MCP.
 
 `drafts skip` applies only to a draft or stale draft; sending, sent, and uncertain publications cannot be hidden by skipping. `backup --output PATH` creates a private SQLite snapshot and refuses every existing destination, including symbolic links. Use a new path on a filesystem that supports hard links.
+
+## Pause one host
+
+Use `waking pause --host HOST_ID` to retain its bindings and hold future work without pausing other hosts. `waking resume --host HOST_ID` wakes that same host's known-safe waiting work; it also works before a later manual `run-once`. The host flag cannot be combined with source/resource scope. Resuming a host does not remove global/source pauses or replay an unknown dispatch. Pause stops work that has not been submitted; it does not withdraw an already accepted model turn.

@@ -623,3 +623,43 @@ fn skip_and_begin_send_race_has_one_winner() {
         if skipped { "skipped" } else { "sending" }
     );
 }
+
+#[cfg(unix)]
+#[test]
+fn backup_resolves_symlinked_ancestors_without_following_the_final_entry() {
+    use std::os::unix::fs::{symlink, PermissionsExt};
+    let (_dir, db, cfg) = setup();
+    receive(&db, &cfg, &event("ancestor", "resource"));
+    let output = tempfile::tempdir().unwrap();
+    let physical = output.path().join("physical");
+    std::fs::create_dir(&physical).unwrap();
+    let alias = output.path().join("alias");
+    symlink(&physical, &alias).unwrap();
+    db.backup(&alias.join("snapshot.sqlite3")).unwrap();
+    let snapshot = physical.join("snapshot.sqlite3");
+    assert_eq!(
+        std::fs::metadata(&snapshot).unwrap().permissions().mode() & 0o777,
+        0o600
+    );
+    let restored = rusqlite::Connection::open_with_flags(
+        &snapshot,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+    )
+    .unwrap();
+    assert_eq!(
+        restored
+            .query_row("SELECT id FROM events", [], |row| row.get::<_, String>(0))
+            .unwrap(),
+        "ancestor"
+    );
+    let final_link = physical.join("final-link");
+    let untouched = physical.join("untouched");
+    std::fs::write(&untouched, b"do not replace").unwrap();
+    symlink(&untouched, &final_link).unwrap();
+    assert!(db.backup(&alias.join("final-link")).is_err());
+    assert_eq!(std::fs::read(&untouched).unwrap(), b"do not replace");
+    assert!(std::fs::symlink_metadata(&final_link)
+        .unwrap()
+        .file_type()
+        .is_symlink());
+}

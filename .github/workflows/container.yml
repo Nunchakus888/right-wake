@@ -1,0 +1,29 @@
+name: Container smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/container.yml
+      - scripts/container-smoke.sh
+      - deploy/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: container-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  container:
+    name: Docker build and volume persistence
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Build image and verify receiver restart and recreation
+        run: sh scripts/container-smoke.sh

@@ -70,6 +70,14 @@ The plugin provides setup, routing, and review skills plus local MCP tools. It d
 
 ## First work event
 
+To try the signed-event, binding, existing-context, and local-draft flow without credentials:
+
+```sh
+waking --json demo
+```
+
+This explicitly uses two pre-existing **mock** threads. It makes no model or provider call; real Codex continuation has its own acceptance check.
+
 The minimum useful setup has one verified source, one supported local host, and one explicit binding to an existing work thread.
 
 ```sh
@@ -124,6 +132,8 @@ Python is used only for repository/release checks, not for the installed product
 - [Installation and distribution](docs/installation.md)
 - [Codex plugin and agent workflow](docs/plugin.md)
 - [Acceptance criteria and evidence](docs/acceptance.md)
+- [Configuration and adapter examples](examples/README.md)
+- [Independent review and publication](docs/approvals.md)
 - [Official protocol and product references](docs/references.md)
 - [Contribution guide](CONTRIBUTING.md) and [security policy](SECURITY.md)
 
