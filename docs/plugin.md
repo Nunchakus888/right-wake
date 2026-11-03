@@ -17,6 +17,18 @@ In a compatible local Codex host, open `/plugins` and install Waking. The packag
 
 The MCP launcher is inside the cached plugin. It tries an explicit `WAKING_BIN`, then `~/.local/bin/waking`, then PATH. It respects `WAKING_DATA_DIR`. It runs `waking mcp` over stdio and never downloads code or starts a background receiver implicitly. Diagnostic messages go to stderr so stdout remains protocol-only. A separate bundled installer lets the setup skill install the pinned native release when the user requests installation; the metadata check ensures this copy matches the release installer.
 
+## Refresh an existing installation
+
+Have the local Agent refresh the registered GitHub marketplace and install its current package before invoking a newly updated skill:
+
+```sh
+codex plugin marketplace upgrade waking --json
+codex plugin add waking@waking --json
+codex plugin list --marketplace waking --json
+```
+
+This sequence was verified with official Codex CLI **0.166.0**, using an isolated existing installation and the real GitHub URL. Inspect the returned marketplace errors and installed/enabled state; the install result identifies the actual cached package. Do not assume an old cache updates merely because the repository changed. An unfamiliar host version should first be checked with its `--help` rather than substituting an invented update command. Updating this skill does not require reinstalling the Waking native binary, changing its profile, or re-authorizing Linear.
+
 ## Agent-led Linear setup
 
 Invoke `$waking-setup` from the **existing local work conversation** you intend to receive follow-ups, explicitly naming the Linear issue and that binding intent. The skill includes its [Linear reference](../plugins/codex/skills/waking-setup/references/linear.md) inside the cached plugin, so it does not depend on a separate repository checkout. It uses the published v0.1.1 native CLI and adds no runtime dependency or fourth skill.
@@ -75,6 +87,19 @@ env -i PATH="$PATH" LANG=C.UTF-8 \
 Separately, the **cached package's** `scripts/mcp.sh` launched the real Waking 0.1.0 binary with an isolated data directory. MCP initialization, listing 11 tools, `waking_setup`, and `waking_status` passed. This was a direct cached-launcher protocol check; it did not involve a Codex model invoking a tool.
 
 A second fresh isolated profile successfully installed the real Git marketplace URL `https://github.com/Nunchakus888/waking` at commit `a9e8f2878dc4f82bb5a9f320b2c0a4b49fb9934d`. The official CLI reported `marketplaceSource.sourceType: git`, `installed: true`, and `enabled: true`. All three cached skills were present. The cached launcher again passed MCP initialization, 11 tools, setup, and status using the local 0.1.0 release binary. Standard existing proxy and CA variables were preserved for network transport; no API credential or login was inherited.
+
+### Recorded same-version Linear skill update
+
+On 2026-11-03, official Codex CLI **0.166.0** installed the real GitHub marketplace at `a4fe87f145b4745357f1846a8a0272e4bf298f81` in a separate credential-free profile, then refreshed it to [`e9c656d37446674a85d0cb4f143de40681ba16c4`](https://github.com/Nunchakus888/waking/commit/e9c656d37446674a85d0cb4f143de40681ba16c4) with the commands above. The plugin manifest and native installer remained **0.1.1** throughout. The upgrade returned `errors: []`; the subsequent add/list reported installed and enabled. No model, MCP server, provider request, user profile, or native reinstall was involved in this update probe.
+
+In this actual run, `marketplace upgrade` already refreshed the installed cache; `plugin add` succeeded and retained the new content. The old setup skill hash was `9c6f14f1181b7445f6d4758b8391b507e26f4bfda5878625fdd1a08aabebd4e3`, with no Linear reference. After both operations, the cache matched the source:
+
+| Cached file | SHA-256 |
+| --- | --- |
+| `skills/waking-setup/SKILL.md` | `98e2fb06464e137e012419a61b8dcdc51f76dd50caccca44b2e6a4266f950ba4` |
+| `skills/waking-setup/references/linear.md` | `94f7bc20ee1144949029b03b0379f77d9b7a409a1c31ef0d6491cdda357ee2dd` |
+
+The installed skill's relative reference existed within the cached package, its interface metadata matched the source, and the official skill validator passed against that installed copy. This establishes an explicit same-version update path for the tested CLI and marketplace; it does not establish automatic background updates or live Linear onboarding.
 
 Not established by these checks: automatic onboarding dialogue, the missing-binary download path from a published release, desktop live display, or a real model continuing an existing work thread. Those require their own evidence in [acceptance](acceptance.md).
 

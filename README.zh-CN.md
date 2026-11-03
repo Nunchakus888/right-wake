@@ -69,6 +69,8 @@ codex plugin add waking@waking --json
 
 插件仍是三个技能和本地 MCP 工具，安装配置由 Skill 编排现有原生 CLI 命令。安装插件不通过隐藏钩子启动服务；引导新建的设置对话也不会被自动当作工作目标。详见[插件说明](docs/plugin.md)。
 
+已经安装过？让本地 Agent 先[刷新插件包](docs/plugin.md#refresh-an-existing-installation)再使用新版 Linear 流程；原生二进制保持 v0.1.1，无需重装。
+
 ## 跑通第一条事件
 
 安装后可以立即运行无需凭证的演示：

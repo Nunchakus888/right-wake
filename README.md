@@ -69,6 +69,8 @@ The same setup skill includes a [Linear workflow](docs/linear.md#agent-led-setup
 
 The plugin still has three skills plus local MCP tools. Setup automation comes from the skill coordinating existing native CLI commands. Plugin installation has no hidden daemon-start hook, and a new setup conversation is not automatically the work destination. See [the plugin guide](docs/plugin.md).
 
+Already installed? Have the Agent [refresh the plugin package](docs/plugin.md#refresh-an-existing-installation) before using the updated Linear workflow; the native binary stays at v0.1.1.
+
 ## First work event
 
 To try the signed-event, binding, existing-context, and local-draft flow without credentials:
