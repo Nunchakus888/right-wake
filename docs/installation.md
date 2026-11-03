@@ -6,14 +6,14 @@ Waking's ordinary runtime is one Rust binary. It requires no Node.js, Python, Do
 
 | Archive target | Build and smoke runner | Compatibility evidence |
 | --- | --- | --- |
-| `x86_64-unknown-linux-gnu` | Ubuntu 22.04 x86_64 | Must pass the actual release run; older glibc and musl are not claimed |
-| `aarch64-unknown-linux-gnu` | Ubuntu 22.04 arm64 | Must pass the actual release run |
-| `x86_64-apple-darwin` | macOS 15 Intel | Must pass the actual release run; older OS versions are not claimed |
-| `aarch64-apple-darwin` | macOS 15 arm64 | Must pass the actual release run |
+| `x86_64-unknown-linux-gnu` | Ubuntu 22.04 x86_64 | v0.1.0: 93 native tests, release build, and installer smoke passed; older glibc and musl are not claimed |
+| `aarch64-unknown-linux-gnu` | Ubuntu 22.04 arm64 | v0.1.0: 93 native tests, release build, and installer smoke passed |
+| `x86_64-apple-darwin` | macOS 15 Intel | v0.1.0: 93 native tests, release build, and installer smoke passed; older OS versions are not claimed |
+| `aarch64-apple-darwin` | macOS 15 arm64 | v0.1.0: 93 native tests, release build, and installer smoke passed |
 
 Artifacts are named `waking-v0.1.0-TARGET.tar.gz`. `SHA256SUMS` covers the four archives. The install script verifies the archive hash, permitted archive members, and runnable version before replacing the destination. These checks detect mismatches; checksums hosted with the release are not an independent publisher signature.
 
-The [README](../README.md#install) gives the pinned download path. Until a release exists, use a source checkout with `cargo install --locked --path .`. Do not use an unpublished URL as evidence of a successful installation.
+The [README](../README.md#install) gives the pinned download path. [v0.1.0](https://github.com/Nunchakus888/waking/releases/tag/v0.1.0) was published on 2026-11-03 from commit `52dff8a4fd2522c793ef2b6bc709d561922f4790` after the successful [four-platform release run](https://github.com/Nunchakus888/waking/actions/runs/41619988502). Every platform ran all 93 tests, including socket fixtures, with zero failures and zero ignored tests. Source installation remains available with `cargo install --locked --path .`.
 
 Offline installation from a directory containing the matching archive and `SHA256SUMS`:
 

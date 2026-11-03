@@ -9,16 +9,16 @@ The latest user requirement supersedes automatic new work-thread creation. Crite
 | Check | Current evidence |
 | --- | --- |
 | Plugin metadata and paths | Local structural validator passes; three repository skills pass the skill validator; official Codex CLI 0.166.0 also installed the local marketplace package in an isolated empty profile |
-| Native CLI/core/provider/host tests | Linux x86_64: `cargo test --locked` passed 85 tests, 0 failed; 8 native socket fixtures are explicitly ignored in this restricted environment and enabled by the release matrix. Clippy with `-D warnings` passed. These are local contract tests, not live provider acceptance |
-| Installer/package smoke | `cargo build --locked` and `sh scripts/smoke.sh target/debug/waking` passed on Linux x86_64: native CLI JSON, repeated setup, packaging, installation in a path with spaces, backup, and checksum rejection. Other release platforms/fresh machines remain separate |
+| Native CLI/core/provider/host tests | Local restricted environment: 85 passed, 8 socket fixtures explicitly ignored. The [release run](https://github.com/Nunchakus888/waking/actions/runs/41619988502) then ran **all 93 tests on each of four native targets**, with 0 failures and 0 ignored tests. [Main CI](https://github.com/Nunchakus888/waking/actions/runs/41619362311) passed formatting, Clippy with `-D warnings`, tests, smoke, plugin validation, and dependency audit. These are contract tests, not live provider acceptance |
+| Installer/package smoke | All four native targets passed release build and archive/install smoke, including paths with spaces, repeated installation, backup, and checksum rejection. After publication, a fresh Linux x86_64 installation downloaded the actual public installer and archive, verified checksums, and passed version, repeated setup, doctor/status/schema, and the explicitly synthetic demo. See [release verification](releases/v0.1.0-verification.md) |
 | Service manager | Four targeted Rust tests passed for ownership, escaping, idempotent definition writes, and data preservation. Read-only `systemd-analyze verify` accepted spaces, literal `$`/`%`, and Unicode executable paths; unsupported quote/backslash paths now fail before definition writes. No actual user launchd/systemd service was registered or started |
 | Real Codex | Official CLI 0.166.0: real no-model handshake, protocol schema, thread listing, and rejection of missing thread read/resume passed. [Archived probe evidence](../tests/fixtures/codex-0.166.0/README.md). Real continuation of an existing work thread and desktop/cross-client concurrency remain unverified |
 | Real Linear/GitHub/GitLab write E2E | Requires authorized test resources and credentials; do not post in production discussions to create evidence |
 | Clean Codex plugin profile | Codex CLI 0.166.0: local marketplace add/install/list passed, installed and enabled at 0.1.0, three cached skills present. Cached MCP launcher: initialize, 11 tools, setup/status passed. Real GitHub URL retrieval/install also passed at commit `a9e8f28`; onboarding/model use not tested; see [plugin details](plugin.md#recorded-local-installation-result) |
-| Four release targets | The initial native run passed Linux x86_64 and arm64 and found a macOS backup-ancestor symlink incompatibility. The regression and fix are included; publication requires a fresh successful four-platform run. See the release workflow for exact commit results |
+| Four release targets | **[v0.1.0 published](https://github.com/Nunchakus888/waking/releases/tag/v0.1.0)** on 2026-11-03 from `52dff8a4fd2522c793ef2b6bc709d561922f4790`, with macOS/Linux arm64/x86_64 archives, `SHA256SUMS`, and `install.sh`. The earlier macOS backup ancestor-symlink failure is fixed; its regression passed on every release target |
 | Independent review preparation | 14 fixture checks passed; a real native demo/export produced Python signing bytes identical to Rust, with exact body/target matching and no credential value exported. No provider send occurred |
 | Dependency audit | `cargo-audit` 0.22.2 against RustSec database commit `6c5fedf8ff03c485ed674d8f941e0180f3f72d70`: no known vulnerabilities and no warnings in the resolved lockfile. CI repeats the audit with the current database |
-| Container | Source recipe supplied; image build/run/restart not yet established |
+| Container | [Container smoke](https://github.com/Nunchakus888/waking/actions/runs/41619362708) passed at the release source commit: actual image build, non-root setup, synthetic demo, real receiver startup, restart, and replacement container retaining the exact original event/job/draft records through a named volume. It does not establish live Codex/provider or public WSS integration |
 
 ## Required scenarios
 
@@ -26,7 +26,7 @@ The latest user requirement supersedes automatic new work-thread creation. Crite
 
 | ID | Required outcome | Evidence needed / current qualification |
 | --- | --- | --- |
-| 1 | Fresh native install without Node/Python/Docker/sudo | Linux x86_64 native archive/package/install smoke passed locally; fresh-machine and other-target release checks remain |
+| 1 | Fresh native install without Node/Python/Docker/sudo | Four native CI runners passed archive/install smoke. Public release download and install passed in a fresh Linux x86_64 directory without a build or service registration; no claim of a separate end-user-machine test |
 | 2 | Clean Codex marketplace install and binary discovery/install | Official CLI 0.166.0 local marketplace install in an empty profile passed; cached MCP binary launch passed. Real GitHub marketplace retrieval and cached-launcher checks passed; conversational onboarding remains separate |
 | 3 | Repeated setup creates no duplicates | Native CLI repeated setup preserves existing configuration; live service repetition and full onboarding remain separate |
 | 4 | Missing permissions, expired credentials, and network failure explain next action | Provider/host failure cases plus actual setup diagnostics |
@@ -56,7 +56,7 @@ The latest user requirement supersedes automatic new work-thread creation. Crite
 | 28 | Relay receives while local device is offline, then replays completely | Durable relay/device ACK integration tests and actual reconnect demonstration |
 | 29 | Device source scope and revocation are enforced | Cross-source denial and active revocation tests |
 | 30 | Relay restart, disk full, duplicate ACK, reconnect, backlog are bounded | Fault/recovery tests for every case, not just successful delivery |
-| 31 | Single-container cloud keeps state without claiming local-chat inheritance | Actual container build, restart, persisted task test |
+| 31 | Single-container cloud keeps state without claiming local-chat inheritance | Actual container build, receiver restart, and container replacement retained the same synthetic completed jobs and unsent drafts. Live agent execution and public ingress remain separate checks; no local-chat inheritance is claimed |
 | 32 | Generic Webhook is configuration-driven; GenericCommand uses safe stdin | Config-only mapping and fixed executable/argv/JSON stdin tests |
 
 ## Additional brief obligations
@@ -76,6 +76,6 @@ python3 scripts/check-plugin.py
 
 Run `waking --data-dir /absolute/path/to/disposable-demo demo` only against a fresh disposable directory. The demo uses signed local events and mock threads; its label must remain visible. For real tests, record the source scope, provider event/delivery ID, exact host version, thread/turn IDs, original-history evidence, draft destination/version, explicit approval, and provider result. Redact tokens and private task content.
 
-## Release evidence to fill
+## Release evidence
 
-Record the repository commit, tag, CI/release run links, archive checksums, per-platform results, public release URL, clean-install result, and remaining real-integration blockers. Do not mark the overall original goal complete while required scenarios remain unverified or unimplemented.
+[v0.1.0 verification](releases/v0.1.0-verification.md) records the exact source commit, tag, CI/release links, archive checksums, per-platform results, public release, fresh public-download installation, and remaining integration checks. Do not mark the overall original goal complete while required scenarios remain unverified or unimplemented.

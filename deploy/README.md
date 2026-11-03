@@ -2,6 +2,8 @@
 
 This is an optional source-distributed deployment recipe. Ordinary native installs do not require Docker, and no image registry publication is implied. The separate [Container smoke workflow](../.github/workflows/container.yml) builds and runs this Dockerfile; its actual CI run result is the evidence for container validation. Checking in or statically checking the recipe alone does not prove that the image builds or starts.
 
+Verified reference run: [Container smoke 41619362708](https://github.com/Nunchakus888/waking/actions/runs/41619362708) **succeeded** for commit [`52dff8a4fd2522c793ef2b6bc709d561922f4790`](https://github.com/Nunchakus888/waking/commit/52dff8a4fd2522c793ef2b6bc709d561922f4790). That Linux run built this image and verified synthetic-demo state, real receiver startup, restart, and named-volume persistence across container replacement. It did not run a real Codex model, provider reply, public webhook, or public relay path. See [deployment choices](../docs/deployment.md) for local, VPS, and hybrid placement.
+
 From the repository root:
 
 ```sh

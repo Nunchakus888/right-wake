@@ -5,6 +5,7 @@ Reviewed during the initial design on 2026-11-03. Interfaces can change; the act
 | Reference | What it establishes |
 | --- | --- |
 | [Codex App Server](https://learn.chatgpt.com/docs/app-server) | Public thread/turn protocol; a documented method is not proof of target-version compatibility |
+| [Codex Cloud environments](https://learn.chatgpt.com/docs/environments/cloud-environments) | Managed task environments and saved task state; installing a CLI there does not establish Waking's always-on ingress or an adapter that resumes a managed Cloud task |
 | [Codex in Linear](https://learn.chatgpt.com/docs/third-party/linear) | Native cloud task integration; distinct from arbitrary local-thread attachment |
 | [OpenAI MCP Events](https://developers.openai.com/plugins/build/mcp-events) | Event subscription on supported Work cloud surfaces; do not infer local desktop support |
 | [Plugin packaging](https://developers.openai.com/plugins/build/plugins) | Portable plugin, marketplace, and onboarding fields |

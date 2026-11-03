@@ -4,32 +4,30 @@
 
 [English](README.md)
 
-Waking 是一个原生 Rust 事件桥：接收工作事件，判断它归属哪项工作，把新增信息送回**已有的本地 Agent 会话**。它面向任务在 Linear、GitHub、GitLab，分析与代码工作分散在多个 Codex 会话中的场景。
+Waking 在工作事件到来时，唤醒正确的**已有 Agent 会话**。把 Linear、GitHub、GitLab 中的新讨论送回正在负责这项工作的会话，让后续工作沿着原有上下文继续。
 
-归属绑定持久记录“工作对象 → Host → Thread”。切换窗口不会改绑；原会话忙碌或离线时等待；无法确定归属时保留待认领，不自动另开工作会话。对外回复默认是草稿。
+- **有事件才唤醒，减少无效 token 消耗。** 由 Webhook 触发工作；空闲且没有待处理任务时，Waking 不调用模型，不做定时模型轮询。
+- **把事件归到对应会话。** 优先复用讨论级、Issue 级归属绑定；归属未知时，可由事件触发语义路由，比较权限范围内的上下文卡片，推荐一个已有会话供一次性认领。
+- **续接原工作上下文。** 始终定位同一个 Host 和 Thread，通过支持的宿主继续其保留的原始历史。上下文卡片帮助找到目标，工作仍在原会话中继续，不自动另开替代会话。
+- **支持本地与自己的云端服务器。** 可以在本机执行、在 VPS 上执行，或让云端 Relay 在线接收事件，本机恢复在线后继续原工作。
+
+Waking 以一个原生 Rust 二进制提供 CLI 和 Codex 插件。归属绑定持久记录 **工作对象 → Host → Thread**，切换窗口不会改变目标。宿主忙碌、暂停或离线时保留队列，归属不明时等待认领。对外回复默认是可检查的草稿，经过独立审批后才能发送。
+
+从 [Codex 插件](#在-codex-中使用)、[Linear 接入](docs/linear.md)或[部署说明](docs/deployment.md)开始。
 
 ## 当前状态
 
-**v0.1.0 是正在验证的首版实现。** [验收记录](docs/acceptance.md)分别列出实现、测试、发布和真实平台验收。假执行器测试通过，不代表已经验证某个真实 Codex 桌面版本。
+**[v0.1.0 实验性预览版已发布](https://github.com/Nunchakus888/waking/releases/tag/v0.1.0)。** 四个原生目标平台各通过 93 项测试，0 失败、0 忽略，编译与安装验证也已通过。容器构建、接收端重启和持久卷保留状态的验证同样通过。[验收记录](docs/acceptance.md)继续区分实现、分发和真实平台集成的证据。
 
-仓库提供四平台发布流水线，但流水线存在不等于 release 已经发布。运行下载命令前，请检查 [Releases](https://github.com/Nunchakus888/waking/releases)。官方 Codex CLI 0.166.0 已通过无模型宿主探测，以及隔离空配置中的本地 marketplace 插件安装。真实原工作会话的模型续接、桌面并发、从 GitHub 下载插件、真实平台授权读写仍需分别验收。
+官方 **Codex CLI 0.166.0** 已通过无模型宿主探测，以及隔离空配置中的本地仓库和**真实 GitHub marketplace URL** 插件安装。缓存插件的 MCP 启动、工具发现、setup 和 status 也已通过。真实原工作会话的模型续接、桌面并发、真实平台授权读写仍需分别验收。自动向 Codex 提交工作要求支持的宿主、已落实的独占写入条件与工具权限隔离，详见[宿主兼容性](docs/host-compatibility.md)。
 
-## 核心行为
-
-- 通过 Webhook 接收并校验事件；没有事件时不调用模型轮询平台。
-- 先查讨论级和 Issue 级显式绑定，再使用会话目录中的证据判断候选。
-- 本地保存队列、绑定和上下文卡片。卡片用于找到会话，原始工作历史仍由目标会话保存。
-- 同一个 Host/Thread 串行处理；等待、失败和结果不确定都有可查看的状态。
-- 草稿同时保留正文、发送位置、身份与版本。对外发送需要配置的独立审批。
-- CLI 与 Codex 仓库插件使用同一个原生二进制。
-
-来源、宿主、语义路由和部署的能力边界见[技术设计](docs/architecture.md)和[验收记录](docs/acceptance.md)。Waking 是独立项目，不是 OpenAI、Linear、GitHub、GitLab 或 Anthropic 的官方产品。
+Waking 是独立项目，不是 OpenAI、Linear、GitHub、GitLab 或 Anthropic 的官方产品。
 
 ## 安装
 
 普通用户只需要系统已有的 shell、`curl`、`tar` 和 SHA-256 工具，**无需 Node.js、Python、Docker、Rust 或 sudo**。目标平台为 macOS / glibc Linux 的 arm64 与 x86_64。安装脚本下载固定版本，校验压缩包与可执行文件版本，安装到 `~/.local/bin`；不自动启动服务，也不修改 Codex 配置。
 
-`v0.1.0` 正式发布后：
+安装固定版本 `v0.1.0`：
 
 ```sh
 curl --proto '=https' --tlsv1.2 --fail --location \
@@ -43,10 +41,11 @@ waking setup
 waking --json doctor
 ```
 
-在首个 release 发布前，或者需要开发时，可在仓库目录从源码安装：
+需要开发时，可在仓库目录从源码安装：
 
 ```sh
 cargo install --locked --path .
+waking setup
 waking --json schema
 waking --json doctor
 ```
@@ -64,7 +63,7 @@ codex plugin add waking@waking --json
 
 也可以在支持该插件格式的本地 Codex 中通过 `/plugins` 安装 **Waking**。安装后说：
 
-> 帮我设置 Waking，把这个工作对象后续的讨论交给它已有的 Codex 工作会话处理。默认只生成草稿。
+> 为这个工作对象设置 Waking，让事件到来后继续它已有的 Codex 工作会话。先检查 schema、doctor 和现有绑定，确认准确目标，默认只生成草稿。
 
 插件包含设置、归属绑定、状态与草稿审阅技能，以及本地 MCP 工具。插件引导可能打开新的设置对话，这个对话不会被自动当作工作目标。后台服务必须明确启动。详细流程与干净安装验证见[插件说明](docs/plugin.md)。
 
@@ -78,7 +77,9 @@ waking --json demo
 
 它会验签、落盘、沿已有绑定续接两条**模拟会话**并生成草稿；不调用真实模型或平台。真实 Codex 原会话续接单独验收。
 
-最小闭环需要一个合法事件源、一个可安全续接的本地 Host，以及一个指向已有工作会话的显式绑定。
+最小闭环需要一个合法事件源、一个可访问的事件接收入口、一个可安全续接的执行 Host，以及一个指向该 Host 已有工作会话的显式绑定。
+
+**已经连接 Linear MCP？** 这提供的是访问 Linear 的工具能力。Waking 仍需要单独配置签名 Webhook、可达的接收入口、事件源和 Thread 绑定；连接 MCP 本身不会建立这条事件投递链路。具体步骤见 [Linear 接入说明](docs/linear.md)。
 
 ```sh
 waking --json schema
@@ -103,13 +104,15 @@ waking --json drafts list
 
 ## 部署模式
 
-| 模式 | 接收事件 | 执行工作 | 原本地会话历史 |
+| 模式 | 接收事件 | 执行工作 | 会话历史 |
 | --- | --- | --- | --- |
-| 本地 | 可被平台访问的本地 Webhook 入口 | 本机 | 通过支持的本地宿主续接 |
-| 混合 | 自托管在线 Relay | 本机主动向 Relay 连接 | 保留在本机 |
-| 自托管云端 | 自己的服务器 | 同一服务器 | 必须已在该服务器存在，不自动继承本地聊天 |
+| 本地执行 | 经可达 HTTPS 入口转发到本地接收端 | 本机上支持的宿主 | 续接本机已有 Thread |
+| VPS / 自托管云端执行 | 自己服务器上的接收端 | 同一服务器上支持的宿主 | 续接该服务器已能访问的 Thread |
+| 云端 Relay + 本地执行 | 自托管在线 Relay | 本机主动连接 Relay，在本地宿主执行 | 原会话历史始终保留在本机 |
 
-产品不假定已有公开托管 Relay。直接 Webhook 需要可访问的 HTTPS 入口，否则需要明确配置自托管 Relay。尽可能把平台 API 凭证和 Agent 登录保留在执行 Host。Relay 能读取其接收的 Webhook 明文，不宣传服务端不可见或端到端加密。
+这里的云端执行指**在自己的 VPS 或服务器上运行 Waking 与支持的 Agent 宿主**。v0.1.0 尚无 OpenAI 托管 Codex Cloud 适配器；托管云任务不等同于持续运行的 Waking 服务，把 Waking 部署到服务器也不会自动迁移本地 Thread 或登录。云端 Relay 可以在本机离线时保存事件，实际工作仍要等本地执行器和宿主可用后继续。
+
+直接 Webhook 需要可达的 HTTPS 入口，否则要明确配置自托管 Relay；产品不假定已有公共托管 Relay。尽可能把平台 API 凭证和 Agent 登录保留在执行 Host，Relay 能读取其接收的事件正文。服务与 Relay 的配置路径见[部署及运行说明](docs/deployment.md)。
 
 ## 开发与验证
 
@@ -122,10 +125,12 @@ sh scripts/smoke.sh target/debug/waking
 python3 scripts/check-plugin.py
 ```
 
-Python 只用于仓库与发布检查，不是产品运行时依赖。Rust 工具链固定在 [rust-toolchain.toml](rust-toolchain.toml)。日常 CI 只跑 Linux；本仓库 main 的成功 CI 会为尚未发布的版本运行四平台原生验证并发布预览版，已发布版本跳过该矩阵。仍支持 tag 和手动 release，具体保护条件见[发布流程](docs/installation.md#release-process)。
+Python 用于仓库与发布检查，以及独立审阅设备上的可选工具，不是已安装 Waking 的运行时依赖。Rust 工具链固定在 [rust-toolchain.toml](rust-toolchain.toml)。日常 CI 只跑 Linux；本仓库 main 的成功 CI 会为尚未发布的版本运行四平台原生验证并发布预览版，已发布版本跳过该矩阵。仍支持 tag 和手动 release，具体保护条件见[发布流程](docs/installation.md#release-process)。
 
 ## 文档与许可
 
+- [Linear Webhook 接入与原会话续接](docs/linear.md)
+- [本地、VPS 与云端 Relay 部署](docs/deployment.md)
 - [产品定义与用户旅程](docs/product.md)
 - [技术架构与上下文路由](docs/architecture.md)
 - [状态与恢复](docs/states.md)
