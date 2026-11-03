@@ -31,6 +31,9 @@ for command in source host events jobs drafts; do
   "$binary" --data-dir "$tmp/data" --json "$command" list > "$tmp/$command.json"
   json_envelope "$tmp/$command.json"
 done
+"$binary" --data-dir "$tmp/data" --json backup --output "$tmp/backup.sqlite3" > "$tmp/backup.json"
+json_envelope "$tmp/backup.json"
+[ -s "$tmp/backup.sqlite3" ] || fail 'database backup is empty'
 case "$(uname -s)" in Darwin) os=apple-darwin ;; Linux) os=unknown-linux-gnu ;; *) fail 'unsupported smoke platform' ;; esac
 case "$(uname -m)" in x86_64|amd64) arch=x86_64 ;; arm64|aarch64) arch=aarch64 ;; *) fail 'unsupported smoke architecture' ;; esac
 target=$arch-$os

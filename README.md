@@ -11,30 +11,30 @@ Waking wakes the right **existing agent thread** when a work event arrives. It c
 - **Continue the original context.** Address the same host and thread and resume the history held by that host. Context cards help choose the destination; the work continues in the original conversation. Waking does not create a replacement work thread.
 - **Run locally or on your VPS.** Execute beside your existing local agent, on a self-hosted cloud server, or locally with an online relay receiving events while your machine is offline.
 
-Waking is a native Rust binary with a CLI and Codex plugin. Persistent bindings record **work resource → host → thread**, so switching windows does not change the destination. Work stays queued while its host is busy, paused, or unavailable; ambiguous ownership waits for a claim. Replies start as inspectable drafts and need independent approval before publication.
+Waking is one native Rust binary with a CLI, Codex plugin, and **embedded SQLite; no separate database service is needed**. Persistent bindings record **work resource → host → thread**, so switching windows does not change the destination. Busy, paused, or unavailable hosts keep their queue; ambiguous ownership waits for a claim. Replies remain drafts until independently approved.
 
 Start with [the Codex plugin](#use-from-codex), [Linear setup](docs/linear.md), or [the deployment guide](docs/deployment.md).
 
 ## Project status
 
-**[v0.1.0 is available as an experimental prerelease](https://github.com/Nunchakus888/waking/releases/tag/v0.1.0).** All four native targets passed 93 tests each, with no failures or ignored tests, plus build and installer smoke. The container build, receiver restart, and volume persistence checks also passed. Implementation, distribution, and real platform acceptance remain distinct in [the acceptance ledger](docs/acceptance.md).
+**v0.1.1 is being prepared; publication and its new release checks are pending.** It updates bundled SQLite and adds Docker image downloads with Compose deployment. Use the commands below after the [release assets](https://github.com/Nunchakus888/waking/releases) are available. [v0.1.0 verification](docs/releases/v0.1.0-verification.md) remains a historical record, separate from the [v0.1.1 changes](docs/releases/v0.1.1.md) and [integration acceptance](docs/acceptance.md).
 
-Official **Codex CLI 0.166.0** passed a no-model host probe and clean-profile plugin installation from both the local repository and the **real GitHub marketplace URL**. The cached plugin's MCP launcher also passed initialization, tool listing, setup, and status checks. Real model continuation of an existing work thread, desktop concurrency, and authorized provider read/write E2E remain separate acceptance work. Automatic Codex dispatch requires a supported host, exclusive writer ownership, and restricted mutation tools; see [host compatibility](docs/host-compatibility.md).
+The recorded v0.1.0 checks with official **Codex CLI 0.166.0** passed a no-model host probe and clean-profile plugin installation from both the local repository and the **real GitHub marketplace URL**. The cached MCP launcher passed initialization, tool listing, setup, and status checks. Real model continuation, desktop concurrency, and provider read/write E2E remain separate acceptance work. Automatic Codex dispatch requires a supported host, exclusive writer ownership, and restricted mutation tools; see [host compatibility](docs/host-compatibility.md).
 
 Waking is an independent project; it is not an official OpenAI, Linear, GitHub, GitLab, or Anthropic product.
 
 ## Install
 
-The ordinary native installation needs a shell, `curl`, `tar`, and a system SHA-256 tool. It needs **no Node.js, Python, Docker, Rust, or sudo**. Select macOS or glibc Linux on arm64 or x86_64. The installer downloads the matching pinned release, verifies its archive checksum and executable version, and installs in `~/.local/bin`. It does not start a service or modify Codex configuration.
+**Use native installation beside your original local agent; use [Docker + Compose](deploy/README.md) for a VPS relay.** Native installation needs a shell, `curl`, `tar`, and a system SHA-256 tool, with **no Node.js, Python, Docker, Rust, or sudo**. It supports macOS and glibc Linux on arm64/x86_64. The installer verifies the archive and version, installs in `~/.local/bin`, and starts no service.
 
-Install the pinned `v0.1.0` release:
+After the pinned `v0.1.1` assets are published:
 
 ```sh
 curl --proto '=https' --tlsv1.2 --fail --location \
   --output waking-install.sh \
-  https://github.com/Nunchakus888/waking/releases/download/v0.1.0/install.sh
+  https://github.com/Nunchakus888/waking/releases/download/v0.1.1/install.sh
 # Inspect the downloaded installer, then run it.
-sh waking-install.sh --version v0.1.0
+sh waking-install.sh --version v0.1.1
 export PATH="$HOME/.local/bin:$PATH"
 waking --version
 waking setup
@@ -50,7 +50,7 @@ waking --json schema
 waking --json doctor
 ```
 
-Only source builds require Rust. See [installation, upgrade, and removal](docs/installation.md) for offline installation, platform limits, backups, and services.
+Only source builds require Rust. Native configuration and SQLite state default to `~/.local/share/waking` (or `WAKING_DATA_DIR` / `--data-dir`). Docker keeps them in its named volume at `/data`; no database container is required. The [VPS guide](deploy/README.md) loads the matching amd64/arm64 release image with `docker load` and starts Compose explicitly. See [installation and lifecycle](docs/installation.md) for backups, upgrades, and services.
 
 ## Use from Codex
 
@@ -110,7 +110,7 @@ waking --json drafts list
 | VPS / self-hosted cloud | Receiver on your server | Supported host on that server | Continues a thread already available on the server |
 | Cloud relay + local execution | Your own online relay | Local host connects outward to the relay | Original local history remains on the local host |
 
-Self-hosted cloud means **your own VPS or server running Waking and a supported agent host**. v0.1.0 has no OpenAI-hosted Codex Cloud adapter. A managed cloud task is not a continuously running Waking service, and deploying Waking on a server does not migrate a local thread or its login. An online relay can retain incoming events while your local machine is offline; execution resumes only when the local worker and host are available.
+Self-hosted cloud means **your own VPS or server**. There is no OpenAI-hosted Codex Cloud adapter. A Docker relay receives and stores events; your native local worker resumes the original local thread when available. It does not migrate that history or login into the container. Running execution on the VPS instead requires a supported agent host and existing thread on that VPS.
 
 Webhooks need a reachable HTTPS endpoint or an explicitly configured self-hosted relay. There is no assumed public hosted relay. Keep provider credentials and agent login on the execution host where possible; the relay can read the webhook payload it receives. See [deployment and operation](docs/deployment.md) for the appropriate service and relay setup.
 

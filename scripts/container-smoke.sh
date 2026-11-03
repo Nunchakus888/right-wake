@@ -4,7 +4,12 @@
 set -eu
 
 fail() { printf 'container smoke: %s\n' "$*" >&2; exit 1; }
-[ "$#" -eq 0 ] || fail 'this script takes no resource names or other arguments'
+smoke_existing_image=
+if [ "$#" -eq 2 ] && [ "$1" = --image ]; then
+  smoke_existing_image=$2
+elif [ "$#" -ne 0 ]; then
+  fail 'usage: container-smoke.sh [--image EXISTING_IMAGE]'
+fi
 command -v docker >/dev/null 2>&1 || fail 'Docker is required on the test host'
 command -v python3 >/dev/null 2>&1 || fail 'Python 3 is required on the test host to check JSON output'
 docker info >/dev/null || fail 'Docker daemon is unavailable'
@@ -13,6 +18,7 @@ smoke_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 smoke_tmp=$(mktemp -d "${TMPDIR:-/tmp}/waking-container-smoke.XXXXXXXX")
 smoke_run=${smoke_tmp##*/}
 smoke_image=waking-container-smoke:${smoke_run##*.}
+[ -z "$smoke_existing_image" ] || smoke_image=$smoke_existing_image
 smoke_volume=$smoke_run-data
 smoke_setup=$smoke_run-setup
 smoke_demo=$smoke_run-demo
@@ -41,7 +47,7 @@ cleanup() {
     docker volume rm "$smoke_volume" >/dev/null || smoke_exit=1
   fi
   cleanup_owner=$(docker image inspect --format '{{ index .Config.Labels "waking.container-smoke.run" }}' "$smoke_image" 2>/dev/null)
-  if [ "$cleanup_owner" = "$smoke_run" ]; then
+  if [ -z "$smoke_existing_image" ] && [ "$cleanup_owner" = "$smoke_run" ]; then
     docker image rm "$smoke_image" >/dev/null || smoke_exit=1
   fi
   rm -rf -- "$smoke_tmp"
@@ -93,6 +99,12 @@ elif mode == "demo":
 elif mode == "ready":
     status = data(paths[0])
     raise SystemExit(0 if status.get("daemon_running") is True else 1)
+elif mode == "sqlite":
+    doctor = data(paths[0])
+    sqlite = doctor["sqlite"]
+    assert sqlite["version_number"] >= 3_051_003, sqlite
+    assert doctor["model_turns_requested_by_doctor"] == 0, doctor
+    print("Container bundled SQLite:", sqlite["version"], sqlite["version_number"])
 elif mode == "snapshot":
     demo, status, events, jobs, drafts = map(data, paths[:5])
     assert status["daemon_running"] is True, status
@@ -171,14 +183,18 @@ start_receiver() {
     --data-dir "$smoke_state_dir" serve --listen 127.0.0.1:7433 >/dev/null
 }
 
-if docker image inspect "$smoke_image" >/dev/null 2>&1; then
+if [ -z "$smoke_existing_image" ] && docker image inspect "$smoke_image" >/dev/null 2>&1; then
   fail 'temporary image tag unexpectedly exists'
 fi
 if docker volume inspect "$smoke_volume" >/dev/null 2>&1; then
   fail 'temporary volume name unexpectedly exists'
 fi
-printf 'Building deploy/Dockerfile into temporary image %s\n' "$smoke_image"
-docker build --file "$smoke_root/deploy/Dockerfile" --tag "$smoke_image" --label "$smoke_label" "$smoke_root"
+if [ -z "$smoke_existing_image" ]; then
+  printf 'Building deploy/Dockerfile into temporary image %s\n' "$smoke_image"
+  docker build --file "$smoke_root/deploy/Dockerfile" --tag "$smoke_image" --label "$smoke_label" "$smoke_root"
+else
+  docker image inspect "$smoke_image" >/dev/null || fail 'supplied image is unavailable'
+fi
 docker volume create --label "$smoke_label" "$smoke_volume" >/dev/null
 
 printf 'Initializing the private volume and running the explicitly mock-only demo.\n'
@@ -186,6 +202,10 @@ docker run --rm --name "$smoke_setup" --label "$smoke_label" \
   --network none --mount "type=volume,src=$smoke_volume,dst=/data" \
   "$smoke_image" --json setup > "$smoke_tmp/setup.json"
 check_output setup "$smoke_tmp/setup.json"
+docker run --rm --name "$smoke_setup" --label "$smoke_label" \
+  --network none --mount "type=volume,src=$smoke_volume,dst=/data" \
+  "$smoke_image" --json doctor > "$smoke_tmp/doctor.json"
+check_output sqlite "$smoke_tmp/doctor.json"
 docker run --rm --name "$smoke_demo" --label "$smoke_label" \
   --network none --mount "type=volume,src=$smoke_volume,dst=/data" \
   "$smoke_image" --json demo > "$smoke_tmp/demo.json"

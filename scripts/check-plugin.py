@@ -35,7 +35,10 @@ def check():
     require(server["type"] == "stdio" and server["command"] == "sh", "MCP transport changed")
     require(server["args"] == ["${PLUGIN_ROOT}/scripts/mcp.sh"], "MCP launcher must be plugin-contained")
     require((PLUGIN / "scripts/mcp.sh").is_file(), "MCP launcher missing")
-    require((PLUGIN / "scripts/install.sh").read_bytes() == (ROOT / "scripts/install.sh").read_bytes(), "cached plugin installer differs from the release installer")
+    installer = (ROOT / "scripts/install.sh").read_text()
+    require((PLUGIN / "scripts/install.sh").read_text() == installer, "cached plugin installer differs from the release installer")
+    require(f"version=${{WAKING_VERSION:-v{version}}}" in installer, "native installer default differs from crate")
+    require(f"scripts/install.sh --version v{version}" in (PLUGIN / onboarding).read_text(), "setup skill installer pin differs from crate")
 
     market = json.loads((ROOT / ".agents/plugins/marketplace.json").read_text())
     entries = market["plugins"]

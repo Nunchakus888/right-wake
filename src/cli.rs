@@ -655,6 +655,6 @@ async fn doctor(engine: &Engine, cfg: &Config, probe: bool) -> Result<Value> {
         hosts.push(result);
     }
     Ok(
-        json!({"version":env!("CARGO_PKG_VERSION"),"configuration":"valid","storage":engine.db.status()?,"daemon_running":daemon_running(&engine.dir),"sources":sources,"hosts":hosts,"model_turns_requested_by_doctor":0,"note":"Configuration and handshake checks do not prove model execution or external reply delivery"}),
+        json!({"version":env!("CARGO_PKG_VERSION"),"configuration":"valid","sqlite":{"version":rusqlite::version(),"version_number":rusqlite::version_number()},"storage":engine.db.status()?,"daemon_running":daemon_running(&engine.dir),"sources":sources,"hosts":hosts,"model_turns_requested_by_doctor":0,"note":"Configuration and handshake checks do not prove model execution or external reply delivery"}),
     )
 }

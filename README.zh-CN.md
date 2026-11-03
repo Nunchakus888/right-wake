@@ -11,30 +11,30 @@ Waking 在工作事件到来时，唤醒正确的**已有 Agent 会话**。把 L
 - **续接原工作上下文。** 始终定位同一个 Host 和 Thread，通过支持的宿主继续其保留的原始历史。上下文卡片帮助找到目标，工作仍在原会话中继续，不自动另开替代会话。
 - **支持本地与自己的云端服务器。** 可以在本机执行、在 VPS 上执行，或让云端 Relay 在线接收事件，本机恢复在线后继续原工作。
 
-Waking 以一个原生 Rust 二进制提供 CLI 和 Codex 插件。归属绑定持久记录 **工作对象 → Host → Thread**，切换窗口不会改变目标。宿主忙碌、暂停或离线时保留队列，归属不明时等待认领。对外回复默认是可检查的草稿，经过独立审批后才能发送。
+Waking 以一个原生 Rust 二进制提供 CLI 和 Codex 插件，**内嵌 SQLite，无需另装数据库服务**。归属绑定持久记录 **工作对象 → Host → Thread**，切换窗口不会改变目标。宿主忙碌、暂停或离线时保留队列，归属不明时等待认领；对外回复默认是草稿，经独立审批后才能发送。
 
 从 [Codex 插件](#在-codex-中使用)、[Linear 接入](docs/linear.md)或[部署说明](docs/deployment.md)开始。
 
 ## 当前状态
 
-**[v0.1.0 实验性预览版已发布](https://github.com/Nunchakus888/waking/releases/tag/v0.1.0)。** 四个原生目标平台各通过 93 项测试，0 失败、0 忽略，编译与安装验证也已通过。容器构建、接收端重启和持久卷保留状态的验证同样通过。[验收记录](docs/acceptance.md)继续区分实现、分发和真实平台集成的证据。
+**v0.1.1 正在准备中，新版发布和验证结果尚待确认。** 本轮升级内嵌 SQLite，并增加 Docker 镜像包与 Compose 部署。下方下载命令需等 [Release 资产](https://github.com/Nunchakus888/waking/releases)可用后执行。[v0.1.0 验证](docs/releases/v0.1.0-verification.md)保留为历史记录，与 [v0.1.1 变更](docs/releases/v0.1.1.md)及[真实平台验收](docs/acceptance.md)分别记录。
 
-官方 **Codex CLI 0.166.0** 已通过无模型宿主探测，以及隔离空配置中的本地仓库和**真实 GitHub marketplace URL** 插件安装。缓存插件的 MCP 启动、工具发现、setup 和 status 也已通过。真实原工作会话的模型续接、桌面并发、真实平台授权读写仍需分别验收。自动向 Codex 提交工作要求支持的宿主、已落实的独占写入条件与工具权限隔离，详见[宿主兼容性](docs/host-compatibility.md)。
+已记录的 v0.1.0 验证中，官方 **Codex CLI 0.166.0** 通过了无模型宿主探测，以及隔离空配置中的本地仓库和**真实 GitHub marketplace URL** 插件安装；缓存 MCP 的启动、工具发现、setup 和 status 也已通过。真实模型续接、桌面并发和平台授权读写仍需分别验收。自动向 Codex 提交工作要求支持的宿主、已落实的独占写入条件与工具权限隔离，详见[宿主兼容性](docs/host-compatibility.md)。
 
 Waking 是独立项目，不是 OpenAI、Linear、GitHub、GitLab 或 Anthropic 的官方产品。
 
 ## 安装
 
-普通用户只需要系统已有的 shell、`curl`、`tar` 和 SHA-256 工具，**无需 Node.js、Python、Docker、Rust 或 sudo**。目标平台为 macOS / glibc Linux 的 arm64 与 x86_64。安装脚本下载固定版本，校验压缩包与可执行文件版本，安装到 `~/.local/bin`；不自动启动服务，也不修改 Codex 配置。
+**续接本机原会话用原生安装；VPS Relay 用 [Docker + Compose](deploy/README.md)。** 原生安装只需 shell、`curl`、`tar` 和 SHA-256 工具，**无需 Node.js、Python、Docker、Rust 或 sudo**，支持 macOS / glibc Linux 的 arm64 与 x86_64。安装器校验压缩包和版本，安装到 `~/.local/bin`，不自动启动服务。
 
-安装固定版本 `v0.1.0`：
+固定版本 `v0.1.1` 的 Release 资产可用后：
 
 ```sh
 curl --proto '=https' --tlsv1.2 --fail --location \
   --output waking-install.sh \
-  https://github.com/Nunchakus888/waking/releases/download/v0.1.0/install.sh
+  https://github.com/Nunchakus888/waking/releases/download/v0.1.1/install.sh
 # 查看下载的安装脚本后执行。
-sh waking-install.sh --version v0.1.0
+sh waking-install.sh --version v0.1.1
 export PATH="$HOME/.local/bin:$PATH"
 waking --version
 waking setup
@@ -50,7 +50,7 @@ waking --json schema
 waking --json doctor
 ```
 
-只有源码编译需要 Rust。[安装说明](docs/installation.md)包含离线包、平台要求、升级、回退、服务与卸载。
+只有源码编译需要 Rust。本机配置和 SQLite 数据默认保存在 `~/.local/share/waking`，可通过 `WAKING_DATA_DIR` / `--data-dir` 指定；Docker 将其保存在挂载至 `/data` 的命名卷，无需数据库容器。[VPS 指南](deploy/README.md)提供 amd64/arm64 镜像包的 `docker load` 与显式启动 Compose 步骤。[安装与生命周期](docs/installation.md)说明备份、升级、服务和卸载。
 
 ## 在 Codex 中使用
 
@@ -110,7 +110,7 @@ waking --json drafts list
 | VPS / 自托管云端执行 | 自己服务器上的接收端 | 同一服务器上支持的宿主 | 续接该服务器已能访问的 Thread |
 | 云端 Relay + 本地执行 | 自托管在线 Relay | 本机主动连接 Relay，在本地宿主执行 | 原会话历史始终保留在本机 |
 
-这里的云端执行指**在自己的 VPS 或服务器上运行 Waking 与支持的 Agent 宿主**。v0.1.0 尚无 OpenAI 托管 Codex Cloud 适配器；托管云任务不等同于持续运行的 Waking 服务，把 Waking 部署到服务器也不会自动迁移本地 Thread 或登录。云端 Relay 可以在本机离线时保存事件，实际工作仍要等本地执行器和宿主可用后继续。
+这里的云端指**自己的 VPS 或服务器**，当前没有 OpenAI 托管 Codex Cloud 适配器。Docker Relay 接收并保存事件，本地原生执行器在线后续接原 Thread；原会话历史和登录不会迁入容器。如果希望工作也在 VPS 上执行，则需要该 VPS 上支持的宿主及已有会话。
 
 直接 Webhook 需要可达的 HTTPS 入口，否则要明确配置自托管 Relay；产品不假定已有公共托管 Relay。尽可能把平台 API 凭证和 Agent 登录保留在执行 Host，Relay 能读取其接收的事件正文。服务与 Relay 的配置路径见[部署及运行说明](docs/deployment.md)。
 

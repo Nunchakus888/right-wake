@@ -1,8 +1,8 @@
 [package]
 name = "waking"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
-rust-version = "1.88"
+rust-version = "1.89"
 description = "Event-driven work continuity for local agents"
 license = "Apache-2.0"
 repository = "https://github.com/Nunchakus888/waking"
@@ -23,7 +23,7 @@ hmac = "0.12"
 notify = "8"
 rand = "0.8"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
-rusqlite = { version = "0.32", features = ["bundled", "backup"] }
+rusqlite = { version = "0.41.1", default-features = false, features = ["bundled", "backup", "cache", "fallible_uint"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"

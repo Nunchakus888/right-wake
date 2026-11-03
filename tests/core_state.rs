@@ -76,6 +76,26 @@ fn enqueue(db: &Db, cfg: &Config, event: &NormalizedEvent, target: &ThreadTarget
 }
 
 #[test]
+fn linked_sqlite_includes_the_upstream_wal_reset_fix() {
+    let connection = rusqlite::Connection::open_in_memory().unwrap();
+    let (version, source_id): (String, String) = connection
+        .query_row("SELECT sqlite_version(), sqlite_source_id()", [], |row| {
+            Ok((row.get(0)?, row.get(1)?))
+        })
+        .unwrap();
+    println!("linked SQLite {version}: {source_id}");
+    assert_eq!(version, rusqlite::version());
+    assert!(
+        rusqlite::version_number() >= 3_051_003,
+        "SQLite {version} predates the 3.51.3 mainline WAL-reset fix"
+    );
+    assert!(
+        rusqlite::version_number() >= waking::db::MIN_SQLITE_VERSION_NUMBER,
+        "linked engine does not satisfy Waking's startup requirement"
+    );
+}
+
+#[test]
 fn receipt_deduplication_and_conflicting_raw_bytes_are_distinct() {
     let (_dir, db, cfg) = setup();
     let e = event("e1", "r1");

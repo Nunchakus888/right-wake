@@ -2,6 +2,8 @@
 
 Place execution beside the host that owns the existing conversation. A public receiver or relay can run elsewhere, but moving Waking to a VPS does not move a Mac's Codex thread, credentials, worktree, or session history. A thread ID is meaningful only on the host that actually serves it.
 
+Recommended starting point: **native Waking on the local computer, Docker + Compose for the VPS relay**. Both include SQLite in the binary, so neither needs a separate database service. The [native installation guide](installation.md) and [container guide](../deploy/README.md) cover the two installation paths; v0.1.1 release downloads remain conditional on publication.
+
 Waking currently has two host adapters: Codex App Server over an explicitly configured Unix-domain WebSocket, and a trusted fixed executable implementing the GenericCommand JSON contract. It has no implemented or accepted adapter that attaches to an existing managed Codex Cloud task. See the [host compatibility guide](host-compatibility.md) for the exact protocol and remaining real-host validation boundaries.
 
 ## Choose the shape
@@ -17,7 +19,7 @@ These are placement choices, not automatic migration or provisioning commands. W
 
 ## Shared prerequisites
 
-Use a private, persistent data directory for each independently running receiver/worker. A Waking profile contains `config.json`, the SQLite database, raw/normalized deliveries, bindings, jobs, drafts, and receipt state. Do not place a live SQLite database on an ephemeral container filesystem or concurrently share one profile between unrelated hosts. The daemon/worker lock prevents `serve`, `relay connect`, and manual dispatch from owning the same profile simultaneously.
+Use a private, persistent data directory for each independently running receiver/worker. A Waking profile contains `config.json`, `state.sqlite3`, raw/normalized deliveries, bindings, jobs, drafts, and receipt state. Native installation defaults to `~/.local/share/waking` when no explicit/XDG directory is set; use `--data-dir` or `WAKING_DATA_DIR` for a deliberate profile. The Compose service mounts a named volume at `/data`, with no additional database container. Use local persistent storage, retain any SQLite WAL/SHM sidecars when making an offline copy, and do not concurrently share one profile between unrelated hosts. The daemon/worker lock prevents `serve`, `relay connect`, and manual dispatch from owning the same profile simultaneously.
 
 Credential values belong in the launching environment or a private `--env-file`, not in source JSON, URLs, images, or the repository. The file must be private on Unix, such as mode `0600`, and uses plain `NAME=VALUE` entries without shell syntax. Configuration contains environment-variable **names**. Editing the file does not change an existing process's environment; restart that process when values change.
 
@@ -68,18 +70,9 @@ If the original work still belongs to the Mac, use the hybrid deployment below. 
 
 A long-running VM, persistent Linux container deployment, or orchestrated service can host the native receiver or relay. Provide stable storage, a supervised process, controlled TLS ingress, and the exact source/device configuration. Keep the executor and its own session/worktree storage persistent as well if execution also lives there.
 
-The optional [Docker deployment recipe](../deploy/README.md) uses a non-root runtime and a named `/data` volume. For a cloud relay container, the existing image's command can be selected explicitly:
+The [Docker + Compose path](../deploy/README.md) loads a checksummed amd64/arm64 image from a published GitHub Release. It runs as UID/GID `10001`, persists state in the Compose project's `waking-data` volume mounted at `/data`, and uses `private.env` for process credentials. The Compose service defaults to `relay serve --listen 0.0.0.0:7433`, publishes `127.0.0.1:7433`, and uses `pull_policy: never` with the explicitly loaded `waking:0.1.1` image. The installer does not start the service or create secrets.
 
-```sh
-docker run --detach --name waking-relay \
-  --restart unless-stopped \
-  --volume waking-relay-data:/data \
-  --publish 127.0.0.1:7433:7433 \
-  --env-file /absolute/path/to/relay-private.env \
-  waking:0.1.0 relay serve --listen 0.0.0.0:7433
-```
-
-This example assumes the image has been built and that the named volume already contains the configured relay profile. Initialize it with `docker run --rm --volume waking-relay-data:/data waking:0.1.0 setup`, then run the source/device commands from the relay setup below through the same `docker run --rm --volume waking-relay-data:/data waking:0.1.0` prefix. The host-side `--data-dir` examples below do not populate a Docker named volume. Its host port is loopback-only and needs your TLS proxy. Docker's `--env-file` supplies process variables; it is separate from passing Waking's own `--env-file` argument. No signing private key belongs in either file.
+Follow the container guide to initialize the volume, configure the source/device, and start the service. Run management commands as `docker compose run --rm waking ...` in that same Compose project. The native `--data-dir` examples below do not populate a Docker volume; do not accidentally configure a host-side profile and then start an empty container profile. Keep the same project identity during upgrades. Docker Compose's `env_file` supplies process variables; it is separate from passing Waking's own `--env-file` argument.
 
 ### Accessing a host's Codex socket from a container
 
@@ -91,7 +84,7 @@ On Docker Desktop, a macOS host and a Linux container do not share one kernel. D
 
 [Container smoke run 41619362708](https://github.com/Nunchakus888/waking/actions/runs/41619362708) succeeded for commit [`52dff8a4fd2522c793ef2b6bc709d561922f4790`](https://github.com/Nunchakus888/waking/commit/52dff8a4fd2522c793ef2b6bc709d561922f4790). It built the image, ran the explicit synthetic demo, started the real receiver, and preserved the original two completed job records and two unsent drafts across restart and container replacement with the same volume.
 
-That run did not use a real Codex model, provider write, public webhook, or public relay connection. The recipe's [verification levels](../deploy/README.md#container-verification-levels) distinguish those checks from deployment integration.
+That v0.1.0 run did not use a real Codex model, provider write, public webhook, or public relay connection. It also predates the v0.1.1 Docker-load installer and Compose distribution; those need their own successful checks. The [container verification levels](../deploy/README.md#container-verification-levels) distinguish source-image smoke, release-image/Compose checks, and deployment integration.
 
 ## Cloud relay plus local worker
 
@@ -192,7 +185,7 @@ The client requires WSS. `--allow-loopback` permits plain `ws://` only for expli
 
 ### D. Supervise the actual commands and verify offline recovery
 
-The foreground `relay connect` process exits when transport fails. Use an operator-managed systemd/launchd/container supervisor to restart **that exact command and argument list**, with the same persistent data directory, environment-file path, device URL and source scope, plus an appropriate reconnect backoff. Supervise `relay serve` separately on the cloud machine. The built-in `service install` helper runs only `serve`; it does not install either relay command. No managed relay service installer is supplied in this version.
+The foreground `relay connect` process exits when transport fails. Use an operator-managed systemd/launchd/container supervisor to restart **that exact command and argument list**, with the same persistent data directory, environment-file path, device URL and source scope, plus an appropriate reconnect backoff. The provided Compose file supervises the cloud `relay serve` process with `restart: unless-stopped`; it does not supervise your separate local worker. The built-in native `service install` helper runs only `serve`, so a native `relay connect` still needs its own explicitly configured supervisor.
 
 Transport reconnection and ACK deadlines do not poll Linear or periodically invoke a model. A newly connected worker reconciles stored events and completion receipts in bounded batches. Keep the relay URL/device identity stable for the same deployment, because local receipt provenance is associated with that endpoint.
 

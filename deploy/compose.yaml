@@ -1,0 +1,16 @@
+services:
+  waking:
+    image: waking:0.1.1
+    pull_policy: never
+    command: ["relay", "serve", "--listen", "0.0.0.0:7433"]
+    env_file:
+      - ./private.env
+    volumes:
+      - waking-data:/data
+    ports:
+      - "127.0.0.1:${WAKING_PORT:-7433}:7433"
+    restart: unless-stopped
+    stop_grace_period: 30s
+
+volumes:
+  waking-data:

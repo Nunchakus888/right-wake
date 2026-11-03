@@ -11,6 +11,11 @@ use std::{
     time::Duration,
 };
 
+// SQLite fixed the WAL-reset race in the 3.51.3 mainline release. Waking
+// uses WAL with multiple connections, so validate the linked engine rather
+// than relying on a Cargo package version or the system sqlite3 command.
+pub const MIN_SQLITE_VERSION_NUMBER: i32 = 3_051_003;
+
 #[derive(Clone)]
 pub struct Db {
     path: Arc<PathBuf>,
@@ -18,6 +23,12 @@ pub struct Db {
 
 impl Db {
     pub fn open(dir: &Path) -> Result<Self> {
+        if rusqlite::version_number() < MIN_SQLITE_VERSION_NUMBER {
+            bail!(
+                "sqlite_version_unsupported: linked SQLite {} requires an upgrade to 3.51.3 or later before opening Waking state",
+                rusqlite::version()
+            );
+        }
         private_dir(dir)?;
         let db = Self {
             path: Arc::new(dir.join("state.sqlite3")),

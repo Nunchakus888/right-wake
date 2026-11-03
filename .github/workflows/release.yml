@@ -10,10 +10,10 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing version tag, for example v0.1.0
+        description: Existing version tag, for example v0.1.1
         required: true
         type: string
-        default: v0.1.0
+        default: v0.1.1
       publish:
         description: Publish the preview release after all four platforms pass
         required: true
@@ -166,7 +166,13 @@ jobs:
         run: sh scripts/smoke.sh 'target/${{ matrix.target }}/release/waking'
       - name: Package release
         run: sh scripts/package-release.sh 'target/${{ matrix.target }}/release/waking' "$RELEASE_TAG" '${{ matrix.target }}' dist
-      - name: Upload verified native archive
+      - name: Check container installer failure boundaries
+        if: runner.os == 'Linux'
+        run: python3 scripts/test-container-installer.py
+      - name: Build, verify, and package the native Linux container
+        if: runner.os == 'Linux'
+        run: sh scripts/package-container.sh 'target/${{ matrix.target }}/release/waking' "$RELEASE_TAG" '${{ matrix.target }}' dist
+      - name: Upload verified native and container archives
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ${{ matrix.target }}
@@ -201,9 +207,25 @@ jobs:
         run: |
           set -eu
           cat dist/*.sha256 > dist/SHA256SUMS
-          test "$(wc -l < dist/SHA256SUMS | tr -d ' ')" = 4
+          python3 - <<'PYCODE'
+          import os, re
+          from pathlib import Path
+          tag = os.environ['RELEASE_TAG']
+          targets = ['x86_64-unknown-linux-gnu', 'aarch64-unknown-linux-gnu',
+                     'x86_64-apple-darwin', 'aarch64-apple-darwin',
+                     'container-linux-amd64', 'container-linux-arm64']
+          expected = {f'waking-{tag}-{target}.tar.gz' for target in targets}
+          entries = Path('dist/SHA256SUMS').read_text().splitlines()
+          parsed = [re.fullmatch(r'[0-9a-f]{64}  (.+)', line) for line in entries]
+          if len(parsed) != 6 or not all(parsed) or {match[1] for match in parsed} != expected:
+              raise SystemExit('Need exactly four native and two container checksums')
+          if {path.name for path in Path('dist').glob('*.tar.gz')} != expected:
+              raise SystemExit('Release archive set differs from the six required platforms')
+          PYCODE
           (cd dist && sha256sum --check SHA256SUMS)
           cp scripts/install.sh dist/install.sh
+          cp scripts/install-container.sh dist/install-container.sh
+          cp deploy/compose.yaml dist/compose.yaml
       - name: Create or update the exact commit's draft
         env:
           GH_TOKEN: ${{ github.token }}
@@ -239,11 +261,15 @@ jobs:
               ;;
             absent)
               test -f "docs/releases/$RELEASE_TAG.md"
-              gh release create "$RELEASE_TAG" --target "$RELEASE_SHA" --draft --prerelease --title "Waking $RELEASE_TAG" --notes-file "docs/releases/$RELEASE_TAG.md"
+              {
+                printf 'All four native platform jobs and both Linux Docker/Compose checks passed before assembly. [Release workflow](https://github.com/%s/actions/runs/%s) · [Source commit](https://github.com/%s/commit/%s).\n\n' "$GH_REPO" "$GITHUB_RUN_ID" "$GH_REPO" "$RELEASE_SHA"
+                cat "docs/releases/$RELEASE_TAG.md"
+              } > release-notes.md
+              gh release create "$RELEASE_TAG" --target "$RELEASE_SHA" --draft --prerelease --title "Waking $RELEASE_TAG" --notes-file release-notes.md
               ;;
             *) exit 1 ;;
           esac
-          gh release upload "$RELEASE_TAG" dist/*.tar.gz dist/SHA256SUMS dist/install.sh --clobber
+          gh release upload "$RELEASE_TAG" dist/*.tar.gz dist/SHA256SUMS dist/install.sh dist/install-container.sh dist/compose.yaml --clobber
           if [ "$PUBLISH_RELEASE" = true ]; then
             gh release edit "$RELEASE_TAG" --draft=false --prerelease
           fi
