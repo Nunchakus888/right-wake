@@ -1,0 +1,20 @@
+{
+  "name": "waking",
+  "interface": {
+    "displayName": "Waking"
+  },
+  "plugins": [
+    {
+      "name": "waking",
+      "source": {
+        "source": "local",
+        "path": "./plugins/codex"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

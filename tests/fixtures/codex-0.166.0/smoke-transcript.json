@@ -1,0 +1,151 @@
+[
+  {
+    "direction": "request",
+    "message": {
+      "id": 1,
+      "method": "initialize",
+      "params": {
+        "clientInfo": {
+          "name": "waking_schema_probe",
+          "version": "0.1.0"
+        },
+        "capabilities": {
+          "experimentalApi": false
+        }
+      }
+    }
+  },
+  {
+    "direction": "response",
+    "message": {
+      "id": 1,
+      "result": {
+        "userAgent": "waking_schema_probe/0.166.0 (Ubuntu 24.4.0; x86_64) unknown (waking_schema_probe; 0.1.0)",
+        "codexHome": "<probe-workspace>/isolated-config",
+        "platformFamily": "unix",
+        "platformOs": "linux"
+      }
+    }
+  },
+  {
+    "direction": "request",
+    "message": {
+      "method": "initialized",
+      "params": {}
+    }
+  },
+  {
+    "direction": "request",
+    "message": {
+      "id": 2,
+      "method": "thread/list",
+      "params": {
+        "limit": 10,
+        "modelProviders": [],
+        "sourceKinds": [
+          "cli",
+          "vscode",
+          "exec",
+          "appServer"
+        ],
+        "archived": false
+      }
+    }
+  },
+  {
+    "direction": "response",
+    "message": {
+      "method": "remoteControl/status/changed",
+      "params": {
+        "status": "disabled",
+        "serverName": "<redacted-probe-metadata>",
+        "installationId": "<redacted-probe-metadata>",
+        "environmentId": null
+      },
+      "emittedAtMs": 1793698732522
+    }
+  },
+  {
+    "direction": "response",
+    "message": {
+      "id": 2,
+      "result": {
+        "data": [],
+        "readStates": {},
+        "nextCursor": null,
+        "backwardsCursor": null
+      }
+    }
+  },
+  {
+    "direction": "request",
+    "message": {
+      "id": 3,
+      "method": "thread/read",
+      "params": {
+        "threadId": "00000000-0000-4000-8000-000000000001"
+      }
+    }
+  },
+  {
+    "direction": "response",
+    "message": {
+      "error": {
+        "code": -32600,
+        "message": "thread not loaded: 00000000-0000-4000-8000-000000000001"
+      },
+      "id": 3
+    }
+  },
+  {
+    "direction": "request",
+    "message": {
+      "id": 4,
+      "method": "thread/resume",
+      "params": {
+        "threadId": "00000000-0000-4000-8000-000000000001",
+        "excludeTurns": true
+      }
+    }
+  },
+  {
+    "direction": "response",
+    "message": {
+      "error": {
+        "code": -32600,
+        "message": "no rollout found for thread id 00000000-0000-4000-8000-000000000001"
+      },
+      "id": 4
+    }
+  },
+  {
+    "direction": "request",
+    "message": {
+      "id": 5,
+      "method": "thread/list",
+      "params": {
+        "limit": 10,
+        "modelProviders": [],
+        "sourceKinds": [
+          "cli",
+          "vscode",
+          "exec",
+          "appServer"
+        ],
+        "archived": false
+      }
+    }
+  },
+  {
+    "direction": "response",
+    "message": {
+      "id": 5,
+      "result": {
+        "data": [],
+        "readStates": {},
+        "nextCursor": null,
+        "backwardsCursor": null
+      }
+    }
+  }
+]

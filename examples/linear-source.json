@@ -1,0 +1,12 @@
+{
+  "id": "linear-work",
+  "kind": "linear",
+  "tenant_id": "REPLACE_WITH_LINEAR_ORGANIZATION_UUID",
+  "secret_env": "WAKING_LINEAR_WEBHOOK_SECRET",
+  "token_env": "WAKING_LINEAR_API_TOKEN",
+  "trigger_patterns": ["@waking"],
+  "allowed_resources": [],
+  "bot_actor_ids": [],
+  "sending_identity": "",
+  "review_public_key": null
+}

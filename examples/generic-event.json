@@ -1,0 +1,10 @@
+{
+  "id": "comment-17",
+  "workspace": "my-workspace",
+  "task": {"id": "task-42"},
+  "discussion": "discussion-9",
+  "actor": {"id": "requester-8"},
+  "action": "comment.created",
+  "revision": "1",
+  "text": "@waking Continue this task using the decisions already made in its existing thread."
+}

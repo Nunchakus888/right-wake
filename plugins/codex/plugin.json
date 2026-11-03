@@ -1,0 +1,34 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "waking",
+  "version": "0.1.0",
+  "description": "Wake the right existing Codex thread from verified work events, with local routing and reviewable drafts.",
+  "author": {
+    "name": "Nunchakus888",
+    "url": "https://github.com/Nunchakus888"
+  },
+  "homepage": "https://github.com/Nunchakus888/waking",
+  "repository": "https://github.com/Nunchakus888/waking",
+  "license": "Apache-2.0",
+  "keywords": ["events", "webhooks", "routing", "codex", "local"],
+  "extensions": {
+    "com.openai": {
+      "requires_local_executor": true,
+      "onboardingSkill": "./skills/waking-setup/SKILL.md",
+      "interface": {
+        "displayName": "Waking",
+        "shortDescription": "Wake the right agent thread",
+        "longDescription": "Connect verified work events to explicitly bound existing local Codex threads. Inspect routing, diagnose delivery, and review drafts before any authorized external write.",
+        "developerName": "Nunchakus888",
+        "category": "Productivity",
+        "capabilities": ["Read", "Write"],
+        "websiteURL": "https://github.com/Nunchakus888/waking",
+        "defaultPrompt": [
+          "Set up Waking for an existing Codex work thread",
+          "Show my Waking routing and delivery status",
+          "Review pending Waking drafts"
+        ]
+      }
+    }
+  }
+}

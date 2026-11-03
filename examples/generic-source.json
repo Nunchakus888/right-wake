@@ -1,0 +1,21 @@
+{
+  "id": "custom-work",
+  "kind": "generic",
+  "instance": "https://events.invalid",
+  "tenant_id": "my-workspace",
+  "secret_env": "WAKING_CUSTOM_WEBHOOK_SECRET",
+  "signature": "generic_hmac",
+  "trigger_patterns": ["@waking"],
+  "generic": {
+    "namespace": "internal-work",
+    "resource_kind": "task",
+    "event_id": "/id",
+    "resource_id": "/task/id",
+    "content": "/text",
+    "tenant_id": "/workspace",
+    "conversation_id": "/discussion",
+    "actor_id": "/actor/id",
+    "action": "/action",
+    "revision": "/revision"
+  }
+}

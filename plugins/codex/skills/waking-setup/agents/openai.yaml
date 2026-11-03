@@ -1,0 +1,4 @@
+interface:
+  display_name: "Waking setup"
+  short_description: "Install and connect an event-driven local bridge"
+  default_prompt: "Use $waking-setup to connect a verified event source to Waking with draft-only defaults."

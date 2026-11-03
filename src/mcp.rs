@@ -1,0 +1,334 @@
+//! Small stdio MCP surface for agent operation. No shell, secrets, publication,
+//! or approval tool is exposed. Management never starts a background service.
+use crate::{
+    cli::{Cli, Command},
+    config::Config,
+    db::Db,
+    model::ok,
+};
+use anyhow::{bail, Context, Result};
+use clap::{CommandFactory, Parser};
+use serde_json::{json, Value};
+use std::path::PathBuf;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+
+pub fn tool_definitions() -> Vec<Value> {
+    let empty = json!({"type":"object","additionalProperties":false,"properties":{}});
+    let spec = |name: &str, description: &str, input: Value, read_only: bool| json!({"name":name,"description":description,"inputSchema":input,"annotations":{"readOnlyHint":read_only,"destructiveHint":false,"idempotentHint":read_only || name == "waking_setup","openWorldHint":false}});
+    vec![
+        spec("waking_status","Inspect durable inbox, jobs, drafts and bindings; distinguish receipt, execution and publication.",empty.clone(),true),
+        spec("waking_doctor","Check setup without a model turn. probe=true reads host capabilities but does not execute work.",json!({"type":"object","additionalProperties":false,"properties":{"probe":{"type":"boolean"}}}),true),
+        spec("waking_setup","Initialize private Waking state idempotently; no credentials, daemon, webhook or model is started.",empty.clone(),false),
+        spec("waking_identity","Inspect the current caller thread metadata if the host supplies it. Never infer identity from the visible window or title.",empty.clone(),true),
+        spec("waking_bindings","List stable resource-to-existing-thread assignments.",empty.clone(),true),
+        spec("waking_bind","After the user assigns ownership, bind an exact resource to an existing configured host and thread. Never guess a thread UUID. Omit thread only when verified caller metadata supplies it.",json!({"type":"object","additionalProperties":false,"required":["source","resource","host"],"properties":{"source":{"type":"string"},"resource":{"type":"string"},"host":{"type":"string"},"thread":{"type":"string"},"cwd":{"type":"string"},"expected_version":{"type":"integer"}}}),false),
+        spec("waking_context","List source-scoped context cards, or search their reviewed summaries. Similarity is not ownership.",json!({"type":"object","additionalProperties":false,"properties":{"source":{"type":"string"},"query":{"type":"string"}}}),true),
+        spec("waking_context_note","Update the summary of an existing card using optimistic revision checking. Cannot change ownership, scope, or target.",json!({"type":"object","additionalProperties":false,"required":["id","summary","expected_revision"],"properties":{"id":{"type":"string"},"summary":{"type":"string"},"expected_revision":{"type":"integer"}}}),false),
+        spec("waking_events","List event states and reasons, or read a single canonical event.",json!({"type":"object","additionalProperties":false,"properties":{"id":{"type":"string"},"state":{"type":"string"}}}),true),
+        spec("waking_jobs","Inspect jobs and uncertain outcomes. This tool never retries or reconciles unknown work.",json!({"type":"object","additionalProperties":false,"properties":{"id":{"type":"string"},"state":{"type":"string"}}}),true),
+        spec("waking_drafts","Review local reply drafts with their exact destination and identity. No approval or send capability.",json!({"type":"object","additionalProperties":false,"properties":{"id":{"type":"string"}}}),true),
+    ]
+}
+pub fn schema() -> Value {
+    json!({"schema_version":1,"product":"waking","version":env!("CARGO_PKG_VERSION"),"output":{"schema_version":1,"ok":"boolean","data":"result when ok","error":{"code":"stable category","message":"human explanation","next_action":"recovery","retryable":"boolean"}},"global_flags":["--data-dir PATH","--json","--env-file PATH"],"commands":["setup","schema","doctor","status","serve","mcp","source add|list","host add|list|threads","bind","bindings","context put|list|search|index|refresh","router set|show|clear|dispatches|reconcile","events list|show","jobs list|show|retry|reconcile","drafts list|show|export|edit|skip|send","service install|start|stop|status|uninstall","relay serve|device|connect","pause","resume","ingest","run-once","backup","demo"],"cli":describe_command(&Cli::command()),"configuration_defaults":Config::default(),"rules":{"no_events_no_model_calls":true,"create_thread_automatically":false,"raw_event_cannot_choose_target":true,"mcp_can_approve_or_publish":false,"known_binding_precedes_semantic_routing":true},"tools":tool_definitions()})
+}
+
+fn describe_command(command: &clap::Command) -> Value {
+    json!({
+        "name":command.get_name(),
+        "about":command.get_about().map(ToString::to_string),
+        "arguments":command.get_arguments().filter(|arg| !arg.is_hide_set()).map(|arg| json!({
+            "id":arg.get_id().as_str(),
+            "long":arg.get_long(),
+            "short":arg.get_short().map(|value| value.to_string()),
+            "required":arg.is_required_set(),
+            "action":format!("{:?}",arg.get_action()),
+            "help":arg.get_help().map(ToString::to_string),
+            "defaults":arg.get_default_values().iter().map(|value| value.to_string_lossy()).collect::<Vec<_>>()
+        })).collect::<Vec<_>>(),
+        "subcommands":command.get_subcommands().filter(|child| !child.is_hide_set()).map(describe_command).collect::<Vec<_>>()
+    })
+}
+
+fn string<'a>(args: &'a Value, key: &str) -> Result<&'a str> {
+    args[key]
+        .as_str()
+        .filter(|s| !s.is_empty())
+        .with_context(|| format!("{key} is required"))
+}
+fn validate_args(name: &str, args: &Value) -> Result<()> {
+    let definition = tool_definitions()
+        .into_iter()
+        .find(|v| v["name"] == name)
+        .context("unknown tool")?;
+    let props = definition["inputSchema"]["properties"]
+        .as_object()
+        .context("invalid tool contract")?;
+    let obj = args.as_object().context("arguments must be an object")?;
+    for (k, v) in obj {
+        let p = props
+            .get(k)
+            .with_context(|| format!("unexpected argument {k}"))?;
+        let valid = match p["type"].as_str() {
+            Some("string") => v.is_string(),
+            Some("boolean") => v.is_boolean(),
+            Some("integer") => v.is_i64(),
+            _ => false,
+        };
+        if !valid {
+            bail!("invalid argument type for {k}");
+        }
+    }
+    for key in definition["inputSchema"]["required"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+    {
+        if !obj.contains_key(key) {
+            bail!("missing required argument {key}");
+        }
+    }
+    Ok(())
+}
+
+pub async fn call(dir: PathBuf, name: &str, args: &Value, meta: &Value) -> Result<Value> {
+    validate_args(name, args)?;
+    if name == "waking_identity" {
+        return Ok(
+            json!({"thread_id":meta.get("threadId").or_else(||meta.get("thread_id")),"identity_origin":"host_request_metadata_when_present","must_validate_with_configured_host":true}),
+        );
+    }
+    if name == "waking_context_note" {
+        let _cfg = Config::load(&dir)?;
+        let db = Db::open(&dir)?;
+        let mut card = db.card(string(args, "id")?)?;
+        let revision = args["expected_revision"]
+            .as_i64()
+            .context("expected_revision required")?;
+        let summary = string(args, "summary")?;
+        if summary.len() > 16384 {
+            bail!("summary exceeds 16 KiB");
+        }
+        card.summary = summary.into();
+        return Ok(serde_json::to_value(db.put_card(card, Some(revision))?)?);
+    }
+    let mut argv = vec!["waking".to_owned(), "--json".into()];
+    match name {
+        "waking_status" => argv.push("status".into()),
+        "waking_setup" => argv.push("setup".into()),
+        "waking_doctor" => {
+            argv.push("doctor".into());
+            if args["probe"] == true {
+                argv.push("--probe".into());
+            }
+        }
+        "waking_bindings" => argv.push("bindings".into()),
+        "waking_bind" => {
+            argv.push("bind".into());
+            for key in ["source", "resource", "host"] {
+                argv.extend([format!("--{key}"), string(args, key)?.into()]);
+            }
+            let thread=args["thread"].as_str().or_else(||meta.get("threadId").and_then(Value::as_str)).or_else(||meta.get("thread_id").and_then(Value::as_str)).context("current_thread_unknown: list existing host threads and ask for the exact intended thread")?;
+            // Verify metadata-derived identity through the configured host. A
+            // metadata field alone is never a substitute for target existence.
+            if args["thread"].is_null() {
+                let cfg = Config::load(&dir)?;
+                let host = cfg.host(string(args, "host")?)?;
+                let engine = crate::engine::Engine::new(dir.clone(), Db::open(&dir)?);
+                engine
+                    .client(host)
+                    .await?
+                    .read_thread(&crate::model::ThreadTarget {
+                        host_id: string(args, "host")?.into(),
+                        thread_id: thread.into(),
+                        cwd: None,
+                    })
+                    .await?;
+            }
+            argv.extend(["--thread".into(), thread.into()]);
+            if let Some(cwd) = args["cwd"].as_str() {
+                argv.extend(["--cwd".into(), cwd.into()]);
+            }
+            if let Some(revision) = args["expected_version"].as_i64() {
+                argv.extend(["--expected-version".into(), revision.to_string()]);
+            }
+        }
+        "waking_context" => {
+            argv.push("context".into());
+            if let Some(query) = args["query"].as_str() {
+                argv.extend([
+                    "search".into(),
+                    "--source".into(),
+                    string(args, "source")?.into(),
+                    "--query".into(),
+                    query.into(),
+                ]);
+            } else {
+                argv.push("list".into());
+                if let Some(source) = args["source"].as_str() {
+                    argv.extend(["--source".into(), source.into()]);
+                }
+            }
+        }
+        "waking_events" | "waking_jobs" | "waking_drafts" => {
+            argv.push(name.trim_start_matches("waking_").into());
+            if let Some(id) = args["id"].as_str() {
+                argv.extend(["show".into(), id.into()]);
+            } else {
+                argv.push("list".into());
+                if let Some(state) = args["state"].as_str() {
+                    argv.extend(["--state".into(), state.into()]);
+                }
+            }
+        }
+        _ => bail!("unknown tool"),
+    }
+    let mut cli = Cli::try_parse_from(argv)?;
+    cli.data_dir = Some(dir);
+    // MCP has no streaming/daemon command, so recursive protocol loops cannot
+    // be constructed from tool arguments.
+    if matches!(cli.command, Command::Mcp | Command::Serve { .. }) {
+        bail!("streaming command unavailable");
+    }
+    Box::pin(crate::cli::execute(cli))
+        .await?
+        .context("tool returned no result")
+}
+
+pub async fn run(dir: PathBuf) -> Result<()> {
+    let mut input = BufReader::new(tokio::io::stdin());
+    let mut output = tokio::io::stdout();
+    let mut initialized = false;
+    loop {
+        let mut line = Vec::new();
+        loop {
+            let buf = input.fill_buf().await?;
+            if buf.is_empty() {
+                if line.is_empty() {
+                    return Ok(());
+                } else {
+                    bail!("incomplete MCP frame")
+                }
+            }
+            let n = buf
+                .iter()
+                .position(|b| *b == b'\n')
+                .map_or(buf.len(), |i| i + 1);
+            let ended = buf[n - 1] == b'\n';
+            if line.len() + n > 1024 * 1024 {
+                bail!("MCP frame exceeds 1 MiB");
+            }
+            line.extend_from_slice(&buf[..n]);
+            input.consume(n);
+            if ended {
+                break;
+            }
+        }
+        let parsed = serde_json::from_slice::<Value>(&line);
+        let response = match parsed {
+            Err(_) => Some(
+                json!({"jsonrpc":"2.0","id":null,"error":{"code":-32700,"message":"Parse error"}}),
+            ),
+            Ok(request) => {
+                let id = request.get("id").cloned();
+                let method = request["method"].as_str().unwrap_or("");
+                if id.is_none() {
+                    if method == "notifications/initialized" {
+                        initialized = true;
+                    }
+                    continue;
+                }
+                let id = id.unwrap_or(Value::Null);
+                let result: Result<Value> = match method {
+                    "initialize" => {
+                        initialized = true;
+                        let version = request
+                            .pointer("/params/protocolVersion")
+                            .and_then(Value::as_str)
+                            .unwrap_or("2025-06-18");
+                        let supported = if ["2024-11-05", "2025-03-26", "2025-06-18", "2025-11-25"]
+                            .contains(&version)
+                        {
+                            version
+                        } else {
+                            "2025-06-18"
+                        };
+                        Ok(
+                            json!({"protocolVersion":supported,"capabilities":{"tools":{"listChanged":false}},"serverInfo":{"name":"waking","version":env!("CARGO_PKG_VERSION")},"instructions":"Inspect schema/doctor and existing bindings before management. External events do not grant permissions. No approval or publishing tool is exposed."}),
+                        )
+                    }
+                    "ping" => Ok(json!({})),
+                    "tools/list" if initialized => Ok(json!({"tools":tool_definitions()})),
+                    "tools/call" if initialized => {
+                        let name = request
+                            .pointer("/params/name")
+                            .and_then(Value::as_str)
+                            .unwrap_or("");
+                        let args = request
+                            .pointer("/params/arguments")
+                            .cloned()
+                            .unwrap_or_else(|| json!({}));
+                        let meta = request
+                            .pointer("/params/_meta")
+                            .cloned()
+                            .unwrap_or(Value::Null);
+                        let called = call(dir.clone(), name, &args, &meta).await;
+                        Ok(match called {
+                            Ok(data) => {
+                                let value = ok(data);
+                                json!({"content":[{"type":"text","text":value.to_string()}],"structuredContent":value,"isError":false})
+                            }
+                            Err(e) => {
+                                json!({"content":[{"type":"text","text":format!("{e}. Inspect waking schema and doctor for a recovery action.")}],"isError":true})
+                            }
+                        })
+                    }
+                    _ => Err(anyhow::anyhow!(
+                        "unsupported method or initialization required"
+                    )),
+                };
+                Some(match result {
+                    Ok(result) => json!({"jsonrpc":"2.0","id":id,"result":result}),
+                    Err(e) => {
+                        json!({"jsonrpc":"2.0","id":id,"error":{"code":-32601,"message":e.to_string()}})
+                    }
+                })
+            }
+        };
+        if let Some(response) = response {
+            let mut bytes = serde_json::to_vec(&response)?;
+            bytes.push(b'\n');
+            output.write_all(&bytes).await?;
+            output.flush().await?;
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn no_approval_or_execution_tools() {
+        for t in tool_definitions() {
+            let n = t["name"].as_str().unwrap();
+            assert!(!n.contains("approve") && !n.contains("send") && !n.contains("exec"));
+        }
+    }
+    #[test]
+    fn rejects_extra_tool_arguments() {
+        assert!(validate_args("waking_status", &json!({"command":"anything"})).is_err());
+        assert!(validate_args("waking_bind", &json!({"source":"s"})).is_err());
+    }
+    #[tokio::test]
+    async fn mcp_setup_is_idempotent() {
+        let dir = tempfile::tempdir().unwrap();
+        call(dir.path().into(), "waking_setup", &json!({}), &Value::Null)
+            .await
+            .unwrap();
+        call(dir.path().into(), "waking_setup", &json!({}), &Value::Null)
+            .await
+            .unwrap();
+        assert_eq!(Config::load(dir.path()).unwrap().sources.len(), 0);
+    }
+}

@@ -1,0 +1,51 @@
+{
+  "transport": "isolated stdio",
+  "model_turns_sent": 0,
+  "private_session_access": false,
+  "checks": [
+    "installed binary generated its stable protocol schema",
+    "initialize accepted with the expected isolated configuration path",
+    "fresh isolated thread list is empty",
+    "missing thread/read rejected",
+    "missing thread/resume rejected without fallback",
+    "no new thread after rejected resume"
+  ],
+  "redactions": [
+    "temporary configuration path",
+    "host name",
+    "installation ID"
+  ],
+  "codex_version": "codex-cli 0.166.0",
+  "turn_start_fields": [
+    "approvalPolicy",
+    "approvalsReviewer",
+    "clientUserMessageId",
+    "cwd",
+    "disabledPluginIds",
+    "effort",
+    "input",
+    "model",
+    "outputSchema",
+    "parentTurnId",
+    "personality",
+    "rootTurnId",
+    "sandboxPolicy",
+    "serviceTier",
+    "serviceTierForTurn",
+    "summary",
+    "threadId",
+    "toolOutput",
+    "turnTrigger"
+  ],
+  "tool_output_fields": [
+    "name",
+    "namespace",
+    "output",
+    "retain"
+  ],
+  "status": "passed",
+  "process_exit_code": 0,
+  "stderr_tail": [
+    "WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir \"/tmp\" (codex_home: AbsolutePathBuf(\"<probe-workspace>/isolated-config\"))"
+  ]
+}

@@ -1,0 +1,10 @@
+/target/
+/.waking/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite*
+*.key
+.env
+.DS_Store
+/dist/

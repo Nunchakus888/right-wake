@@ -1,0 +1,249 @@
+name: Release
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag, for example v0.1.0
+        required: true
+        type: string
+        default: v0.1.0
+      publish:
+        description: Publish the preview release after all four platforms pass
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# Serialize release attempts: the next main push sees the preceding publication
+# before deciding whether it needs any of the four native builds.
+concurrency:
+  group: release-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: Validate source and plan version
+    if: >-
+      ${{ github.repository == 'Nunchakus888/waking' &&
+          (github.event_name != 'workflow_run' ||
+          (github.event.workflow_run.conclusion == 'success' &&
+           github.event.workflow_run.event == 'push' &&
+           github.event.workflow_run.head_branch == 'main' &&
+           github.event.workflow_run.head_repository.full_name == github.repository)) }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.version.outputs.sha }}
+      tag: ${{ steps.version.outputs.tag }}
+      build: ${{ steps.version.outputs.build }}
+      publish: ${{ steps.version.outputs.publish }}
+    steps:
+      - name: Validate requested immutable checkout
+        id: request
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          CI_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          MANUAL_TAG: ${{ inputs.tag }}
+          PUSHED_TAG: ${{ github.ref_name }}
+        shell: sh
+        run: |
+          python3 - <<'PYCODE'
+          import os, re
+          event = os.environ['EVENT_NAME']
+          if event == 'workflow_run':
+              ref = os.environ['CI_HEAD_SHA']
+              if not re.fullmatch(r'[0-9a-f]{40}', ref):
+                  raise SystemExit('CI head SHA is invalid')
+              expected_tag = ''
+          else:
+              expected_tag = os.environ['MANUAL_TAG'] if event == 'workflow_dispatch' else os.environ['PUSHED_TAG']
+              if not re.fullmatch(r'v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?', expected_tag):
+                  raise SystemExit('Version tag is invalid')
+              ref = 'refs/tags/' + expected_tag
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('ref=' + ref + '\nexpected_tag=' + expected_tag + '\n')
+          PYCODE
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ steps.request.outputs.ref }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check the package version and published releases
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          CI_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          EXPECTED_TAG: ${{ steps.request.outputs.expected_tag }}
+          MANUAL_PUBLISH: ${{ inputs.publish }}
+        shell: sh
+        run: |
+          set -eu
+          gh release list --limit 1000 --json tagName,isDraft > release-list.json
+          python3 - <<'PYCODE'
+          import json, os, re, subprocess
+          from pathlib import Path
+          cargo = Path('Cargo.toml').read_text()
+          package = re.search(r'(?ms)^\[package\]\s*\n(.*?)(?=^\[|\Z)', cargo)
+          if package is None:
+              raise SystemExit('Cargo package metadata is missing')
+          match = re.search(r'^version\s*=\s*"([^"]+)"\s*$', package.group(1), re.M)
+          if match is None or not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?', match.group(1)):
+              raise SystemExit('Cargo package version is invalid')
+          tag = 'v' + match.group(1)
+          expected = os.environ['EXPECTED_TAG']
+          if expected and expected != tag:
+              raise SystemExit('Tag differs from Cargo package version')
+          sha = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          if not re.fullmatch(r'[0-9a-f]{40}', sha):
+              raise SystemExit('Checked out commit SHA is invalid')
+          if os.environ['EVENT_NAME'] == 'workflow_run' and sha != os.environ['CI_HEAD_SHA']:
+              raise SystemExit('Checkout differs from the successful CI head')
+          releases = json.loads(Path('release-list.json').read_text())
+          published = any(item['tagName'] == tag and not item['isDraft'] for item in releases)
+          if not published and len(releases) >= 1000:
+              raise SystemExit('Release list reached its bound; verify the exact version before extending the limit')
+          # Published versions are immutable; skip all native jobs for them.
+          if not published:
+              exists = subprocess.run(['git', 'show-ref', '--verify', '--quiet', 'refs/tags/' + tag]).returncode == 0
+              if exists:
+                  tagged = subprocess.check_output(['git', 'rev-parse', tag + '^{commit}'], text=True).strip()
+                  if tagged != sha:
+                      raise SystemExit('Existing tag points elsewhere; use a new package version')
+          publish = os.environ['EVENT_NAME'] == 'workflow_run' or (os.environ['EVENT_NAME'] == 'workflow_dispatch' and os.environ['MANUAL_PUBLISH'] == 'true')
+          values = {'sha': sha, 'tag': tag, 'build': str(not published).lower(), 'publish': str(publish).lower()}
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              for key, value in values.items():
+                  output.write(key + '=' + value + '\n')
+          print(json.dumps(values))
+          if published:
+              print('This version is already published. Four-platform builds are skipped.')
+          PYCODE
+
+  native:
+    name: ${{ matrix.target }}
+    needs: plan
+    if: needs.plan.outputs.build == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+          - runner: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+          - runner: macos-15-intel
+            target: x86_64-apple-darwin
+          - runner: macos-15
+            target: aarch64-apple-darwin
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 35
+    env:
+      RELEASE_TAG: ${{ needs.plan.outputs.tag }}
+      CARGO_TERM_COLOR: always
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+          persist-credentials: false
+      - name: Install pinned Rust toolchain
+        run: rustup show active-toolchain
+      - name: Test on the native platform including socket fixtures
+        run: cargo test --locked -- --include-ignored
+      - name: Build native binary
+        run: cargo build --release --locked --target '${{ matrix.target }}'
+      - name: Smoke test native binary and installer
+        run: sh scripts/smoke.sh 'target/${{ matrix.target }}/release/waking'
+      - name: Package release
+        run: sh scripts/package-release.sh 'target/${{ matrix.target }}/release/waking' "$RELEASE_TAG" '${{ matrix.target }}' dist
+      - name: Upload verified native archive
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ matrix.target }}
+          path: dist/*
+          retention-days: 14
+          if-no-files-found: error
+
+  release:
+    name: Assemble preview release
+    needs: [plan, native]
+    if: needs.plan.outputs.build == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ needs.plan.outputs.tag }}
+      RELEASE_SHA: ${{ needs.plan.outputs.sha }}
+      PUBLISH_RELEASE: ${{ needs.plan.outputs.publish }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Assemble and verify checksums
+        shell: sh
+        run: |
+          set -eu
+          cat dist/*.sha256 > dist/SHA256SUMS
+          test "$(wc -l < dist/SHA256SUMS | tr -d ' ')" = 4
+          (cd dist && sha256sum --check SHA256SUMS)
+          cp scripts/install.sh dist/install.sh
+      - name: Create or update the exact commit's draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: sh
+        run: |
+          set -eu
+          python3 - <<'PYCODE'
+          import os, re, subprocess
+          tag, sha = os.environ['RELEASE_TAG'], os.environ['RELEASE_SHA']
+          if not re.fullmatch(r'v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?', tag) or not re.fullmatch(r'[0-9a-f]{40}', sha):
+              raise SystemExit('Invalid release identity')
+          actual = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          if actual != sha:
+              raise SystemExit('Release checkout changed')
+          if subprocess.run(['git', 'show-ref', '--verify', '--quiet', 'refs/tags/' + tag]).returncode == 0:
+              target = subprocess.check_output(['git', 'rev-parse', tag + '^{commit}'], text=True).strip()
+              if target != sha:
+                  raise SystemExit('Existing tag points at another commit')
+          PYCODE
+          gh release list --limit 1000 --json tagName,isDraft > current-releases.json
+          existing=$(python3 - <<'PYCODE'
+          import json, os
+          matches = [item for item in json.load(open('current-releases.json')) if item['tagName'] == os.environ['RELEASE_TAG']]
+          print('draft' if matches and matches[0]['isDraft'] else 'published' if matches else 'absent')
+          PYCODE
+          )
+          case "$existing" in
+            published) printf 'Published releases are immutable. Use a new version.\n' >&2; exit 1 ;;
+            draft)
+              draft_target=$(gh release view "$RELEASE_TAG" --json targetCommitish --jq '.targetCommitish')
+              test "$draft_target" = "$RELEASE_SHA" || { printf 'Existing draft was created for another target.\n' >&2; exit 1; }
+              ;;
+            absent)
+              test -f "docs/releases/$RELEASE_TAG.md"
+              gh release create "$RELEASE_TAG" --target "$RELEASE_SHA" --draft --prerelease --title "Waking $RELEASE_TAG" --notes-file "docs/releases/$RELEASE_TAG.md"
+              ;;
+            *) exit 1 ;;
+          esac
+          gh release upload "$RELEASE_TAG" dist/*.tar.gz dist/SHA256SUMS dist/install.sh --clobber
+          if [ "$PUBLISH_RELEASE" = true ]; then
+            gh release edit "$RELEASE_TAG" --draft=false --prerelease
+          fi

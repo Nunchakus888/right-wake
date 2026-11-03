@@ -1,0 +1,4 @@
+interface:
+  display_name: "Waking review"
+  short_description: "Inspect routing, delivery, and pending drafts"
+  default_prompt: "Use $waking-review to explain pending events, delivery state, and drafts without sending them."

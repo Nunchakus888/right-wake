@@ -1,0 +1,10 @@
+.git
+target
+dist
+**/.env
+**/.env.*
+**/*.sqlite*
+**/*.db
+**/config.json
+**/approval*.json
+**/*private*key*
