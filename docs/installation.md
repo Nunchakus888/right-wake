@@ -1,30 +1,28 @@
 # Installation and lifecycle
 
-**RightWake** uses `right-wake` consistently for its executable, packages, plugin, services, and data paths. v0.2.0 is a breaking namespace reset: use a fresh profile and current artifacts. Legacy-name aliases and automatic migration are not provided.
+**RightWake** uses `right-wake` consistently for its executable, packages, plugin, services, and data paths. v0.3.0 preserves an existing 0.2.0 `right-wake` profile and adds database tables for Linear ownership and queued dispatch context. Back up before upgrading; no legacy-name aliases are provided.
 
 ## Native release
 
 RightWake's ordinary runtime is one Rust binary with bundled SQLite. No separate database service or SQLite command-line installation is needed. It requires no Node.js, Python, Docker, Rust compiler, or elevated installation. The release installer uses system shell tools, `curl`, `tar`, and either `sha256sum` or `shasum`.
 
-The installer is pinned to the published **[v0.2.0 prerelease](https://github.com/Nunchakus888/right-wake/releases/tag/v0.2.0)**. All four native platforms passed **96 tests, 0 failures, 0 ignored**, plus release build and archive/install smoke. [The verification report](releases/v0.2.0-verification.md) records the exact jobs and public installation evidence.
+The installer is pinned to **[v0.3.0](https://github.com/Nunchakus888/right-wake/releases/tag/v0.3.0)**. The [verification report](releases/v0.3.0-verification.md) records actual source, native jobs, image checks, plugin installation, and public downloads. Earlier [v0.2.0 results](releases/v0.2.0-verification.md) remain unchanged and are not counted as new-version results.
 
-A separate Linux x86_64 check downloaded the public `install.sh` and installed directly from the published assets, without `--from-dir`, into a fresh path containing spaces. The installed 0.2.0 binary passed version/schema, all 11 MCP tools, repeated setup, SQLite 3.54.1 diagnostics, backup, and a signed synthetic two-thread demo. The real GitHub-cached Codex plugin also launched that public binary successfully. These checks used no model or provider credentials.
-
-| Archive target | Build and smoke runner | v0.2.0 validation |
+| Archive target | Native release runner | Platform scope |
 | --- | --- | --- |
-| `x86_64-unknown-linux-gnu` | Ubuntu 22.04 x86_64 | 96 tests, release build, and install/backup smoke passed; older glibc and musl are not claimed |
-| `aarch64-unknown-linux-gnu` | Ubuntu 22.04 arm64 | 96 tests, release build, and install/backup smoke passed |
-| `x86_64-apple-darwin` | macOS 15 Intel | 96 tests, release build, and install/backup smoke passed; older OS versions are not claimed |
-| `aarch64-apple-darwin` | macOS 15 arm64 | 96 tests, release build, and install/backup smoke passed |
+| `x86_64-unknown-linux-gnu` | Ubuntu 22.04 x86_64 | glibc Linux; older glibc and musl are not claimed |
+| `aarch64-unknown-linux-gnu` | Ubuntu 22.04 arm64 | glibc Linux arm64 |
+| `x86_64-apple-darwin` | macOS 15 Intel | Older OS versions are not claimed |
+| `aarch64-apple-darwin` | macOS 15 arm64 | Native Apple Silicon |
 
-v0.2.0 native artifacts are named `right-wake-v0.2.0-TARGET.tar.gz`. Its `SHA256SUMS` covers four native archives and two Linux Docker image archives. The native installer selects only its matching native archive, then verifies its hash, permitted members, and runnable version before replacing the destination. These checks detect mismatches; checksums hosted with the release are not an independent publisher signature.
+Native artifacts are named `right-wake-v0.3.0-TARGET.tar.gz`. `SHA256SUMS` covers four native archives and two Linux Docker image archives. The native installer selects only its matching archive, then verifies its hash, permitted members, and runnable version before replacing the destination. These checks detect mismatches; checksums hosted with the release are not an independent publisher signature.
 
 The [README](../README.md#install) gives the pinned download path. Prior release checksums and results are retained in the [historical archive](archive/README.md). Source installation remains available with `cargo install --locked --path .`, followed by `right-wake setup`.
 
 Offline installation from a directory containing the matching archive and `SHA256SUMS`:
 
 ```sh
-sh scripts/install.sh --version v0.2.0 \
+sh scripts/install.sh --version v0.3.0 \
   --from-dir /absolute/path/to/release-files \
   --bin-dir "$HOME/.local/bin"
 ```
@@ -35,12 +33,10 @@ The default directory is `~/.local/bin`; use `--bin-dir` or `RIGHT_WAKE_INSTALL_
 
 Use the native binary beside the local agent whose history you want to continue. For an online VPS relay, the [Docker + Compose guide](../deploy/README.md) uses the separate `install-container.sh` to verify and load one architecture-specific image from GitHub Release assets:
 
-- `right-wake-v0.2.0-container-linux-amd64.tar.gz`
-- `right-wake-v0.2.0-container-linux-arm64.tar.gz`
+- `right-wake-v0.3.0-container-linux-amd64.tar.gz`
+- `right-wake-v0.3.0-container-linux-arm64.tar.gz`
 
-The resulting image is tagged `right-wake:0.2.0`. The installer loads the image only; configuration, secrets, volume initialization, and startup are explicit. The supplied Compose service runs `relay serve`, uses a named volume at `/data`, and binds its published port to host loopback for your TLS proxy. No GHCR login or image-registry publication is required. Both image archives and deployment files are attached to the published [v0.2.0 release](https://github.com/Nunchakus888/right-wake/releases/tag/v0.2.0). Both Linux platforms passed real image and Compose checks before publication.
-
-After publication, the downloaded amd64 image archive matched both `SHA256SUMS` and GitHub's asset digest. Its tag, architecture, non-root user, entrypoint, environment, and OCI source/revision labels matched the release. This public-download check inspected the archive; actual Docker execution is evidenced by the two Linux release jobs.
+The resulting image is tagged `right-wake:0.3.0`. The installer loads the image only; configuration, secrets, volume initialization, and startup are explicit. The supplied Compose service runs `relay serve`, uses a named volume at `/data`, and binds its published port to host loopback for your TLS proxy. No GHCR login or image-registry publication is required. The release pipeline attaches both image archives and deployment files to the versioned release, after native and Linux image/Compose checks succeed. Actual public download, checksum, archive-metadata, and runtime results are identified separately in [verification](releases/v0.3.0-verification.md).
 
 The image embeds the same RightWake binary and SQLite library used by the corresponding Linux native release. A separate database container is unnecessary. Cloud receipt does not move local Codex history or execute work while its local host is offline; [deployment choices](deployment.md) explains that boundary.
 
@@ -78,7 +74,11 @@ Service template tests do not prove launchd/systemd operation on a target machin
 
 Stop the receiver, take a complete state backup, and install the next pinned release. The installer preserves the previous recognized binary as `right-wake.previous`. Run `--version` and `doctor` before restarting. A binary backup alone cannot reverse an incompatible database migration; retain the matching state backup and follow that release's migration notes.
 
-Within the 0.2.0 namespace, database schema version 3 and bundled SQLite 3.54.1 remain in use. This does not provide migration of an earlier preview's profile or signed artifacts. Updating the host's `sqlite3` package does not update the library embedded in RightWake: replace the RightWake binary or container image. `right-wake --json doctor` reports the actual linked library in `data.sqlite.version` and `data.sqlite.version_number`. The application refuses to open its state with a linked SQLite older than 3.51.3. See [v0.2.0 notes](releases/v0.2.0.md) for the namespace and protocol changes.
+**0.2.0 → 0.3.0:** keep the same data directory. Schema **4** adds the Linear issue ownership projection and immutable dispatch-context storage; existing sources, bindings, contexts, jobs, drafts, and secret references remain. Existing Codex hosts default to `tool_output`, so an upgrade does not silently opt into the experimental queue. A saved `linear-onboarding.json` is an input for the setup Agent to inspect, not an automatically trusted import. Convert verified records to the [strict Linear snapshot format](linear.md), retaining the original file.
+
+Keep the matching pre-upgrade state backup for rollback: a 0.2.0 binary should not be run against an upgraded schema-4 database. This is an additive upgrade within the current `right-wake` namespace, not migration of older, differently named previews or their signed artifacts.
+
+Bundled SQLite remains **3.54.1**, with a startup floor of 3.51.3. Updating a host's `sqlite3` package does not update the embedded library: replace the RightWake binary or image. `right-wake --json doctor` reports the actual linked version. [v0.3.0 notes](releases/v0.3.0.md) describe the new filtering and delivery modes.
 
 For Docker upgrades, load the new image, use the matching reviewed Compose file, and recreate the service with the **same Compose project and data volume**. Keep `private.env` and operator configuration. A container replacement does not require a new database; changing the project name can select a different empty volume. See [container lifecycle](../deploy/README.md#storage-upgrades-and-removal).
 

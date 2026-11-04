@@ -467,6 +467,9 @@ pub async fn receive_wire(
                         if !source_ids.contains(&event.source_id) { bail!("relay event crossed configured source boundary"); }
                         let cfg = Config::load(&engine.dir)?;
                         let source = cfg.source(&event.source_id)?;
+                        // Relay flags retain intrinsic/static denials. Current
+                        // Linear ownership is separate local DB state; a cloud
+                        // membership wait must not erase a valid request.
                         crate::provider::apply_local_policy(source, &mut event)?;
                         let raw = serde_json::to_vec(&value["event"])?;
                         event.received_at_ms = now_ms();

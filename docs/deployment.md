@@ -2,7 +2,7 @@
 
 Place execution beside the host that owns the existing conversation. A public receiver or relay can run elsewhere, but moving RightWake to a VPS does not move a Mac's Codex thread, credentials, worktree, or session history. A thread ID is meaningful only on the host that actually serves it.
 
-Recommended starting point: **native RightWake on the local computer, Docker + Compose for the VPS relay**. Both include SQLite in the binary, so neither needs a separate database service. The [native installation guide](installation.md) and [container guide](../deploy/README.md) cover the v0.2.0 packages and explicit setup; [verification](releases/v0.2.0-verification.md) records their current publication status.
+Recommended starting point: **native RightWake on the local computer, Docker + Compose for the VPS relay**. Both include SQLite in the binary, so neither needs a separate database service. The [native installation guide](installation.md) and [container guide](../deploy/README.md) cover the v0.3.0 packages and explicit setup; [verification](releases/v0.3.0-verification.md) records their current publication status.
 
 RightWake currently has two host adapters: Codex App Server over an explicitly configured Unix-domain WebSocket, and a trusted fixed executable implementing the GenericCommand JSON contract. It has no implemented or accepted adapter that attaches to an existing managed Codex Cloud task. See the [host compatibility guide](host-compatibility.md) for the exact protocol and remaining real-host validation boundaries.
 
@@ -70,7 +70,7 @@ If the original work still belongs to the Mac, use the hybrid deployment below. 
 
 A long-running VM, persistent Linux container deployment, or orchestrated service can host the native receiver or relay. Provide stable storage, a supervised process, controlled TLS ingress, and the exact source/device configuration. Keep the executor and its own session/worktree storage persistent as well if execution also lives there.
 
-The [Docker + Compose path](../deploy/README.md) loads a checksummed amd64/arm64 image from a published GitHub Release. It runs as UID/GID `10001`, persists state in the Compose project's `right-wake-data` volume mounted at `/data`, and uses `private.env` for process credentials. The Compose service defaults to `relay serve --listen 0.0.0.0:7433`, publishes `127.0.0.1:7433`, and uses `pull_policy: never` with the explicitly loaded `right-wake:0.2.0` image. The installer does not start the service or create secrets.
+The [Docker + Compose path](../deploy/README.md) loads a checksummed amd64/arm64 image from a published GitHub Release. It runs as UID/GID `10001`, persists state in the Compose project's `right-wake-data` volume mounted at `/data`, and uses `private.env` for process credentials. The Compose service defaults to `relay serve --listen 0.0.0.0:7433`, publishes `127.0.0.1:7433`, and uses `pull_policy: never` with the explicitly loaded `right-wake:0.3.0` image. The installer does not start the service or create secrets.
 
 Follow the container guide to initialize the volume, configure the source/device, and start the service. Run management commands as `docker compose run --rm right-wake ...` in that same Compose project. The native `--data-dir` examples below do not populate a Docker volume; do not accidentally configure a host-side profile and then start an empty container profile. Keep the same project identity during upgrades. Docker Compose's `env_file` supplies process variables; it is separate from passing RightWake's own `--env-file` argument.
 
@@ -82,7 +82,7 @@ On Docker Desktop, a macOS host and a Linux container do not share one kernel. D
 
 ### Container verification evidence
 
-Current release-image, Compose, and persistence checks are tracked in [v0.2.0 verification](releases/v0.2.0-verification.md). Each passing result must identify the actual source commit and runner. Until that report records the checks, the presence of a Dockerfile or Compose file is preparation evidence only.
+Current release-image, Compose, and persistence checks are tracked in [v0.3.0 verification](releases/v0.3.0-verification.md). Each passing result must identify the actual source commit and runner. Until that report records the checks, the presence of a Dockerfile or Compose file is preparation evidence only.
 
 Prior native/container checks are retained in the [historical archive](archive/README.md). Live provider receipt, a public HTTPS/WSS route, and original-thread model continuation still require their own integration evidence.
 

@@ -141,7 +141,7 @@ fn stdio_mcp_negotiates_and_returns_agent_readable_results_without_stdout_noise(
     assert_eq!(replies.len(), 5);
     assert_eq!(replies[0]["result"]["serverInfo"]["name"], "right-wake");
     let tools = replies[1]["result"]["tools"].as_array().unwrap();
-    assert_eq!(tools.len(), 11);
+    assert_eq!(tools.len(), 12);
     assert!(tools
         .iter()
         .all(|tool| tool["name"].as_str().unwrap().starts_with("right_wake_")));
@@ -162,4 +162,123 @@ fn invalid_cli_arguments_are_json_with_nonzero_exit() {
     assert!(!output.status.success());
     let value: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(value["error"]["code"], "invalid_arguments");
+}
+
+#[test]
+fn personal_linear_scope_bootstrap_and_queue_settings_are_real_cli_contracts() {
+    let dir = tempfile::tempdir().unwrap();
+    let run = |args: &[&str]| -> Value {
+        let output = bin()
+            .args(["--json", "--data-dir", dir.path().to_str().unwrap()])
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{} / {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        serde_json::from_slice::<Value>(&output.stdout).unwrap()["data"].clone()
+    };
+    run(&["setup"]);
+    run(&[
+        "source",
+        "add",
+        "--id",
+        "personal",
+        "--kind",
+        "linear",
+        "--tenant",
+        "workspace",
+        "--secret-env",
+        "RIGHT_WAKE_SYNTHETIC_SECRET",
+        "--linear-assignee-id",
+        "me",
+    ]);
+    assert_eq!(run(&["source", "list"])[0]["linear_assignee_id"], "me");
+    let snapshot = dir.path().join("baseline.json");
+    let issue = |id: &str| json!({"issue_id":id,"assignee":{"state":"assigned","user_id":"me"},"updated_at_ms":1_793_695_800_000_i64});
+    std::fs::write(
+        &snapshot,
+        json!({"schema_version":1,"organization_id":"workspace","issues":[issue("a"),issue("b")]})
+            .to_string(),
+    )
+    .unwrap();
+    let import = || {
+        run(&[
+            "source",
+            "linear-import",
+            "--id",
+            "personal",
+            "--file",
+            snapshot.to_str().unwrap(),
+        ])
+    };
+    assert_eq!(import()["changed"], 2);
+    assert_eq!(import()["changed"], 0);
+    std::fs::write(
+        &snapshot,
+        json!({"schema_version":1,"organization_id":"workspace","issues":[issue("a")]}).to_string(),
+    )
+    .unwrap();
+    let partial = import();
+    assert_eq!(partial["absence_unassigns"], false);
+    assert_eq!(partial["model_invoked"], false);
+    assert_eq!(
+        run(&["source", "linear-state", "--id", "personal"])["issues"]
+            .as_array()
+            .unwrap()
+            .len(),
+        2
+    );
+
+    let socket = dir.path().join("existing-host.sock");
+    run(&[
+        "host",
+        "add",
+        "--id",
+        "local",
+        "--socket",
+        socket.to_str().unwrap(),
+        "--delivery",
+        "queue",
+    ]);
+    let doctor = run(&["doctor"]);
+    assert_eq!(doctor["hosts"][0]["delivery"], "queue");
+    assert_eq!(doctor["hosts"][0]["exclusive_writer_required"], false);
+    assert_eq!(doctor["hosts"][0]["restricted_tools_declared"], false);
+    assert_eq!(doctor["hosts"][0]["dispatch_context_tool_required"], true);
+    assert_eq!(doctor["model_turns_requested_by_doctor"], 0);
+    assert!(doctor["sources"][0]["public_webhook_verified"].is_null());
+    let assignment = &doctor["sources"][0]["linear_assignment_state"];
+    assert_eq!(assignment["tracked_issues_in_view"], 2);
+    assert_eq!(assignment["assigned_to_user_in_view"], 2);
+    assert_eq!(assignment["waiting_assignment"], 0);
+    assert!(assignment["issues"].is_null());
+
+    std::fs::write(&snapshot, json!({"schema_version":1,"organization_id":"another-workspace","issues":[issue("outside")]}).to_string()).unwrap();
+    let rejected = bin()
+        .args([
+            "--json",
+            "--data-dir",
+            dir.path().to_str().unwrap(),
+            "source",
+            "linear-import",
+            "--id",
+            "personal",
+            "--file",
+            snapshot.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(!rejected.status.success());
+    assert_eq!(
+        run(&["source", "linear-state", "--id", "personal"])["issues"]
+            .as_array()
+            .unwrap()
+            .len(),
+        2
+    );
+    assert_eq!(run(&["schema"])["tools"].as_array().unwrap().len(), 12);
 }

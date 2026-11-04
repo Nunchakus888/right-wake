@@ -18,7 +18,7 @@ with open(os.environ["FAKE_CALLS"], "a") as log:
     log.write(json.dumps(args) + "\n")
 state = Path(os.environ["FAKE_STATE"])
 platform = os.environ.get("FAKE_PLATFORM", "linux/amd64")
-version = os.environ.get("RIGHT_WAKE_VERSION", "v0.2.0")[1:]
+version = os.environ.get("RIGHT_WAKE_VERSION", "v0.3.0")[1:]
 if args == ["version", "--format", "{{.Server.Os}}/{{.Server.Arch}}"]:
     if os.environ.get("FAKE_OFFLINE"):
         sys.exit(1)
@@ -42,7 +42,7 @@ from pathlib import Path
 args = sys.argv[1:]
 with open(os.environ["FAKE_URLS"], "a") as log:
     log.write(json.dumps(args) + "\n")
-version = os.environ.get("RIGHT_WAKE_VERSION", "v0.2.0")
+version = os.environ.get("RIGHT_WAKE_VERSION", "v0.3.0")
 assert args[-1].startswith("https://github.com/Nunchakus888/right-wake/releases/download/" + version + "/"), args
 if os.environ.get("FAKE_DOWNLOAD_FAIL"):
     raise SystemExit(22)
@@ -68,10 +68,10 @@ class InstallerContract(unittest.TestCase):
             path.chmod(0o755)
         self.calls = self.root / "calls.jsonl"
         self.env = dict(os.environ, PATH=str(self.bin) + os.pathsep + os.environ["PATH"],
-                        TMPDIR=str(self.work), RIGHT_WAKE_VERSION="v0.2.0",
+                        TMPDIR=str(self.work), RIGHT_WAKE_VERSION="v0.3.0",
                         FAKE_CALLS=str(self.calls), FAKE_STATE=str(self.root / "loaded"),
                         FAKE_URLS=str(self.root / "urls.jsonl"), FAKE_DOWNLOADS=str(self.source))
-        self.prepare_release("v0.2.0")
+        self.prepare_release("v0.3.0")
 
     def prepare_release(self, version):
         self.env["RIGHT_WAKE_VERSION"] = version
@@ -103,7 +103,7 @@ class InstallerContract(unittest.TestCase):
         loads = [call for call in calls if call[:2] == ["image", "load"]]
         self.assertEqual(len(loads), 1)
         self.assertEqual(Path(loads[0][-1]).name, self.assets["amd64"].name)
-        self.assertIn("Loaded right-wake:0.2.0 for linux/amd64", result.stdout)
+        self.assertIn("Loaded right-wake:0.3.0 for linux/amd64", result.stdout)
 
     def test_arm64_uses_daemon_instead_of_client_uname(self):
         _, calls = self.run_install(FAKE_PLATFORM="linux/arm64")
@@ -112,26 +112,26 @@ class InstallerContract(unittest.TestCase):
 
     def test_existing_image_source_must_match_exactly(self):
         result, calls = self.run_install(success=False, FAKE_EXISTING="1",
-                                        FAKE_METADATA="linux/amd64 0.2.0 https://github.com/unrelated/event-bridge")
+                                        FAKE_METADATA="linux/amd64 0.3.0 https://github.com/unrelated/event-bridge")
         self.assertIn("refusing to replace", result.stderr)
         self.assertFalse(any(call[:2] == ["image", "load"] for call in calls))
 
     def test_loaded_image_source_must_match_exactly(self):
         result, calls = self.run_install(success=False,
-                                        FAKE_METADATA="linux/amd64 0.2.0 https://github.com/unrelated/event-bridge")
+                                        FAKE_METADATA="linux/amd64 0.3.0 https://github.com/unrelated/event-bridge")
         self.assertIn("loaded image metadata differs", result.stderr)
         self.assertEqual(sum(call[:2] == ["image", "load"] for call in calls), 1)
 
     def test_existing_image_version_must_match_exactly(self):
         result, calls = self.run_install(success=False, FAKE_EXISTING="1",
-                                        FAKE_METADATA="linux/amd64 0.2.1 https://github.com/Nunchakus888/right-wake")
+                                        FAKE_METADATA="linux/amd64 0.3.1 https://github.com/Nunchakus888/right-wake")
         self.assertIn("refusing to replace", result.stderr)
         self.assertFalse(any(call[:2] == ["image", "load"] for call in calls))
 
     def test_explicit_version_uses_matching_archive_and_metadata(self):
-        self.prepare_release("v0.2.1")
-        result, _ = self.run_install(download=True, FAKE_EXISTING="1", args=("--version", "v0.2.1"))
-        self.assertIn("Loaded right-wake:0.2.1 for linux/amd64", result.stdout)
+        self.prepare_release("v0.3.1")
+        result, _ = self.run_install(download=True, FAKE_EXISTING="1", args=("--version", "v0.3.1"))
+        self.assertIn("Loaded right-wake:0.3.1 for linux/amd64", result.stdout)
 
     def test_checksum_mismatch_never_loads(self):
         self.assets["amd64"].write_bytes(b"corrupt payload")
@@ -165,7 +165,7 @@ class InstallerContract(unittest.TestCase):
         self.assertFalse(any(call[:2] == ["image", "load"] for call in calls))
 
     def test_loaded_metadata_mismatch_is_not_success(self):
-        result, _ = self.run_install(success=False, FAKE_METADATA="linux/arm64 0.2.0 wrong-source")
+        result, _ = self.run_install(success=False, FAKE_METADATA="linux/arm64 0.3.0 wrong-source")
         self.assertIn("loaded image metadata differs", result.stderr)
 
     def test_wrong_archive_tag_is_not_hidden_by_existing_image(self):
@@ -190,7 +190,7 @@ class InstallerContract(unittest.TestCase):
         self.assertFalse(any(call[:2] == ["image", "load"] for call in calls))
 
     def test_invalid_version_fails_before_docker(self):
-        _, calls = self.run_install(success=False, args=("--version", "v0.2.0/elsewhere"))
+        _, calls = self.run_install(success=False, args=("--version", "v0.3.0/elsewhere"))
         self.assertEqual(calls, [])
 
 

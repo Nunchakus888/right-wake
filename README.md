@@ -18,26 +18,26 @@ Start with [the Codex plugin](#use-from-codex), [Linear setup](docs/linear.md), 
 
 ## Project status
 
-**[v0.2.0 is available as an experimental prerelease](https://github.com/Nunchakus888/right-wake/releases/tag/v0.2.0).** The CLI, plugin, skills, services, state paths, and packages use the complete `right-wake` namespace. Each of the four macOS/Linux native platforms passed **96 tests, 0 failures, 0 ignored**; both Linux Docker/Compose checks also passed. Packages include bundled SQLite 3.54.1. See [v0.2.0 verification](docs/releases/v0.2.0-verification.md) for exact runs, public assets, and installation evidence.
+**v0.3.0 adds personal Linear watching and opt-in Codex queue delivery.** Watch new comments on issues assigned to you and newly assigned tasks, without adding a mention to each comment or freezing today's issue list. Ownership changes update a durable local projection; unknown ownership waits without calling a model. See [v0.3.0 verification](docs/releases/v0.3.0-verification.md) for current test, release, and public-installation evidence. Earlier results remain in [v0.2.0 verification](docs/releases/v0.2.0-verification.md).
 
-Real model continuation, desktop concurrency, and provider read/write E2E remain separate acceptance work. Automatic Codex dispatch requires a supported host, exclusive writer ownership, and restricted mutation tools; see [host compatibility](docs/host-compatibility.md) and [acceptance](docs/acceptance.md).
+Automatic Codex delivery uses either direct tool-output with actual exclusive writer control, or an explicitly selected experimental queue on the original thread's owning App Server. Both require an appropriate tool/credential boundary; the queue also needs the local dispatch-context MCP tool. Live Desktop continuation and provider E2E remain separate acceptance work. See [host compatibility](docs/host-compatibility.md) and [acceptance](docs/acceptance.md).
 
 RightWake is an independent project; it is not an official OpenAI, Linear, GitHub, GitLab, or Anthropic product.
 
 ## Install
 
-The command is `right-wake`; the Codex plugin is `right-wake@right-wake`. v0.2.0 starts a new namespace with a fresh profile and no legacy-name aliases or automatic migration.
+The command is `right-wake`; the Codex plugin is `right-wake@right-wake`. Upgrading from 0.2.0 preserves the same profile, sources, bindings, and onboarding baseline after a backup. The database receives additive schema updates; no old-name aliases are installed.
 
 **Use native installation beside your original local agent; use [Docker + Compose](deploy/README.md) for a VPS relay.** Native installation needs a shell, `curl`, `tar`, and a system SHA-256 tool, with **no Node.js, Python, Docker, Rust, or sudo**. It supports macOS and glibc Linux on arm64/x86_64. The installer verifies the archive and version, installs in `~/.local/bin`, and starts no service.
 
-Install the pinned **v0.2.0** release:
+Install the pinned **v0.3.0** release after checking its [publication status](docs/releases/v0.3.0-verification.md):
 
 ```sh
 curl --proto '=https' --tlsv1.2 --fail --location \
   --output right-wake-install.sh \
-  https://github.com/Nunchakus888/right-wake/releases/download/v0.2.0/install.sh
+  https://github.com/Nunchakus888/right-wake/releases/download/v0.3.0/install.sh
 # Inspect the downloaded installer, then run it.
-sh right-wake-install.sh --version v0.2.0
+sh right-wake-install.sh --version v0.3.0
 export PATH="$HOME/.local/bin:$PATH"
 right-wake --version
 right-wake setup
@@ -68,9 +68,13 @@ You can also install **RightWake** through `/plugins` in a compatible local Code
 
 > Use $right-wake-setup to install and configure RightWake for Linear issue ENG-123, bound to this existing work conversation. Reuse my authorized connections and existing configuration, start the required local receiver, and verify each available stage. Keep replies as drafts and report any concrete blocker.
 
-The same setup skill includes a [Linear workflow](docs/linear.md#agent-led-setup) for discovering existing settings, installing, configuring, and checking the result. With the required access, endpoint, and exact host/thread available, the agent can proceed in one invocation. First-time login, a missing public endpoint, or ambiguous ownership may require one focused interaction.
+For your personal Linear inbox, ask:
 
-The plugin still has three skills plus local MCP tools. Setup automation comes from the skill coordinating existing native CLI commands. Plugin installation has no hidden daemon-start hook, and a new setup conversation is not automatically the work destination. See [the plugin guide](docs/plugin.md).
+> Use $right-wake-setup to upgrade and configure RightWake for new comments on issues assigned to me and newly assigned tasks. Preserve my profile, existing bindings, and saved onboarding baseline. Resolve each event to its correct existing work thread, prepare any missing administrator handoff, and report receipt and original-thread execution separately. Keep replies as drafts.
+
+The same setup skill includes a [Linear workflow](docs/linear.md#agent-led-setup) for discovering existing settings, installing, configuring, and checking the result. With the required access, endpoint, and exact host/thread available, the agent can proceed in one invocation. A saved issue baseline seeds filtering; it does not register a webhook or assign every issue to the setup conversation. Missing admin access or a public endpoint produces a concrete handoff after the available local work is complete.
+
+The plugin has three skills and twelve local MCP tools. Setup automation comes from the skill coordinating native CLI commands. Plugin installation has no hidden daemon-start hook, and a new setup conversation is not automatically the work destination. See [the plugin guide](docs/plugin.md).
 
 For an existing `right-wake` installation, have the Agent [refresh its plugin package](docs/plugin.md#refresh-an-existing-installation) when the skills change, and check that its native binary satisfies the installed package's version requirement.
 

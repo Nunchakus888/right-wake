@@ -1,6 +1,6 @@
 use crate::{
-    config::{Config, HostConfig, RouterConfig},
-    db::Db,
+    config::{CodexDelivery, Config, HostConfig, RouterConfig},
+    db::{Db, LinearStateImport},
     engine::Engine,
     model::*,
     outbound::{self, ApprovalEnvelope, ApprovedAction, CurrentDraftState, SendOutcome},
@@ -138,6 +138,18 @@ pub enum SourceCommand {
     /// Add from flags, or --file for the complete source configuration.
     Add(Box<SourceAddArgs>),
     List,
+    /// Merge a bounded, timestamped Linear issue snapshot from authorized read tools.
+    LinearImport {
+        #[arg(long)]
+        id: String,
+        #[arg(long)]
+        file: PathBuf,
+    },
+    /// Inspect observed Linear assignment membership and unresolved events; no API polling.
+    LinearState {
+        #[arg(long)]
+        id: String,
+    },
 }
 #[derive(Debug, Args)]
 pub struct SourceAddArgs {
@@ -161,6 +173,10 @@ pub struct SourceAddArgs {
     resource: Vec<String>,
     #[arg(long)]
     bot_actor: Vec<String>,
+    /// Watch new comments on this user's issues and actual assignments to this user.
+    /// Use the authenticated Linear user's exact ID, not a name or comment actor ID.
+    #[arg(long)]
+    linear_assignee_id: Option<String>,
 }
 #[derive(Debug, Subcommand)]
 pub enum HostCommand {
@@ -170,6 +186,9 @@ pub enum HostCommand {
         id: String,
         #[arg(long, conflicts_with = "program")]
         socket: Option<PathBuf>,
+        /// Codex delivery: tool-output (default) or experimental atomic queue.
+        #[arg(long, value_enum, requires = "socket")]
+        delivery: Option<CodexDelivery>,
         #[arg(long, conflicts_with = "socket")]
         program: Option<PathBuf>,
         #[arg(long)]
@@ -192,6 +211,13 @@ pub enum HostCommand {
         archived: bool,
         #[arg(long)]
         cursor: Option<String>,
+    },
+    /// Read one exact existing thread and its delivery capability without a model turn.
+    Inspect {
+        #[arg(long)]
+        host: String,
+        #[arg(long)]
+        thread: String,
     },
 }
 #[derive(Debug, Args)]
@@ -456,21 +482,33 @@ pub async fn execute(cli: Cli) -> Result<Option<Value>> {
         Command::Serve{listen,relay_only}=>{crate::server::serve(engine,listen,relay_only).await?;return Ok(None);}
         Command::Source(SourceCommand::List)=>serde_json::to_value(&cfg.sources)?,
         Command::Source(SourceCommand::Add(args))=>{
-            let SourceAddArgs{file,id,kind,secret_env,token_env,tenant,instance,trigger,resource,bot_actor}=*args;
+            let SourceAddArgs{file,id,kind,secret_env,token_env,tenant,instance,trigger,resource,bot_actor,linear_assignee_id}=*args;
             let source:SourceConfig=if let Some(file)=file{serde_json::from_value(read_json(&file)?)?}else{
-                serde_json::from_value(json!({"id":id.context("--id is required")?,"kind":ProviderKind::from(kind.context("--kind is required")?),"secret_env":secret_env.context("--secret-env is required")?,"token_env":token_env,"tenant_id":tenant,"instance":instance.unwrap_or_default(),"trigger_patterns":if trigger.is_empty(){vec!["@right-wake".to_owned()]}else{trigger},"allowed_resources":resource,"bot_actor_ids":bot_actor}))?
+                serde_json::from_value(json!({"id":id.context("--id is required")?,"kind":ProviderKind::from(kind.context("--kind is required")?),"secret_env":secret_env.context("--secret-env is required")?,"token_env":token_env,"tenant_id":tenant,"instance":instance.unwrap_or_default(),"trigger_patterns":if trigger.is_empty(){vec!["@right-wake".to_owned()]}else{trigger},"allowed_resources":resource,"bot_actor_ids":bot_actor,"linear_assignee_id":linear_assignee_id}))?
             };
             source.validate()?;
             if let Some(old)=cfg.sources.iter_mut().find(|s|s.id==source.id){*old=source.clone();}else{cfg.sources.push(source.clone());}
             cfg.save(&dir)?;crate::server::poke(&dir);json!({"source_id":source.id,"state":"configured","webhook_path":format!("/hooks/{}",source.id),"next_action":"Set the named secret environment variable, configure the provider webhook, then run serve"})
         }
+        Command::Source(SourceCommand::LinearImport{id,file})=>{
+            let snapshot:LinearStateImport=serde_json::from_value(read_json(&file)?)?;
+            let result=db.import_linear_state(cfg.source(&id)?,&snapshot)?;
+            if result["changed"].as_u64().unwrap_or(0)>0 || result["awakened"].as_u64().unwrap_or(0)>0 {crate::server::poke(&dir);}
+            result
+        }
+        Command::Source(SourceCommand::LinearState{id})=>db.linear_state(cfg.source(&id)?)?,
         Command::Host(HostCommand::List)=>serde_json::to_value(&cfg.hosts)?,
-        Command::Host(HostCommand::Add{id,socket,program,arg,cwd,exclusive_writer,restricted_tools,timeout})=>{
-            let host=if let Some(socket)=socket{HostConfig::Codex{id:id.clone(),socket,exclusive_writer,restricted_tools,timeout_seconds:timeout}}else if let Some(program)=program{HostConfig::Command{id:id.clone(),program,args:arg,cwd,timeout_seconds:timeout}}else{bail!("provide --socket for Codex or --program for a command adapter")};
+        Command::Host(HostCommand::Add{id,socket,delivery,program,arg,cwd,exclusive_writer,restricted_tools,timeout})=>{
+            let host=if let Some(socket)=socket{HostConfig::Codex{id:id.clone(),socket,delivery:delivery.unwrap_or_default(),exclusive_writer,restricted_tools,timeout_seconds:timeout}}else if let Some(program)=program{HostConfig::Command{id:id.clone(),program,args:arg,cwd,timeout_seconds:timeout}}else{bail!("provide --socket for Codex or --program for a command adapter")};
             if let Some(old)=cfg.hosts.iter_mut().find(|h|h.id()==id){*old=host;}else{cfg.hosts.push(host);}
             cfg.save(&dir)?;crate::server::poke(&dir);json!({"host_id":id,"state":"configured","next_action":"Run doctor --probe; bind exact existing thread UUIDs"})
         }
         Command::Host(HostCommand::Threads{host,archived,cursor})=>engine.client(cfg.host(&host)?).await?.list_threads(json!({"limit":50,"cursor":cursor,"archived":archived,"modelProviders":[],"sourceKinds":["cli","vscode","exec","appServer","unknown"]})).await?,
+        Command::Host(HostCommand::Inspect{host,thread})=>{
+            uuid::Uuid::parse_str(&thread).context("host inspect needs the exact existing Codex thread UUID")?;
+            let target=ThreadTarget{host_id:host.clone(),thread_id:thread,cwd:None};
+            engine.client(cfg.host(&host)?).await?.inspect_delivery(&target).await?
+        }
         Command::Bind(args)=>{
             cfg.source(&args.source)?;cfg.host(&args.host)?;
             let target=ThreadTarget{host_id:args.host,thread_id:args.thread,cwd:args.cwd};
@@ -629,7 +667,34 @@ fn set_paused(
 async fn doctor(engine: &Engine, cfg: &Config, probe: bool) -> Result<Value> {
     let mut sources = vec![];
     for source in &cfg.sources {
-        sources.push(json!({"id":source.id,"enabled":source.enabled,"secret_available":std::env::var(&source.secret_env).is_ok_and(|s|!s.is_empty()),"public_webhook_verified":false,"next_action":"Register the public HTTPS webhook and deliver a signed test event"}));
+        let assignment = if source.linear_assignee_id.is_some() {
+            let state = engine.db.linear_state(source)?;
+            let issues = state["issues"].as_array().context("invalid Linear state")?;
+            let assigned = issues
+                .iter()
+                .filter(|issue| {
+                    issue["assignee"]["state"] == "assigned"
+                        && issue["assignee"]["user_id"].as_str()
+                            == source.linear_assignee_id.as_deref()
+                        && issue["conflicted"] == false
+                        && issue["removed"] == false
+                })
+                .count();
+            Some(json!({
+                "organization_id":state["organization_id"],
+                "tracked_issues_in_view":issues.len(),
+                "assigned_to_user_in_view":assigned,
+                "view_truncated":state["truncated"],
+                "waiting_assignment":state["waiting_assignment"],
+                "outside_assignment":state["outside_assignment"],
+                "waiting_capacity":state["waiting_capacity"],
+                "inspection_command":"source linear-state --id SOURCE",
+                "subscription_verified":false
+            }))
+        } else {
+            None
+        };
+        sources.push(json!({"id":source.id,"enabled":source.enabled,"secret_available":std::env::var(&source.secret_env).is_ok_and(|s|!s.is_empty()),"public_webhook_verified":null,"linear_assignee_id":source.linear_assignee_id,"linear_assignment_state":assignment,"next_action":"Verify the public HTTPS route and authorized webhook registration separately; inspect actual incoming events. A saved issue baseline is not active subscription coverage."}));
     }
     let mut hosts = vec![];
     for host in &cfg.hosts {
@@ -638,6 +703,7 @@ async fn doctor(engine: &Engine, cfg: &Config, probe: bool) -> Result<Value> {
                 exclusive_writer,
                 restricted_tools,
                 socket,
+                delivery,
                 ..
             } => {
                 let connected = if probe {
@@ -645,7 +711,16 @@ async fn doctor(engine: &Engine, cfg: &Config, probe: bool) -> Result<Value> {
                 } else {
                     None
                 };
-                json!({"id":host.id(),"kind":"codex","socket":socket,"connected":connected,"exclusive_writer_declared":exclusive_writer,"restricted_tools_declared":restricted_tools,"thread_execution_verified":false,"next_action":if *exclusive_writer{"Probe a selected original thread on the actual host"}else{"Establish a single writer for automatic execution; keep shared Desktop threads held"}})
+                let next_action = if !restricted_tools {
+                    "Establish the actual tool/credential boundary for automatic turns; a flag alone does not restrict tools"
+                } else if *delivery == CodexDelivery::Queue {
+                    "Verify the owning host supports experimental queue delivery and the exact original thread can call right_wake_dispatch_context using this profile"
+                } else if *exclusive_writer {
+                    "Probe a selected original thread on the actual host"
+                } else {
+                    "Establish a single writer for direct tool-output delivery, or explicitly configure supported atomic queue delivery"
+                };
+                json!({"id":host.id(),"kind":"codex","socket":socket,"delivery":delivery,"connected":connected,"exclusive_writer_required":*delivery==CodexDelivery::ToolOutput,"exclusive_writer_declared":exclusive_writer,"restricted_tools_declared":restricted_tools,"dispatch_context_tool_required":*delivery==CodexDelivery::Queue,"thread_execution_verified":false,"next_action":next_action})
             }
             HostConfig::Command { program, .. } => {
                 json!({"id":host.id(),"kind":"command","program_exists":program.is_file(),"sandboxed":false,"next_action":"Use a trusted adapter with the stdin correlation contract"})

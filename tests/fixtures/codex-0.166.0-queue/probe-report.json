@@ -1,0 +1,85 @@
+{
+  "recorded_at_utc": "2026-11-04T04:31:35.399034+00:00",
+  "source_tag": "rust-v0.166.0",
+  "source_commit": "6ff1e1ca3b30fc8b914720681fcf5fe62e95f856",
+  "release_asset": "codex-x86_64-unknown-linux-musl.tar.gz",
+  "binary_sha256": "b8a11fedf24b2dfb59a70c9e52b030f9a508dcd49cd2dd0d41956f4c785156b8",
+  "expected_archive_sha256": "a0bf572d2f93f056c6712a6da348e96078dc84f3885fd7be67807ef389cb3978",
+  "archive_reverified_in_this_run": false,
+  "transport": "isolated stdio",
+  "model_turns_requested": 0,
+  "queue_submissions_accepted": 0,
+  "threads_created": 0,
+  "existing_user_session_access": false,
+  "sessions": [
+    {
+      "experimental_api": false,
+      "checks": [
+        "isolated store empty; synthetic target is absent",
+        {
+          "method": "thread/queue/list",
+          "error_code": -32600,
+          "reason": "experimental_capability_required"
+        },
+        {
+          "method": "thread/queue/add",
+          "error_code": -32600,
+          "reason": "experimental_capability_required"
+        },
+        {
+          "method": "thread/queue/start",
+          "error_code": -32600,
+          "reason": "experimental_capability_required"
+        },
+        "isolated store remains empty; no fallback thread"
+      ],
+      "process_exit_code": 0,
+      "stderr_tail": [
+        "WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir \"/tmp\" (codex_home: AbsolutePathBuf(\"<isolated-probe>/stable-profile\"))"
+      ]
+    },
+    {
+      "experimental_api": true,
+      "checks": [
+        "isolated store empty; synthetic target is absent",
+        {
+          "method": "thread/queue/list",
+          "error_code": -32603,
+          "reason": "missing_target"
+        },
+        {
+          "method": "thread/queue/add",
+          "error_code": -32603,
+          "reason": "missing_target"
+        },
+        {
+          "method": "thread/queue/start",
+          "error_code": -32603,
+          "reason": "missing_target"
+        },
+        "isolated store remains empty; no fallback thread"
+      ],
+      "process_exit_code": 0,
+      "stderr_tail": [
+        "WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir \"/tmp\" (codex_home: AbsolutePathBuf(\"<isolated-probe>/experimental-profile\"))"
+      ]
+    }
+  ],
+  "limits": [
+    "Method/parser and missing-target rejection evidence only; no real queue execution.",
+    "No Desktop connection, existing-session resumption, model, authentication, or tool call.",
+    "Queue add/start are sent only for a verified absent ID in a fresh empty isolated store."
+  ],
+  "codex_version": "codex-cli 0.166.0",
+  "queue_add_fields": [
+    "clientUserMessageId",
+    "input",
+    "threadId"
+  ],
+  "queue_list_response_fields": [
+    "data",
+    "nextCursor"
+  ],
+  "queue_schema_experimental_only": true,
+  "status": "passed"
+}

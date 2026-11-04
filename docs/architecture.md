@@ -34,6 +34,14 @@ Acceptance requires bounded payload size and storage admission, durable event in
 
 The local database is the durable authority for event, binding, context, job, draft, approval, send, and relay state. Model conversation text is never the database. Configuration uses a schema version and secret references, and must fail clearly on unsupported schema versions.
 
+### Personal Linear scope
+
+A Linear source with `linear_assignee_id` and an explicit organization applies an additional eligibility gate before thread routing. New comments and genuine assignment transitions are candidates; latest verified Issue snapshots determine whether the resource belongs to that user. The durable projection distinguishes unknown, explicitly unassigned, and assigned owners, keeps source revision times, detects equal-version conflicts, and records removal and assignment intervals. Comment payloads are not treated as ownership evidence.
+
+Unknown or conflicting ownership produces `waiting_assignment`; known nonmembership produces `outside_assignment`. Neither calls a router/model. Already-received eligible work waits in `waiting_capacity` when the pending-work limit is full. New verified facts, a validated partial import, completion, or an explicit control event can advance held work; there is no timer checking for model work. These states remain subject to total stored-event and byte limits.
+
+Ownership is rechecked during routing, job claim, and the final host submission guard. Late facts cannot roll back a newer revision, and an old event cannot cross into a later assignment interval. A partial import never unassigns missing issues or replays known nonmember comments. Refresh previously tracked issues explicitly after a known delivery gap, including those absent from the current assigned-to-me query. This provides consistency with the worker's latest observed evidence; it cannot infer an unseen reassignment or claim an instantaneous remote owner check. A relay replay does not have a catch-up barrier in this release.
+
 ## Ownership and semantic decisions
 
 Routing evaluates the narrowest trusted ownership first:
@@ -62,7 +70,9 @@ The adapter connects only to an explicitly configured supported App Server endpo
 
 Before dispatch it must establish the destination identity, availability, expected work directory, history/resume support, and safe writing conditions. App Server notifications describe the connected server, not every other process that might write the same history. A preflight idle check is not an atomic guarantee that a human or another client cannot start a turn immediately afterward.
 
-The current adapter therefore requires the operator's **exclusive writer guarantee** before it writes a thread. Shared desktop use without a proven concurrency contract remains blocked. The exclusive-writer setting is a declaration about an actually controlled environment, not a switch that creates a lock across Codex clients.
+The default direct `tool-output` adapter therefore requires an actual **exclusive writer guarantee**. The opt-in `queue` adapter uses the original owning App Server's experimental atomic queue. That coordination exists within that same server process; a separate server reading the same persistent history is not a shared Desktop scheduler. Neither a thread UUID nor an idle probe proves owning-server identity.
+
+Queue input contains only a fixed controller notice and dispatch UUID. The receiver first persists immutable event/context data; the work thread retrieves it through `right_wake_dispatch_context` on the same profile. External event and context-card text remains tool-result data, and a queue turn cannot produce an accepted router result or draft without a successful context-read receipt. The adapter correlates the unchanged notice and `userMessage.clientId`, then the exact thread/turn completion. Queue client IDs are not remote deduplication keys. An ambiguous post-submit result becomes unknown and is not retried automatically. The adapter never calls queue/start to override a user pause.
 
 Existing tool permissions remain material. A read-only filesystem sandbox does not make remote MCP tools read-only. The `host add --restricted-tools` declaration is a deployment precondition: the operator must actually restrict the host's tools and credentials. It is not an enforced sandbox created by RightWake. Similarly, `--exclusive-writer` declares an established concurrency condition rather than creating a cross-client lock. Never set either flag merely to suppress a blocked-state message. The bridge does not grant server-initiated approvals or weaken a thread's policy. Provider write credentials and independent approval signing authority should be outside the worker's accessible environment when that separation is required.
 

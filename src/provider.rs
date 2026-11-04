@@ -3,7 +3,9 @@
 //! Authentication uses the original bytes. Remote content never supplies a local
 //! thread, working directory, command, credential, or API origin.
 
-use crate::model::{NormalizedEvent, ProviderKind, ReplyTarget};
+use crate::model::{
+    LinearAssignee, LinearEventMetadata, NormalizedEvent, ProviderKind, ReplyTarget,
+};
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
@@ -47,6 +49,11 @@ pub struct SourceConfig {
     /// Exact canonical resource keys, or prefixes ending in a single `*`.
     #[serde(default)]
     pub allowed_resources: Vec<String>,
+    /// Personal Linear scope: new comments on owned issues and new assignments.
+    /// The assignment index is maintained from signed Issue events, not a fixed
+    /// resource allowlist. This value is a user ID, never a credential.
+    #[serde(default)]
+    pub linear_assignee_id: Option<String>,
     /// Trusted API origin/path override for self-hosted instances and test servers.
     #[serde(default)]
     pub api_base: Option<String>,
@@ -400,6 +407,20 @@ impl SourceConfig {
                 "A webhook secret environment-variable reference is required",
             ));
         }
+        if let Some(assignee_id) = &self.linear_assignee_id {
+            if self.kind != ProviderKind::Linear || !valid_linear_identity(assignee_id) {
+                return Err(ProviderError::new(
+                    "invalid_linear_assignee",
+                    "linear_assignee_id requires a Linear source and a non-empty user ID",
+                ));
+            }
+            if !self.tenant_id.as_deref().is_some_and(valid_linear_identity) {
+                return Err(ProviderError::new(
+                    "invalid_linear_tenant",
+                    "linear_assignee_id requires an explicit non-empty Linear organization ID in tenant_id",
+                ));
+            }
+        }
         if self.max_payload_bytes == 0
             || self.max_payload_bytes > 16 * 1024 * 1024
             || self.max_content_chars == 0
@@ -720,6 +741,31 @@ pub fn apply_local_policy(source: &SourceConfig, event: &mut NormalizedEvent) ->
             ));
         }
     }
+    if let Some(linear) = &event.linear {
+        if event.provider != ProviderKind::Linear
+            || !valid_linear_identity(&linear.issue_id)
+            || event.resource_key
+                != format!(
+                    "linear:{origin}:{}:{}",
+                    component(&event.tenant_id),
+                    component(&linear.issue_id)
+                )
+            || event.reply_target.as_ref().is_none_or(|target| {
+                target.resource_id != linear.issue_id || target.container_id != event.tenant_id
+            })
+        {
+            return Err(ProviderError::new(
+                "linear_metadata_scope_mismatch",
+                "Linear metadata does not belong to the normalized issue",
+            ));
+        }
+        if !valid_linear_metadata(event, linear) {
+            return Err(ProviderError::new(
+                "invalid_linear_metadata",
+                "Linear metadata, event type, and reply conversation must agree",
+            ));
+        }
+    }
     if source.bot_actor_ids.contains(&event.actor_id) {
         event.actionable = false;
         event.explicit_trigger = false;
@@ -747,8 +793,112 @@ pub fn apply_local_policy(source: &SourceConfig, event: &mut NormalizedEvent) ->
             .push_str("\n[Content truncated; inspect the source before making factual claims.]");
     }
     event.actionable &= !event.content.trim().is_empty();
-    event.explicit_trigger &= event.actionable && trigger_matches(source, &event.content);
+    if let Some(assignee_id) = &source.linear_assignee_id {
+        let candidate = linear_personal_candidate(event, assignee_id);
+        event.actionable &= candidate;
+        event.explicit_trigger &= event.actionable;
+        if !candidate && event.skip_reason.is_none() {
+            event.skip_reason = Some("linear_event_not_selected".to_owned());
+        }
+    } else {
+        event.explicit_trigger &= event.actionable && trigger_matches(source, &event.content);
+    }
     Ok(())
+}
+
+/// Intrinsic event selection only. Callers must separately enforce the current
+/// durable assignment projection and the event's static/actor eligibility.
+pub fn linear_personal_candidate(event: &NormalizedEvent, assignee_id: &str) -> bool {
+    if event.provider != ProviderKind::Linear || !valid_linear_identity(assignee_id) {
+        return false;
+    }
+    let Some(metadata) = &event.linear else {
+        return false;
+    };
+    if !valid_linear_metadata(event, metadata) {
+        return false;
+    }
+    match event.action.as_str() {
+        "comment.create" => true,
+        "issue.create" => {
+            metadata.issue_updated_at_ms.is_some() && metadata.assignee.is_assigned_to(assignee_id)
+        }
+        "issue.update" => {
+            metadata.issue_updated_at_ms.is_some()
+                && metadata.assignee.is_assigned_to(assignee_id)
+                && metadata.previous_assignee != LinearAssignee::Unknown
+                && metadata.previous_assignee != metadata.assignee
+        }
+        _ => false,
+    }
+}
+
+fn valid_linear_metadata(event: &NormalizedEvent, metadata: &LinearEventMetadata) -> bool {
+    let valid_assignee = |assignee: &LinearAssignee| match assignee {
+        LinearAssignee::Unknown | LinearAssignee::Unassigned => true,
+        LinearAssignee::Assigned { user_id } => valid_linear_identity(user_id),
+    };
+    let Some(target) = &event.reply_target else {
+        return false;
+    };
+    if event.provider != ProviderKind::Linear
+        || !valid_linear_identity(&metadata.issue_id)
+        || !valid_linear_identity(&event.tenant_id)
+        || !event.resource_key.starts_with("linear:")
+        || !event.resource_key.ends_with(&format!(
+            ":{}:{}",
+            component(&event.tenant_id),
+            component(&metadata.issue_id)
+        ))
+        || !valid_assignee(&metadata.assignee)
+        || !valid_assignee(&metadata.previous_assignee)
+        || metadata
+            .issue_updated_at_ms
+            .is_some_and(|timestamp| timestamp <= 0)
+        || target.provider != ProviderKind::Linear
+        || target.container_id != event.tenant_id
+        || target.resource_id != metadata.issue_id
+        || target.discussion_id.is_some()
+    {
+        return false;
+    }
+    if event.action.starts_with("comment.") {
+        let Some(comment_id) = &target.comment_id else {
+            return false;
+        };
+        valid_linear_identity(comment_id)
+            && event.conversation_key.as_deref()
+                == Some(
+                    format!("{}:comment:{}", event.resource_key, component(comment_id)).as_str(),
+                )
+            && metadata.assignee == LinearAssignee::Unknown
+            && metadata.previous_assignee == LinearAssignee::Unknown
+            && metadata.issue_updated_at_ms.is_none()
+    } else {
+        event.action.starts_with("issue.")
+            && event.conversation_key.is_none()
+            && target.comment_id.is_none()
+    }
+}
+
+fn valid_linear_identity(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 1024
+        && !value
+            .chars()
+            .any(|character| character.is_whitespace() || character.is_control())
+}
+
+fn linear_assignee(value: Option<&Value>) -> LinearAssignee {
+    match value {
+        Some(Value::Null) => LinearAssignee::Unassigned,
+        Some(Value::String(user_id)) if valid_linear_identity(user_id) => {
+            LinearAssignee::Assigned {
+                user_id: user_id.clone(),
+            }
+        }
+        _ => LinearAssignee::Unknown,
+    }
 }
 
 fn scalar(value: &Value) -> Option<String> {
@@ -877,6 +1027,7 @@ fn make_event(
         explicit_trigger,
         skip_reason,
         reply_target,
+        linear: None,
     }
 }
 
@@ -905,7 +1056,7 @@ fn normalize_linear(
         component(&tenant),
         component(&issue_id)
     );
-    let content = if kind == "Comment" {
+    let source_content = if kind == "Comment" {
         at(payload, "/data/body").unwrap_or_default()
     } else {
         at(payload, "/data/description").unwrap_or_default()
@@ -918,7 +1069,7 @@ fn normalize_linear(
     let conversation = comment_id
         .as_ref()
         .map(|id| format!("{resource}:comment:{}", component(id)));
-    let eligible = if kind == "Comment" {
+    let default_eligible = if kind == "Comment" {
         matches!(action.as_str(), "create" | "update")
     } else {
         action == "create"
@@ -930,20 +1081,49 @@ fn normalize_linear(
     let target = ReplyTarget {
         provider: source.kind,
         container_id: tenant.clone(),
-        resource_id: issue_id,
+        resource_id: issue_id.clone(),
         comment_id,
         discussion_id: None,
     };
     let data = payload.get("data").unwrap_or(&Value::Null);
     let updated = data.get("updatedAt").or_else(|| data.get("createdAt"));
+    let metadata = LinearEventMetadata {
+        issue_id,
+        issue_title: at(
+            payload,
+            if kind == "Issue" {
+                "/data/title"
+            } else {
+                "/data/issue/title"
+            },
+        )
+        .map(|title| title.chars().take(source.max_content_chars).collect()),
+        assignee: if kind == "Issue" {
+            linear_assignee(data.get("assigneeId"))
+        } else {
+            LinearAssignee::Unknown
+        },
+        previous_assignee: if kind == "Issue" {
+            linear_assignee(payload.pointer("/updatedFrom/assigneeId"))
+        } else {
+            LinearAssignee::Unknown
+        },
+        issue_updated_at_ms: if kind == "Issue" {
+            data.get("updatedAt")
+                .and_then(parse_timestamp)
+                .filter(|timestamp| *timestamp > 0)
+        } else {
+            None
+        },
+    };
     let snapshot = source_revision(
         &format!("linear.{}", kind.to_lowercase()),
         &entity_id,
-        &content,
+        &source_content,
         updated,
         if kind == "Issue" { updated } else { None },
     );
-    Ok(Some(make_event(
+    let mut event = make_event(
         source,
         delivery,
         tenant,
@@ -955,11 +1135,45 @@ fn normalize_linear(
         occurred(payload.get("createdAt"), now_ms),
         now_ms,
         at(payload, "/url"),
-        content,
+        source_content.clone(),
         snapshot,
-        eligible,
+        default_eligible,
         Some(target),
-    )))
+    );
+    event.linear = Some(metadata);
+    // Assignment evidence is part of event identity, even if two deliveries
+    // carry equal text/revision timestamps but disagree about the assignee.
+    let metadata = event.linear.as_ref().expect("Linear metadata was set");
+    event.event_id = sha256_hex(
+        serde_json::json!([
+            event.event_id,
+            metadata.assignee,
+            metadata.previous_assignee,
+            metadata.issue_updated_at_ms
+        ])
+        .to_string()
+        .as_bytes(),
+    );
+    if let Some(assignee_id) = &source.linear_assignee_id {
+        let selected = linear_personal_candidate(&event, assignee_id);
+        if selected && kind == "Issue" {
+            let metadata = event.linear.as_ref().expect("Linear metadata was set");
+            let title = metadata
+                .issue_title
+                .as_deref()
+                .filter(|title| !title.trim().is_empty())
+                .unwrap_or(&metadata.issue_id);
+            event.content = format!("Issue assigned to {assignee_id}: {title}\n\n{source_content}");
+        }
+        event.actionable = selected && !event.content.trim().is_empty();
+        event.explicit_trigger = event.actionable;
+        event.skip_reason = if selected {
+            (!event.actionable).then(|| "state_sync_only".to_owned())
+        } else {
+            Some("linear_event_not_selected".to_owned())
+        };
+    }
+    Ok(Some(event))
 }
 
 fn normalize_github(

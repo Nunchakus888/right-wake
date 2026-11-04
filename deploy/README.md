@@ -4,7 +4,7 @@ Run RightWake natively beside the local agent whose original conversation you wa
 
 The image includes RightWake and **bundled SQLite**. One persistent `/data` volume stores configuration and database state; there is no separate database service. It runs as UID/GID `10001` and publishes only a loopback host port for your HTTPS/WSS reverse proxy.
 
-**[v0.2.0 Docker assets are available](https://github.com/Nunchakus888/right-wake/releases/tag/v0.2.0).** Both Linux amd64 and arm64 passed actual image build/run/load and Compose persistence checks. See [verification](../docs/releases/v0.2.0-verification.md) for exact jobs and public-download evidence, and [verification levels](#container-verification-levels) for their scope.
+**The deployment files target [v0.3.0](https://github.com/Nunchakus888/right-wake/releases/tag/v0.3.0).** Check [verification](../docs/releases/v0.3.0-verification.md) for actual publication, Linux amd64/arm64 image and Compose results, and public-download evidence. [Verification levels](#container-verification-levels) explains what each check establishes.
 
 ## Install the release image
 
@@ -17,25 +17,25 @@ mkdir right-wake-relay
 cd right-wake-relay
 curl --proto '=https' --tlsv1.2 --fail --location \
   --output install-container.sh \
-  https://github.com/Nunchakus888/right-wake/releases/download/v0.2.0/install-container.sh
+  https://github.com/Nunchakus888/right-wake/releases/download/v0.3.0/install-container.sh
 curl --proto '=https' --tlsv1.2 --fail --location \
   --output compose.yaml \
-  https://github.com/Nunchakus888/right-wake/releases/download/v0.2.0/compose.yaml
+  https://github.com/Nunchakus888/right-wake/releases/download/v0.3.0/compose.yaml
 # Inspect the installer and Compose configuration before running them.
-sh install-container.sh --version v0.2.0
+sh install-container.sh --version v0.3.0
 ```
 
 The installer selects the **Docker server's** platform, downloads its archive and `SHA256SUMS`, verifies the checksum, loads it with Docker, and checks the expected tag/platform/version metadata. The two image assets are:
 
-- `right-wake-v0.2.0-container-linux-amd64.tar.gz`
-- `right-wake-v0.2.0-container-linux-arm64.tar.gz`
+- `right-wake-v0.3.0-container-linux-amd64.tar.gz`
+- `right-wake-v0.3.0-container-linux-arm64.tar.gz`
 
-Both contain the image tag `right-wake:0.2.0`, for their respective architectures. Distribution uses public GitHub Release assets, with no GHCR login. The Compose file uses `pull_policy: never`; it expects the image to have been explicitly loaded. The installer does not start containers, write configuration/secrets, download Compose, or remove existing images/volumes.
+Both contain the image tag `right-wake:0.3.0`, for their respective architectures. Distribution uses public GitHub Release assets, with no GHCR login. The Compose file uses `pull_policy: never`; it expects the image to have been explicitly loaded. The installer does not start containers, write configuration/secrets, download Compose, or remove existing images/volumes.
 
 For an offline directory containing the matching image archive and release checksums:
 
 ```sh
-sh install-container.sh --version v0.2.0 --from-dir /absolute/path/to/release-files
+sh install-container.sh --version v0.3.0 --from-dir /absolute/path/to/release-files
 ```
 
 Checksums detect mismatches but are not an independent publisher signature. `SHA256SUMS` covers the four native archives and two image archives; review the separately downloaded installer and Compose file. See Docker's [image-load reference](https://docs.docker.com/reference/cli/docker/image/load/) and [pull policy](https://docs.docker.com/reference/compose-file/services/#pull_policy).
@@ -72,6 +72,8 @@ docker compose run --rm right-wake relay device \
 
 Use your trusted editor or secret mechanism to populate `private.env` with the actual `RIGHT_WAKE_LINEAR_WEBHOOK_SECRET` and a device token of at least 32 characters under `RIGHT_WAKE_RELAY_DEVICE_TOKEN`. Source/device configuration stores these **variable names**, not their values. Transfer only the matching device token to the authorized local worker through your trusted channel. A receipt-only relay needs no provider write token, Codex login, or approval private key.
 
+For personal Linear watching, configure the same `linear_assignee_id`, organization, and static exclusions on both relay and local worker, and seed each projection with verified issue state. Subscribe to **Issue and Comment** resources across the intended teams. Do not use today's assigned issue list as a static `--resource` allowlist. The receiver must preserve all valid Issue ownership facts, including reassignment away; a relay still configured for the old mention-only policy cannot supply missing assignment events. See [personal scope and snapshots](../docs/linear.md).
+
 The [Linear guide](../docs/linear.md) explains webhook permissions and identifiers. Adding a source does not register a provider webhook. An existing Linear MCP connection also does not create this event subscription.
 
 ## Start, connect, and inspect
@@ -93,7 +95,7 @@ The original local worker uses native `right-wake relay connect`, with its **own
 
 `/data` holds `config.json`, `state.sqlite3`, and any SQLite WAL/SHM sidecars, along with the durable event/job/draft/receipt state. Keep it on local persistent storage. Stop the service before making a filesystem backup and preserve the complete volume; restore into a separate volume for inspection before replacing live data. Keep a separate backup of operator-managed `private.env` under the appropriate secret controls.
 
-To upgrade, load the new versioned image and review its matching Compose file, then recreate the service using the same deployment directory/project identity and volume. Preserve `private.env` and your reviewed configuration. Changing the project name can select a different empty volume. v0.2.0 uses the new `right-wake` namespace and a fresh profile; it does not migrate previous preview volumes. Database schema version 3 and bundled SQLite 3.54.1 remain in use; see [release notes](../docs/releases/v0.2.0.md).
+To upgrade, load the new versioned image and review its matching Compose file, then recreate the service using the same deployment directory/project identity and volume. Preserve `private.env` and your reviewed configuration. Changing the project name can select a different empty volume. v0.3.0 upgrades an existing 0.2.0 `right-wake` volume in place after a backup; keep the same profile and project. Schema 4 adds ownership and dispatch-context tables. Bundled SQLite remains 3.54.1; see [release notes](../docs/releases/v0.3.0.md). Restore the matching pre-upgrade volume snapshot when rolling back the binary.
 
 ```sh
 docker compose stop
@@ -108,7 +110,7 @@ docker compose up -d
 For development or a custom build, build the optional source Dockerfile from the repository root:
 
 ```sh
-docker build --file deploy/Dockerfile --tag right-wake:0.2.0 .
+docker build --file deploy/Dockerfile --tag right-wake:0.3.0 .
 mkdir "$HOME/right-wake-relay"
 cp deploy/compose.yaml "$HOME/right-wake-relay/compose.yaml"
 cd "$HOME/right-wake-relay"
@@ -121,8 +123,8 @@ Use a new deployment directory outside the source checkout, then follow [initial
 | Check | Evidence and limit |
 | --- | --- |
 | Source container smoke | Run against the intended source commit; results belong in the current verification report. |
-| v0.2.0 release image / Compose | [Release run 41768104125](https://github.com/Nunchakus888/right-wake/actions/runs/41768104125) passed on Linux amd64/arm64: actual image build/load, SQLite 3.54.1, non-root UID/GID `10001:10001`, preservation of two original jobs/two drafts, signed loopback receipt, and pending-event persistence across restart/recreation. The real image installer and 18 installer boundary checks also passed on each platform. See [verification](../docs/releases/v0.2.0-verification.md). |
-| Public amd64 archive | The downloaded release archive matched `SHA256SUMS` and GitHub's asset digest. Its `right-wake:0.2.0` tag, `linux/amd64` platform, `10001:10001` user, entrypoint/data directory, and OCI version/title/source/revision labels matched the published source. This was archive inspection; runtime evidence comes from the Linux release jobs above. |
+| v0.3.0 release image / Compose | Exact source, Linux amd64/arm64 runs, installer checks, persistence, and runtime results are recorded in [verification](../docs/releases/v0.3.0-verification.md). Existing v0.2.0 results remain in their [original report](../docs/releases/v0.2.0-verification.md). |
+| Public image archives | Downloaded checksum and OCI metadata inspection is recorded separately from actual image execution. An inspected archive alone is not a Docker runtime test. |
 | Real deployment | Public HTTPS/WSS, provider receipt, offline-local replay, original-thread model continuation, and provider replies require separate authorized integration evidence. |
 
-Repository validation commands are `sh scripts/container-smoke.sh` for the source build, and `sh scripts/compose-smoke.sh right-wake:0.2.0` for an already-built image. The test host needs Docker/Compose and Python 3; the runtime image does not need Python. The release packaging script reuses its native Linux binary, checks the image and Compose behavior, saves the archive, and exercises the real loader against that archive. A passing fixture does not establish a live Codex or provider integration; keep those results separate in [acceptance](../docs/acceptance.md). Earlier release evidence is preserved in the [archive](../docs/archive/README.md).
+Repository validation commands are `sh scripts/container-smoke.sh` for the source build, and `sh scripts/compose-smoke.sh right-wake:0.3.0` for an already-built image. The test host needs Docker/Compose and Python 3; the runtime image does not need Python. The release packaging script reuses its native Linux binary, checks the image and Compose behavior, saves the archive, and exercises the real loader against that archive. A passing fixture does not establish a live Codex or provider integration; keep those results separate in [acceptance](../docs/acceptance.md). Earlier release evidence is preserved in the [archive](../docs/archive/README.md).

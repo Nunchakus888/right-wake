@@ -91,6 +91,7 @@ impl Fixture {
             explicit_trigger: true,
             skip_reason: None,
             reply_target: None,
+            linear: None,
         };
         self.engine
             .db
@@ -402,6 +403,7 @@ async fn pause_during_host_handshake_prevents_resume_and_model_submission() {
     let socket = socket_dir.path().join("host.sock");
     let listener = tokio::net::UnixListener::bind(&socket).unwrap();
     fixture.config.hosts[0] = HostConfig::Codex {
+        delivery: Default::default(),
         id: "alpha".into(),
         socket,
         exclusive_writer: true,

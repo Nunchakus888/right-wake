@@ -1,8 +1,8 @@
 //! Event-triggered routing and execution. There is deliberately no interval,
 //! scheduled model call, provider polling loop, or automatic new-thread path.
 use crate::{
-    config::{Config, HostConfig},
-    db::Db,
+    config::{CodexDelivery, Config, HostConfig},
+    db::{Db, LinearScopeDecision},
     host::{
         AppServerClient, AppServerOptions, DispatchOutcome, DispatchRequest, GenericCommand,
         GenericCommandOptions, HostNotification,
@@ -61,6 +61,7 @@ impl Engine {
         let HostConfig::Codex {
             id,
             socket,
+            delivery,
             exclusive_writer,
             ..
         } = host
@@ -80,6 +81,7 @@ impl Engine {
                 host_id: id.clone(),
                 socket_path: socket.clone(),
                 request_timeout_ms: 5000,
+                delivery: *delivery,
                 exclusive_writer: *exclusive_writer,
             })
             .await?,
@@ -162,25 +164,109 @@ impl Engine {
     }
 
     pub async fn dispatch(&self, cfg: &Config, request: &DispatchRequest) -> DispatchOutcome {
+        self.dispatch_checked(cfg, request, None, None).await
+    }
+
+    async fn dispatch_checked(
+        &self,
+        cfg: &Config,
+        request: &DispatchRequest,
+        event: Option<&NormalizedEvent>,
+        job: Option<&Job>,
+    ) -> DispatchOutcome {
         let host = match self.dispatch_host(cfg, &request.target.host_id) {
             Ok(host) => host,
             Err(reason) => return DispatchOutcome::Blocked { reason },
         };
+        // The host invokes this again after its asynchronous read/resume
+        // preflight, immediately before admission to the original thread.
+        let guard = || -> std::result::Result<(), String> {
+            self.dispatch_host(cfg, &request.target.host_id)?;
+            let current = Config::load(&self.dir).map_err(|error| error.to_string())?;
+            if let Some(event) = event {
+                let source = current
+                    .source(&event.source_id)
+                    .map_err(|_| "source_removed".to_owned())?;
+                if !source.enabled {
+                    return Err("source_paused".to_owned());
+                }
+                if !event.actionable {
+                    return Err("event_not_actionable".to_owned());
+                }
+                let expected_source = cfg
+                    .source(&event.source_id)
+                    .map_err(|error| error.to_string())?;
+                if serde_json::to_value(source).map_err(|error| error.to_string())?
+                    != serde_json::to_value(expected_source).map_err(|error| error.to_string())?
+                {
+                    return Err("source_configuration_changed".to_owned());
+                }
+                let scope = self
+                    .db
+                    .linear_scope(source, event)
+                    .map_err(|error| error.to_string())?;
+                if let Some(reason) = scope.reason() {
+                    return Err(reason.to_owned());
+                }
+                if let Some(job) = job {
+                    if !self
+                        .db
+                        .job_binding_current(job)
+                        .map_err(|error| error.to_string())?
+                    {
+                        return Err("binding_changed: original target ownership changed".to_owned());
+                    }
+                } else if current
+                    .router
+                    .as_ref()
+                    .map(serde_json::to_value)
+                    .transpose()
+                    .map_err(|error| error.to_string())?
+                    != cfg
+                        .router
+                        .as_ref()
+                        .map(serde_json::to_value)
+                        .transpose()
+                        .map_err(|error| error.to_string())?
+                {
+                    return Err("router_configuration_changed".to_owned());
+                }
+            }
+            Ok(())
+        };
+        if let Err(reason) = guard() {
+            return DispatchOutcome::Blocked { reason };
+        }
         match &host {
             HostConfig::Codex { restricted_tools: false, .. } => DispatchOutcome::Blocked { reason: "tools_not_restricted: isolate bridge state and restrict remote mutation tools before enabling this host".into() },
-            HostConfig::Codex { exclusive_writer: false, .. } => DispatchOutcome::Blocked { reason: "exclusive_writer_required: confirm the host has exclusive control of this thread".into() },
-            HostConfig::Codex { .. } => {
+            HostConfig::Codex { delivery: CodexDelivery::ToolOutput, exclusive_writer: false, .. } => DispatchOutcome::Blocked { reason: "exclusive_writer_required: confirm the host has exclusive control of this thread".into() },
+            HostConfig::Codex { delivery, .. } => {
+                if *delivery == CodexDelivery::Queue {
+                    if let Err(error) = self.db.put_dispatch_context(&request.dispatch_id, &request.target, &request.prompt, request.output_schema.as_ref()) {
+                        return DispatchOutcome::Rejected { reason: format!("dispatch_context_unavailable: {error}") };
+                    }
+                }
                 let connection = self.client(&host).await;
-                if let Err(reason) = self.dispatch_host(cfg, &request.target.host_id) {
+                if let Err(reason) = guard() {
                     return DispatchOutcome::Blocked { reason };
                 }
                 match connection {
-                    Ok(client) => client.dispatch_existing(request).await,
+                    Ok(client) => {
+                        let result = client.dispatch_existing_guarded(request, guard).await;
+                        if *delivery == CodexDelivery::Queue {
+                            if let DispatchOutcome::Completed { thread_id, turn_id, .. } = &result {
+                                if !self.db.dispatch_context_read(&request.dispatch_id).unwrap_or(false) {
+                                    return DispatchOutcome::Failed { thread_id:thread_id.clone(), turn_id:turn_id.clone(), reason:"dispatch_context_not_read: queue turn did not retrieve the immutable work context".into() };
+                                }
+                            }
+                        }
+                        result
+                    },
                     Err(error) => DispatchOutcome::Blocked { reason: format!("host_offline: {error}") },
                 }
             },
             HostConfig::Command { id, program, args, cwd, timeout_seconds } => match GenericCommand::new(GenericCommandOptions { host_id: id.clone(), program: program.clone(), args: args.clone(), cwd: cwd.clone(), timeout_ms: timeout_seconds.saturating_mul(1000) }) {
-                Ok(command) => command.dispatch_existing(request).await, Err(error) => DispatchOutcome::Rejected { reason: error.to_string() },
+                Ok(command) => match guard() { Ok(()) => command.dispatch_existing(request).await, Err(reason) => DispatchOutcome::Blocked { reason } }, Err(error) => DispatchOutcome::Rejected { reason: error.to_string() },
             },
         }
     }
@@ -200,6 +286,17 @@ impl Engine {
             if !enabled {
                 self.db
                     .event_state(&event.event_id, "held", "source_paused_or_removed")?;
+                continue;
+            }
+            let scope = self
+                .db
+                .linear_scope(cfg.source(&event.source_id)?, &event)?;
+            if scope != LinearScopeDecision::Admitted {
+                self.db.event_state(
+                    &event.event_id,
+                    scope.state(),
+                    scope.reason().unwrap_or_default(),
+                )?;
                 continue;
             }
             if let Some(binding) = self.db.binding_for(&event)? {
@@ -296,14 +393,7 @@ impl Engine {
                 output_schema: Some(schema),
             };
             let configured_host = cfg.host(&router.target.host_id).ok();
-            if let Some(
-                host @ HostConfig::Codex {
-                    restricted_tools: true,
-                    exclusive_writer: true,
-                    ..
-                },
-            ) = configured_host
-            {
+            if let Some(host) = configured_host.filter(|host| codex_prerequisites(host)) {
                 if let Err(error) = self.client(host).await {
                     let reason = self
                         .dispatch_host(&cfg, &router.target.host_id)
@@ -344,8 +434,27 @@ impl Engine {
                 )?;
                 continue;
             }
+            let scope = self
+                .db
+                .linear_scope(fresh.source(&event.source_id)?, &event)?;
+            if scope != LinearScopeDecision::Admitted {
+                self.db.finish_router(
+                    &event.event_id,
+                    "waiting",
+                    scope.reason().unwrap_or_default(),
+                    None,
+                )?;
+                self.db.event_state(
+                    &event.event_id,
+                    scope.state(),
+                    scope.reason().unwrap_or_default(),
+                )?;
+                continue;
+            }
             let generation = self.host_generation.load(Ordering::SeqCst);
-            let result = self.dispatch(&fresh, &request).await;
+            let result = self
+                .dispatch_checked(&fresh, &request, Some(&event), None)
+                .await;
             let waiting = matches!(
                 &result,
                 DispatchOutcome::Busy { .. } | DispatchOutcome::Blocked { .. }
@@ -411,7 +520,10 @@ impl Engine {
                 )?,
                 DispatchOutcome::Blocked { reason } => {
                     self.db
-                        .finish_router(&event.event_id, "waiting", &reason, None)?
+                        .finish_router(&event.event_id, "waiting", &reason, None)?;
+                    if let Some(state) = assignment_blocked_state(&reason) {
+                        self.db.event_state(&event.event_id, state, &reason)?;
+                    }
                 }
                 DispatchOutcome::Rejected { reason } => {
                     self.db
@@ -446,6 +558,19 @@ impl Engine {
                 .finish_job(&job.id, "held", "host_paused", None, true)?;
             return Ok(());
         }
+        let scope = self
+            .db
+            .linear_scope(cfg.source(&job.event.source_id)?, &job.event)?;
+        if scope != LinearScopeDecision::Admitted {
+            self.db.finish_job(
+                &job.id,
+                scope.state(),
+                scope.reason().unwrap_or_default(),
+                None,
+                true,
+            )?;
+            return Ok(());
+        }
         let host = match cfg.host(&job.target.host_id) {
             Ok(host) => host.clone(),
             Err(_) => {
@@ -455,14 +580,7 @@ impl Engine {
             }
         };
         // Establish any slow connection before the last local version check.
-        if matches!(
-            host,
-            HostConfig::Codex {
-                restricted_tools: true,
-                exclusive_writer: true,
-                ..
-            }
-        ) {
+        if codex_prerequisites(&host) {
             let connection = self.client(&host).await;
             if Config::load(&self.dir)?.host_paused(&job.target.host_id) {
                 self.db
@@ -493,6 +611,19 @@ impl Engine {
         {
             self.db
                 .finish_job(&job.id, "held", "paused_or_source_removed", None, true)?;
+            return Ok(());
+        }
+        let scope = self
+            .db
+            .linear_scope(cfg.source(&job.event.source_id)?, &job.event)?;
+        if scope != LinearScopeDecision::Admitted {
+            self.db.finish_job(
+                &job.id,
+                scope.state(),
+                scope.reason().unwrap_or_default(),
+                None,
+                true,
+            )?;
             return Ok(());
         }
         if !self.db.job_binding_current(&job)? {
@@ -536,7 +667,9 @@ impl Engine {
             "event":job.event,"binding_version":job.binding_version,"source_revision":job.source_revision
         }).to_string() };
         let generation = self.host_generation.load(Ordering::SeqCst);
-        let result = self.dispatch(&cfg, &request).await;
+        let result = self
+            .dispatch_checked(&cfg, &request, Some(&job.event), Some(&job))
+            .await;
         let waiting = matches!(
             &result,
             DispatchOutcome::Busy { .. } | DispatchOutcome::Blocked { .. }
@@ -629,7 +762,11 @@ impl Engine {
             )?,
             DispatchOutcome::Blocked { reason } => self.db.finish_job(
                 &job.id,
-                if reason.starts_with("host_offline") {
+                if let Some(state) = assignment_blocked_state(&reason) {
+                    state
+                } else if reason.starts_with("binding_changed") {
+                    "binding_changed"
+                } else if reason.starts_with("host_offline") {
                     "waiting_host"
                 } else {
                     "held"
@@ -666,6 +803,7 @@ impl Engine {
             return Ok(0);
         }
         self.route_pending(&cfg).await?;
+        self.db.wake_linear_capacity(&Config::load(&self.dir)?)?;
         let mut count = 0;
         for _ in 0..100 {
             let cfg = Config::load(&self.dir)?;
@@ -695,3 +833,24 @@ impl Engine {
         }
     }
 }
+
+fn codex_prerequisites(host: &HostConfig) -> bool {
+    matches!(host, HostConfig::Codex { delivery, restricted_tools:true, exclusive_writer, .. }
+        if *delivery == CodexDelivery::Queue || *exclusive_writer)
+}
+
+fn assignment_blocked_state(reason: &str) -> Option<&'static str> {
+    match reason {
+        "linear_assignment_unknown" | "linear_assignment_conflict" => Some("waiting_assignment"),
+        "linear_not_assigned_to_watched_user"
+        | "linear_issue_removed"
+        | "linear_comment_predates_assignment"
+        | "linear_event_predates_assignment" => Some("outside_assignment"),
+        "linear_intrinsic_or_static_denial" => Some("cached"),
+        _ => None,
+    }
+}
+
+#[cfg(all(test, unix))]
+#[path = "engine_queue_tests.rs"]
+mod queue_tests;

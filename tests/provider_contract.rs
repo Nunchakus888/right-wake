@@ -1,6 +1,6 @@
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use hmac::{Hmac, Mac};
-use right_wake::model::ProviderKind;
+use right_wake::model::{LinearAssignee, ProviderKind};
 use right_wake::provider::{
     ingest_with_secret, verify, Headers, IngestOutcome, SignatureScheme, SourceConfig,
     SourceRevision,
@@ -41,6 +41,32 @@ fn github_comment(body: &str) -> Value {
     json!({"action":"created","repository":{"id":12,"full_name":"example/repo","owner":{"id":5}},
         "issue":{"id":88,"number":42,"pull_request":{"url":"https://api.github.com/repos/example/repo/pulls/42"},"updated_at":"2026-11-03T09:10:00Z"},
         "comment":{"id":90,"body":body,"updated_at":"2026-11-03T09:10:00Z","html_url":"https://github.com/example/repo/pull/42#issuecomment-90"},"sender":{"id":8}})
+}
+
+fn linear_payload(kind: &str, action: &str) -> Value {
+    json!({
+        "type":kind,"action":action,"organizationId":"workspace-a",
+        "actor":{"id":"person"},"webhookTimestamp":NOW,
+        "createdAt":"2026-11-03T09:10:00Z",
+        "data":{"id":"issue-1","title":"Investigate the local build", "description":"",
+            "assigneeId":"watched-user","updatedAt":"2026-11-03T09:10:00Z"}
+    })
+}
+
+fn personal_linear_source() -> SourceConfig {
+    let mut config = source("linear");
+    config.linear_assignee_id = Some("watched-user".into());
+    config.tenant_id = Some("workspace-a".into());
+    config
+}
+
+fn linear_event(config: &SourceConfig, payload: &Value) -> right_wake::model::NormalizedEvent {
+    let body = serde_json::to_vec(payload).unwrap();
+    let headers = Headers::from([
+        ("Linear-Signature".into(), sign(SECRET, &body)),
+        ("Linear-Delivery".into(), "linear-delivery".into()),
+    ]);
+    event(ingest_with_secret(config, SECRET, &headers, &body, NOW).unwrap())
 }
 
 fn event(outcome: IngestOutcome) -> right_wake::model::NormalizedEvent {
@@ -116,6 +142,294 @@ fn linear_stable_identity_and_provenance() {
     let another = event(ingest_with_secret(&config, SECRET, &headers, &body, NOW).unwrap());
     assert_ne!(normalized.event_id, another.event_id);
     config.tenant_id = Some("different-workspace".into());
+    assert_eq!(
+        ingest_with_secret(&config, SECRET, &headers, &body, NOW)
+            .unwrap_err()
+            .code,
+        "tenant_mismatch"
+    );
+}
+
+#[test]
+fn linear_personal_scope_selects_real_new_assignments_without_description_or_mention() {
+    let config = personal_linear_source();
+    for (label, action, previous, expected) in [
+        ("created assigned", "create", json!(null), true),
+        (
+            "assigned from null",
+            "update",
+            json!({"assigneeId":null}),
+            true,
+        ),
+        (
+            "reassigned",
+            "update",
+            json!({"assigneeId":"another-user"}),
+            true,
+        ),
+        (
+            "unchanged owner",
+            "update",
+            json!({"assigneeId":"watched-user"}),
+            false,
+        ),
+        ("title only", "update", json!({"title":"Old title"}), false),
+        ("old mention", "update", json!({"priority":1}), false),
+        (
+            "description edited",
+            "update",
+            json!({"description":"Old body"}),
+            false,
+        ),
+        ("removed", "remove", json!(null), false),
+    ] {
+        let mut payload = linear_payload("Issue", action);
+        payload["updatedFrom"] = previous;
+        if label == "old mention" || label == "description edited" {
+            payload["data"]["description"] = json!("@right-wake previous request");
+        }
+        let normalized = linear_event(&config, &payload);
+        assert_eq!(normalized.actionable, expected, "{label}");
+        assert_eq!(normalized.explicit_trigger, expected, "{label}");
+        if expected {
+            assert!(normalized.content.contains("Investigate the local build"));
+            let revision: SourceRevision = serde_json::from_str(&normalized.revision).unwrap();
+            assert_eq!(revision.text_sha256, right_wake::provider::sha256_hex(b""));
+            assert_ne!(
+                revision.text_sha256,
+                right_wake::provider::sha256_hex(normalized.content.as_bytes())
+            );
+        }
+    }
+    for next in [Value::Null, json!("another-user")] {
+        let mut payload = linear_payload("Issue", "update");
+        payload["data"]["assigneeId"] = next;
+        payload["updatedFrom"] = json!({"assigneeId":"watched-user"});
+        payload["data"]["description"] = json!("@right-wake old request");
+        let normalized = linear_event(&config, &payload);
+        assert!(!normalized.actionable && !normalized.explicit_trigger);
+        assert!(
+            normalized.linear.is_some(),
+            "Departure evidence must remain available"
+        );
+    }
+}
+
+#[test]
+fn linear_personal_comments_preserve_unknown_ownership_and_exclude_edits() {
+    let config = personal_linear_source();
+    for (action, expected) in [("create", true), ("update", false), ("remove", false)] {
+        let mut payload = linear_payload("Comment", action);
+        payload["data"] = json!({
+            "id":"comment-1","issueId":"issue-1","body":"What is the next step?",
+            "updatedAt":"2026-11-03T09:10:00Z",
+            "issue":{"id":"issue-1","title":"Issue title",
+                "assigneeId":"watched-user","updatedAt":"2026-11-03T09:10:00Z"},
+            "assigneeId":"watched-user"
+        });
+        payload["updatedFrom"] = json!({"assigneeId":null});
+        let normalized = linear_event(&config, &payload);
+        assert_eq!(normalized.actionable, expected);
+        assert_eq!(normalized.explicit_trigger, expected);
+        let metadata = normalized.linear.unwrap();
+        assert_eq!(metadata.assignee, LinearAssignee::Unknown);
+        assert_eq!(metadata.previous_assignee, LinearAssignee::Unknown);
+        assert_eq!(metadata.issue_updated_at_ms, None);
+        assert_eq!(metadata.issue_title.as_deref(), Some("Issue title"));
+    }
+    let mut payload = linear_payload("Comment", "create");
+    payload["data"] = json!({"id":"comment-1","issueId":"issue-1","body":"  "});
+    assert!(!linear_event(&config, &payload).actionable);
+}
+
+#[test]
+fn linear_assignment_evidence_distinguishes_missing_null_and_conflicting_versions() {
+    let config = source("linear");
+    let mut missing = linear_payload("Issue", "update");
+    missing["data"]
+        .as_object_mut()
+        .unwrap()
+        .remove("assigneeId");
+    missing["data"]["updatedAt"] = json!("not-a-timestamp");
+    let unknown = linear_event(&config, &missing);
+    let metadata = unknown.linear.unwrap();
+    assert_eq!(metadata.assignee, LinearAssignee::Unknown);
+    assert_eq!(metadata.previous_assignee, LinearAssignee::Unknown);
+    assert_eq!(metadata.issue_updated_at_ms, None);
+    let mut payload = linear_payload("Issue", "update");
+    payload["data"]["assigneeId"] = Value::Null;
+    payload["updatedFrom"] = json!({"assigneeId":"watched-user"});
+    let unassigned = linear_event(&config, &payload);
+    assert_eq!(
+        unassigned.linear.as_ref().unwrap().assignee,
+        LinearAssignee::Unassigned
+    );
+    let serialized = serde_json::to_value(&unassigned).unwrap();
+    let restored: right_wake::model::NormalizedEvent = serde_json::from_value(serialized).unwrap();
+    assert_eq!(restored.linear, unassigned.linear);
+    payload["data"]["assigneeId"] = json!("another-user");
+    let different_owner = linear_event(&config, &payload);
+    assert_eq!(unassigned.revision, different_owner.revision);
+    assert_ne!(unassigned.event_id, different_owner.event_id);
+    payload["data"]["assigneeId"] = json!("watched-user");
+    payload["updatedFrom"] = json!({"assigneeId":null});
+    let previous_null = linear_event(&config, &payload);
+    payload["updatedFrom"] = json!({});
+    let previous_missing = linear_event(&config, &payload);
+    assert_ne!(previous_null.event_id, previous_missing.event_id);
+    assert_ne!(
+        previous_null.linear.as_ref().unwrap().previous_assignee,
+        previous_missing.linear.as_ref().unwrap().previous_assignee
+    );
+}
+
+#[test]
+fn linear_personal_relay_policy_retains_only_intrinsic_static_eligibility() {
+    let mut config = personal_linear_source();
+    let payload = linear_payload("Issue", "create");
+    let normalized = linear_event(&config, &payload);
+    let mut relayed = normalized.clone();
+    right_wake::provider::apply_local_policy(&config, &mut relayed).unwrap();
+    assert!(relayed.actionable && relayed.explicit_trigger);
+    config.bot_actor_ids = vec!["person".into()];
+    let bot = linear_event(&config, &payload);
+    assert!(!bot.actionable && !bot.explicit_trigger);
+    assert!(bot.linear.unwrap().assignee.is_assigned_to("watched-user"));
+    right_wake::provider::apply_local_policy(&config, &mut relayed).unwrap();
+    assert_eq!(relayed.skip_reason.as_deref(), Some("self_actor"));
+    config.bot_actor_ids.clear();
+    right_wake::provider::apply_local_policy(&config, &mut relayed).unwrap();
+    assert!(!relayed.actionable && !relayed.explicit_trigger);
+    config.allowed_resources = vec!["linear:https://linear.app:workspace-a:another-issue".into()];
+    let mut excluded = normalized.clone();
+    right_wake::provider::apply_local_policy(&config, &mut excluded).unwrap();
+    assert!(!excluded.actionable && !excluded.explicit_trigger);
+    assert_eq!(excluded.skip_reason.as_deref(), Some("outside_scope"));
+    config.allowed_resources.clear();
+    let mut wrong = normalized;
+    wrong.linear.as_mut().unwrap().issue_id = "another-issue".into();
+    assert_eq!(
+        right_wake::provider::apply_local_policy(&config, &mut wrong)
+            .unwrap_err()
+            .code,
+        "linear_metadata_scope_mismatch"
+    );
+}
+
+#[test]
+fn linear_personal_assignments_require_valid_versioned_evidence() {
+    let config = personal_linear_source();
+    for revision in [Value::Null, json!("invalid"), json!(0), json!(-1)] {
+        let mut payload = linear_payload("Issue", "update");
+        payload["updatedFrom"] = json!({"assigneeId":null});
+        payload["data"]["updatedAt"] = revision;
+        let normalized = linear_event(&config, &payload);
+        assert!(!normalized.actionable && !normalized.explicit_trigger);
+        assert!(!right_wake::provider::linear_personal_candidate(
+            &normalized,
+            "watched-user"
+        ));
+        assert_eq!(normalized.linear.unwrap().issue_updated_at_ms, None);
+    }
+    for previous in [json!(42), json!(""), json!("invalid\nuser")] {
+        let mut payload = linear_payload("Issue", "update");
+        payload["updatedFrom"] = json!({"assigneeId":previous});
+        let normalized = linear_event(&config, &payload);
+        assert!(!normalized.actionable && !normalized.explicit_trigger);
+        assert_eq!(
+            normalized.linear.unwrap().previous_assignee,
+            LinearAssignee::Unknown
+        );
+    }
+    let unsupported = linear_event(&config, &linear_payload("Issue", "unrecognized"));
+    assert!(!unsupported.actionable && !unsupported.explicit_trigger);
+}
+
+#[test]
+fn linear_relay_rejects_cross_issue_targets_and_fabricated_comment_assignment() {
+    let config = personal_linear_source();
+    let mut payload = linear_payload("Comment", "create");
+    payload["data"] = json!({
+        "id":"reply-2","issueId":"issue-1","parentId":"comment-1",
+        "body":"Please continue","updatedAt":"2026-11-03T09:10:00Z"
+    });
+    let normalized = linear_event(&config, &payload);
+    for (path, replacement) in [
+        ("/reply_target/container_id", json!("workspace-b")),
+        ("/reply_target/resource_id", json!("issue-2")),
+        ("/reply_target/comment_id", json!("another-conversation")),
+        ("/reply_target/discussion_id", json!("not-a-linear-field")),
+        ("/reply_target", Value::Null),
+        (
+            "/conversation_key",
+            json!("linear:https://linear.app:workspace-a:issue-1:comment:another-conversation"),
+        ),
+        ("/linear/issue_id", json!("issue-2")),
+        (
+            "/linear/assignee",
+            json!({"state":"assigned","user_id":"watched-user"}),
+        ),
+        ("/linear/previous_assignee", json!({"state":"unassigned"})),
+        ("/linear/issue_updated_at_ms", json!(NOW)),
+    ] {
+        let mut value = serde_json::to_value(&normalized).unwrap();
+        *value.pointer_mut(path).unwrap() = replacement;
+        let mut changed = serde_json::from_value(value).unwrap();
+        assert!(
+            right_wake::provider::apply_local_policy(&config, &mut changed).is_err(),
+            "{path}"
+        );
+        assert!(
+            !right_wake::provider::linear_personal_candidate(&changed, "watched-user"),
+            "{path}"
+        );
+    }
+    let mut missing = normalized;
+    missing.linear = None;
+    right_wake::provider::apply_local_policy(&config, &mut missing).unwrap();
+    assert!(!missing.actionable && !missing.explicit_trigger);
+}
+
+#[test]
+fn linear_unscoped_selection_and_source_validation_remain_explicit() {
+    let mut config = source("linear");
+    let mut payload = linear_payload("Issue", "update");
+    payload["data"]["description"] = json!("@right-wake existing request");
+    payload["updatedFrom"] = json!({"assigneeId":null});
+    let assignment = linear_event(&config, &payload);
+    assert!(!assignment.actionable && !assignment.explicit_trigger);
+    payload["updatedFrom"] = json!({"description":"Previous description"});
+    let edit = linear_event(&config, &payload);
+    assert!(edit.actionable && edit.explicit_trigger);
+    payload["data"]["description"] = json!("An ordinary description");
+    let edit = linear_event(&config, &payload);
+    assert!(edit.actionable && !edit.explicit_trigger);
+    for invalid in ["", "   ", "user\n", "user\0id"] {
+        config.linear_assignee_id = Some(invalid.into());
+        assert_eq!(
+            config.validate().unwrap_err().code,
+            "invalid_linear_assignee"
+        );
+    }
+    let mut github = source("github");
+    github.linear_assignee_id = Some("watched-user".into());
+    assert_eq!(
+        github.validate().unwrap_err().code,
+        "invalid_linear_assignee"
+    );
+    config.linear_assignee_id = Some("watched-user".into());
+    for tenant in [None, Some(""), Some("workspace\n"), Some("workspace\0a")] {
+        config.tenant_id = tenant.map(str::to_owned);
+        assert_eq!(config.validate().unwrap_err().code, "invalid_linear_tenant");
+    }
+    config.tenant_id = Some("workspace-a".into());
+    config.validate().unwrap();
+    payload["organizationId"] = json!("workspace-b");
+    let body = serde_json::to_vec(&payload).unwrap();
+    let headers = Headers::from([
+        ("Linear-Signature".into(), sign(SECRET, &body)),
+        ("Linear-Delivery".into(), "different-organization".into()),
+    ]);
     assert_eq!(
         ingest_with_secret(&config, SECRET, &headers, &body, NOW)
             .unwrap_err()

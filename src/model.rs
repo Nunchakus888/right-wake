@@ -26,6 +26,35 @@ pub struct ThreadTarget {
     pub cwd: Option<String>,
 }
 
+/// Missing assignment evidence is different from an explicitly unassigned issue.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "state", rename_all = "snake_case", deny_unknown_fields)]
+pub enum LinearAssignee {
+    #[default]
+    Unknown,
+    Unassigned,
+    Assigned {
+        user_id: String,
+    },
+}
+
+impl LinearAssignee {
+    pub fn is_assigned_to(&self, expected: &str) -> bool {
+        matches!(self, Self::Assigned { user_id } if user_id == expected)
+    }
+}
+
+/// Immutable facts from a signed Linear payload. Comment payloads contain no
+/// issue assignee or issue revision; their ownership must be resolved locally.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LinearEventMetadata {
+    pub issue_id: String,
+    pub issue_title: Option<String>,
+    pub assignee: LinearAssignee,
+    pub previous_assignee: LinearAssignee,
+    pub issue_updated_at_ms: Option<i64>,
+}
+
 /// Canonical event. No field may specify local commands, permissions, or thread ownership.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NormalizedEvent {
@@ -48,6 +77,8 @@ pub struct NormalizedEvent {
     pub explicit_trigger: bool,
     pub skip_reason: Option<String>,
     pub reply_target: Option<ReplyTarget>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub linear: Option<LinearEventMetadata>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

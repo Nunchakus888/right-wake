@@ -29,19 +29,25 @@ codex plugin add right-wake@right-wake --json
 codex plugin list --marketplace right-wake --json
 ```
 
-Use these commands for a marketplace already registered as `right-wake`. Inspect returned errors and installed/enabled state; the install result identifies the actual cached package. An unfamiliar host version should first be checked with its `--help`. A skill-only update does not require changing its profile or re-authorizing Linear, but a new native version must still satisfy the installed package's requirement. v0.2.0 uses the new identifiers directly and has no legacy-plugin or command aliases.
+Use these commands for a marketplace already registered as `right-wake`. Inspect returned errors and installed/enabled state; the install result identifies the actual cached package. An unfamiliar host version should first be checked with its `--help`. A skill-only update does not require changing its profile or re-authorizing Linear. Personal Linear filtering and queue delivery require the **0.3.0 native binary** as well as the updated skill. Back up and reuse the existing `right-wake` profile, source IDs, bindings, secrets, and saved onboarding record; a fresh profile would discard that continuity.
 
 ## Agent-led Linear setup
 
-Invoke `$right-wake-setup` from the **existing local work conversation** you intend to receive follow-ups, explicitly naming the Linear issue and that binding intent. The skill includes its [Linear reference](../plugins/codex/skills/right-wake-setup/references/linear.md) inside the cached plugin, so it does not depend on a separate repository checkout. It targets the v0.2.0 native CLI and adds no runtime dependency or fourth skill.
+Invoke `$right-wake-setup` from the **existing local work conversation** you intend to receive follow-ups, explicitly naming the Linear issue and that binding intent. To watch personal work, request new comments on your assigned issues and newly assigned tasks. The skill includes its [Linear reference](../plugins/codex/skills/right-wake-setup/references/linear.md) inside the cached plugin, so it does not depend on a separate repository checkout. It targets the v0.3.0 native CLI and adds no runtime dependency or fourth skill.
 
 The workflow discovers the binary/profile, reads source/host/binding state, resolves exact Linear IDs through permitted tools, establishes the available event-delivery path, verifies the intended host/thread, then applies and reads back the authorized configuration. An installation/start request covers the corresponding service actions; it need not be confirmed again. Equivalent settings are reused. Existing `source add` and `host add` commands replace whole objects, so the agent must not blindly repeat abbreviated examples or reset existing fields. Binding changes use the observed version and intended target.
 
 An existing Linear MCP connection can supply IDs through the tools it exposes. Automatic webhook registration additionally requires an available authorized management tool or a separately authorized admin API client. The skill neither assumes every Linear MCP has this capability nor extracts its OAuth cache. First-time authentication, a missing public route, an unavailable compatible host, or an ambiguous destination is reported as a concrete blocker after completing the useful work already possible.
 
+For personal watching, setup resolves the authenticated user and organization, configures `linear_assignee_id`, and imports verified issue/assignee/revision snapshots. A prior onboarding file can be reused only after inspecting its actual format and verifying missing fields through authorized tools. The issue list is a partial baseline, not a permanent allowlist or proof of active subscription. New tasks still need an existing-thread binding or event-triggered routing/claim; the setup conversation does not become an automatic catch-all.
+
+Direct tool-output delivery retains its actual exclusive-writer requirement. The optional `--delivery queue` uses the same owning App Server's atomic queue and requires `right_wake_dispatch_context` in the target thread's tool set, connected to the worker's profile. A second App Server opened over the same history is not shared Desktop ownership. Both modes need a real tool/credential restriction; changing a declaration cannot create that boundary. See [host compatibility](host-compatibility.md).
+
+When an administrator must register the webhook, finish the independent local work and prepare a secret-free handoff with exact organization/user/team coverage, the resolved endpoint or its unresolved dependency, Issue and Comment resource types, and private signing-secret storage references. The skill does not send this handoff to anyone without explicit messaging authorization.
+
 A single agent invocation orchestrates existing native commands; unattended execution depends on those prerequisites being available. Configuration, authenticated receipt, and continuation of the original thread are reported separately. Do not post a Linear test comment without explicit authorization. Real Linear automated onboarding and real model continuation still need their own acceptance evidence; see [the full setup flow](linear.md#agent-led-setup) and [acceptance](acceptance.md).
 
-Earlier workflow trials are kept in the [historical evidence archive](archive/README.md). New-version validation belongs in [v0.2.0 verification](releases/v0.2.0-verification.md).
+Earlier workflow trials are kept in the [historical evidence archive](archive/README.md). New-version validation belongs in [v0.3.0 verification](releases/v0.3.0-verification.md).
 
 ## Use the same local profile
 
@@ -68,6 +74,8 @@ Use an authorized disposable Codex profile and test resource, without modifying 
 `python3 scripts/check-plugin.py` and skill validators check local structure only. They do not constitute this host installation test.
 
 ## Verification status
+
+Current **0.3.0** installation, upgrade, skill-validation, and twelve-tool MCP results are recorded in [v0.3.0 verification](releases/v0.3.0-verification.md). The records below describe the already-published **0.2.0** package and are preserved as historical evidence; they do not establish a new-version result.
 
 On 2026-11-04, official Codex CLI **0.166.0** installed the local repository marketplace in a fresh credential-free profile. `right-wake@right-wake` **0.2.0** was installed and enabled; all **11 cached package files** matched the source byte for byte. Exactly three `right-wake-*` skills passed the official validator from inside the installed cache. The MCP server key was `right-wake`, and the interface slogan was **Wake the right Agent thread.** This check did not start a model, MCP process, provider operation, service, or user profile. Native cached-launcher and public-install results are recorded separately in [v0.2.0 verification](releases/v0.2.0-verification.md).
 

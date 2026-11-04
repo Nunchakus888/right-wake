@@ -5,6 +5,9 @@ This is the user-facing state vocabulary. Runtime JSON state strings are defined
 | User-visible state | Condition | Explanation | Primary action | Secondary action | Automatic recovery |
 | --- | --- | --- | --- | --- | --- |
 | 已接收，等待处理 / Received | Event durably committed, work not submitted | The receiver saved the event; the agent has not completed it | View its route/job | Pause processing | On normal queue progress |
+| 等待指派证据 / `waiting_assignment` | Personal Linear source lacks a known, nonconflicting issue owner | A comment alone cannot establish who owns the issue | Import verified current Issue state or restore Issue webhook coverage | Inspect `source linear-state` | On newer valid ownership evidence; no model polling |
+| 不在个人范围 / `outside_assignment` | Latest observed Issue state is outside the configured assignee's scope | No model work is admitted for this event | Inspect assignment revision and event time | Correct an actual delivery gap | Only valid late evidence for the applicable interval can restore eligibility |
+| 等待处理容量 / `waiting_capacity` | Stored personal-scope event is eligible but the pending-work limit is full | Receipt and ownership facts are retained within total storage bounds | Let known work finish or resolve blocked jobs | Inspect configured limits | On completion, new evidence, import, or explicit control wake; no timer |
 | 等待归属 / Needs assignment | No trusted destination | This work has no established owner | Choose an existing thread | Inspect candidates | Only if trustworthy new binding evidence arrives |
 | 多个候选 / Ambiguous | Several plausible owners | Similar context does not establish a unique owner | Claim once with evidence | Leave pending | No silent guess |
 | 等待设备上线 / Host offline | Bound host unreachable | Work remains assigned to its original thread | Restore this host/connection | Inspect host diagnostics | On an authenticated supported reconnect |
@@ -39,7 +42,7 @@ Examples of intended wording:
 - “Two existing threads are candidates. A owns this issue; B only references it. Confirm the intended owner once to reuse that choice for later events.”
 - “The draft changed after review. The previous approval is invalid for revision 3. Review the current text and destination before sending.”
 - “The provider request timed out after dispatch. The reply may already exist. Reconcile this send before trying again.”
-- “This Codex connection cannot guarantee exclusive writing of the selected thread. The event remains queued. Establish supported ownership before dispatch.”
+- “Direct delivery requires exclusive writing of the selected thread. Establish that condition, or explicitly configure supported queue delivery on the original owning App Server.”
 
 ## What counts as success
 

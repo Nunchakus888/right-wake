@@ -4,12 +4,24 @@ use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
+#[serde(rename_all = "snake_case")]
+pub enum CodexDelivery {
+    #[default]
+    ToolOutput,
+    Queue,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum HostConfig {
     Codex {
         id: String,
         socket: PathBuf,
+        /// Queue uses the host's atomic idle admission and a read-only MCP
+        /// context fetch; direct tool output requires exclusive writer control.
+        #[serde(default)]
+        delivery: CodexDelivery,
         /// The operator must actually ensure no other writer starts this thread.
         #[serde(default)]
         exclusive_writer: bool,

@@ -6,34 +6,31 @@ The latest user requirement supersedes automatic new work-thread creation. Crite
 
 ## Evidence snapshot
 
-This snapshot concerns **v0.2.0**, which introduces the complete `right-wake` namespace. Earlier tests used earlier release identities; their original records are preserved in the [historical archive](archive/README.md). They are not substituted for a new-version run.
+This snapshot concerns **v0.3.0**, adding personal Linear watching and optional Codex queue delivery within the current `right-wake` namespace. The [v0.3.0 verification report](releases/v0.3.0-verification.md) is the record of actual new-version runs and public assets. The complete [v0.2.0 evidence](releases/v0.2.0-verification.md) and [earlier archive](archive/README.md) remain unchanged.
 
-| Check | Current evidence |
+| Check | Current evidence and boundary |
 | --- | --- |
-| Namespace and installation contract | Source, package, CLI, plugin/skills, MCP tools, environment variables, profiles, services, containers, triggers, and signature domains use the new names. No legacy aliases, fallback discovery, image-source exceptions, or automatic migration are supplied. Run results belong in [v0.2.0 verification](releases/v0.2.0-verification.md). |
-| Native CLI/core/provider/host tests | [Main CI 41767623483](https://github.com/Nunchakus888/right-wake/actions/runs/41767623483) passed formatting, all-target Clippy, tests, build, installer smoke, plugin checks, and audit at `533e575`. [Release 41768104125](https://github.com/Nunchakus888/right-wake/actions/runs/41768104125) ran all **96 tests on each of four native platforms, with 0 failures and 0 ignored tests**, including both Unix-socket fixtures. |
-| Installer and package smoke | All four native release runners passed 0.2.0 archive/install smoke, repeat installation, paths with spaces, actual backup, and corrupt-archive rejection. A separate Linux x86_64 check downloaded the public installer and installed from GitHub assets without `--from-dir`, into a fresh path containing spaces. The public binary passed version/schema, 11 MCP tools, repeated setup, SQLite diagnostics/backup, and the synthetic two-thread demo. [Recorded evidence](releases/v0.2.0-verification.md). |
-| Plugin and skills | Official Codex CLI 0.166.0 installed `right-wake@right-wake` 0.2.0 from both the local checkout and the real GitHub URL in separate fresh credential-free profiles. The Git marketplace resolved `533e575`; all 11 cached files matched source and three cached skills passed validation. Actual cached-launcher MCP initialize, 11 tools, setup/status, and isolated database checks passed, including a recheck with the binary installed from the public release, without a model or provider call. |
-| Agent-led Linear onboarding | The workflow discovers authorized state and routes, preserves intended ownership, and reports concrete blockers. Full conversational setup with an existing thread, live Linear registration, and model continuation require separate evidence. |
-| Service manager | Service definition/ownership checks passed in the native suite. Actual user launchd/systemd install/start/stop/restart/uninstall remains a separate unverified integration check. |
-| Real Codex | On 2026-11-04, the 0.2.0 probe passed six checks against checksum-verified official Codex CLI 0.166.0: schema generation, isolated initialization, empty thread list, missing read/resume rejection, and no fallback thread. [Current records](../tests/fixtures/codex-0.166.0/README.md). This used stdio and no model; real continuation and desktop/cross-client concurrency remain unverified. |
-| Real Linear/GitHub/GitLab write E2E | Requires authorized test resources and credentials; do not post in production discussions to create evidence. |
-| Native and container distribution | **[v0.2.0 published](https://github.com/Nunchakus888/right-wake/releases/tag/v0.2.0)** on 2026-11-04 at 11:44:14 Asia/Shanghai, from `533e57560e36780b7a3688a375c7ec07cf9fb8ef`. Exactly ten assets: four native archives, two Linux Docker-load archives, `SHA256SUMS`, both installers, and Compose configuration, all under the current names. |
-| Independent review preparation | Both the locally built and public-release 0.2.0 native demo/export produced Python signing bytes identical to Rust under the new domain; exact body and target matched. No private review key, review signature, or provider send was used. |
-| Dependency audit and SQLite | The actual 0.2.0 binary reports SQLite 3.54.1; startup floor 3.51.3 and schema 3 remain. [Main CI](https://github.com/Nunchakus888/right-wake/actions/runs/41767623483/job/126369622448) passed `cargo-audit` 0.22.2 with `--deny warnings`, scanning 262 locked packages (261 registry packages plus the root crate). |
-| Container | Both Linux jobs in [release 41768104125](https://github.com/Nunchakus888/right-wake/actions/runs/41768104125) passed actual image build/run/load, non-root `10001:10001`, SQLite 3.54.1, two original jobs/two drafts retained across restart/recreation, signed loopback Compose receipt, pending-event persistence, and actual installer loading. Each also passed 18 installer boundary checks. The public amd64 archive separately passed checksum and image-metadata inspection, without a local Docker run. Public WSS and live Codex/provider integration remain separate. |
+| Personal Linear scope | Implemented provider candidates, durable owner/revision/removal/conflict projection, partial bootstrap, pre-submission checks, bounded event-driven recovery, and relay policy preservation. Signed fixtures and integration suites are listed in the current report; no live user baseline is claimed. |
+| Codex queue | Implemented optional atomic queue on the original owning server, fixed dispatch notice, immutable MCP context/read receipt, exact correlation, guarded submission, and unknown outcomes. Mock protocol and real no-model probe evidence do not prove a live Desktop work turn. |
+| Native core/provider/host tests | Local and four-platform gate results are recorded with the actual source and job IDs in the current report. Prior-version test counts are not reused. |
+| Installer and public packages | Native release jobs, real Linux image/Compose checks, published assets, checksums, and fresh public installation each need their own recorded result. |
+| Plugin and skills | Three bundled skills and twelve local MCP tools. Metadata validation, independent setup scenario review, real GitHub marketplace/cache installation, and actual stdio launcher checks are distinguished in the current report. |
+| Agent-led Linear onboarding | Preserves existing state, configures personal scope, imports verified snapshots, prepares administrator handoff, and reports desired scope/baseline/receipt/execution separately. Live registration and original-thread execution still require actual local capabilities. |
+| Real Codex | The new [0.166.0 Queue probe](../tests/fixtures/codex-0.166.0-queue/README.md) verifies experimental capability and missing-thread behavior without credentials, model calls, or created threads. The [older direct probe](../tests/fixtures/codex-0.166.0/README.md) remains historical evidence. Shared owning-server identity, original-history recall, and tool restrictions need real deployment checks. |
+| Services and providers | Native service definitions are testable; actual launchd/systemd lifecycle, public ingress, authorized provider read/write E2E, and live model completion remain separate integration checks. No production comments are posted to manufacture evidence. |
+| State and dependencies | Schema 4 adds current-name 0.2.0 tables; preserve a pre-upgrade backup. Bundled SQLite remains 3.54.1 with a 3.51.3 startup floor. The 261 registry dependency versions/checksums are unchanged. The current CI audit result belongs in the report. |
 
 ## Required scenarios
 
-“Pending evidence” means this file does not yet contain a verified result for the complete scenario. It does not imply the relevant code is absent. Current 0.2.0 results are recorded above and qualified per scenario below; historical passes remain linked in the archive.
+“Pending evidence” means this file does not yet contain a verified result for the complete scenario. It does not imply the relevant code is absent. Current 0.3.0 results are recorded in the linked report and qualified per scenario below; historical passes remain linked in the archive.
 
 | ID | Required outcome | Evidence needed / current qualification |
 | --- | --- | --- |
-| 1 | Fresh native install without Node/Python/Docker/sudo | All four native release runners passed archive/install/backup smoke. A separate Linux x86_64 fresh install from the public installer and GitHub assets passed, including a destination with spaces and actual binary/MCP/SQLite/backup checks. End-user-machine installation remains separate. |
-| 2 | Clean Codex marketplace install and binary discovery/install | Local and real GitHub marketplace installs passed in separate empty Codex CLI 0.166.0 profiles; installed/enabled state, cached package identity, and actual cached-launcher tools/setup/status were verified, including with the publicly installed native binary. Conversational onboarding remains separate. |
-| 3 | Repeated setup creates no duplicates | Repeated current-profile CLI setup and actual cached-MCP setup passed. Live service repetition and full conversational onboarding remain separate. |
+| 1 | Fresh native install without Node/Python/Docker/sudo | Four native archive/install/backup gates and a fresh public Linux download must be recorded for this version, including a path with spaces and actual binary/MCP/SQLite checks. End-user-machine installation remains separate. |
+| 2 | Clean Codex marketplace install and binary discovery/install | Verify current GitHub marketplace retrieval, installed/enabled cache identity, and the actual cached MCP launcher with the public binary. Conversational onboarding remains separate. |
+| 3 | Repeated setup creates no duplicates | CLI and MCP repeat-setup tests; live service repetition and full conversational onboarding remain separate. |
 | 4 | Missing permissions, expired credentials, and network failure explain next action | Provider/host failure cases plus actual setup diagnostics |
-| 5 | Stop/upgrade/uninstall touches only owned resources and preserves recovery | Current installer and owned-service/data tests; live managers still require verification. No legacy namespace migration is part of 0.2.0. |
+| 5 | Stop/upgrade/uninstall touches only owned resources and preserves recovery | Current installer and owned-service/data tests; live managers still require verification. The 0.2.0 current-name profile upgrades additively; no old-name namespace migration is supplied. |
 | 6 | One valid event from each native platform has the right identity | Linear, GitHub, GitLab signed fixtures plus authorized real ingress |
 | 7 | Bad signatures, applicable stale timestamps, and oversized bodies rejected | Provider/HTTP boundary tests |
 | 8 | Exact-body verification handles whitespace, newlines, Unicode | Raw-byte signature fixtures |
@@ -42,7 +39,7 @@ This snapshot concerns **v0.2.0**, which introduces the complete `right-wake` na
 | 11 | Unknown legitimate events skip safely; self-writes do not loop | Provider event/action filtering and actor/receipt tests |
 | 12 | Duplicates, ordering, and edits do not duplicate replies or lose valid revisions | Revision/deduplication/late-event tests |
 | 13 | Issue A continues Thread A; B continues B with history | Mock correlation plus real prior-history continuation in two original threads |
-| 14 | Shared Thread C serializes and coordinates human activity | Queue tests; host exclusive-writer requirement remains explicit for unproven cross-client coordination |
+| 14 | Shared Thread C serializes and coordinates human activity | Queue admission/correlation/guard tests; direct delivery still needs exclusive writing, and live Queue coordination requires the same owning App Server |
 | 15 | Unbound resource is claimed once to an existing thread and reused | **Superseded original create-once rule** by the user's no-new-thread requirement |
 | 16 | Window switching does not affect destination | Persisted host/thread IDs plus real desktop observation |
 | 17 | Several history candidates require at most one ownership claim; mentions do not bind | Ownership provenance and ambiguity tests; no title-only assignment |
@@ -59,7 +56,7 @@ This snapshot concerns **v0.2.0**, which introduces the complete `right-wake` na
 | 28 | Relay receives while local device is offline, then replays completely | Durable relay/device ACK integration tests and actual reconnect demonstration |
 | 29 | Device source scope and revocation are enforced | Cross-source denial and active revocation tests |
 | 30 | Relay restart, disk full, duplicate ACK, reconnect, backlog are bounded | Fault/recovery tests for every case, not just successful delivery |
-| 31 | Single-container cloud keeps state without claiming local-chat inheritance | Current Linux amd64/arm64 image and Compose checks passed: two original synthetic jobs and unsent drafts, plus a pending relay event, persisted across restart/recreation. Live agent execution and public ingress remain separate; no local-chat inheritance is claimed. |
+| 31 | Single-container cloud keeps state without claiming local-chat inheritance | Linux amd64/arm64 image and Compose gates check original synthetic jobs/drafts and pending relay events across restart/recreation. Current run IDs and outcomes belong in the report. Live agent execution and public ingress remain separate; no local-chat inheritance is claimed. |
 | 32 | Generic Webhook is configuration-driven; GenericCommand uses safe stdin | Config-only mapping and fixed executable/argv/JSON stdin tests |
 
 ## Additional brief obligations
@@ -81,4 +78,4 @@ Run `right-wake --data-dir /absolute/path/to/disposable-demo demo` only against 
 
 ## Release evidence
 
-[v0.2.0 verification](releases/v0.2.0-verification.md) records the current source/tag, native and container jobs, public assets, checksums, and installation results as they are obtained. Earlier release and plugin records are linked from the [historical archive](archive/README.md). Do not mark the overall original goal complete while required scenarios remain unverified or unimplemented.
+[v0.3.0 verification](releases/v0.3.0-verification.md) records the current source/tag, native and container jobs, public assets, checksums, and installation results as they are obtained. Earlier release and plugin records are linked from the [historical archive](archive/README.md). Do not mark the overall original goal complete while required scenarios remain unverified or unimplemented.

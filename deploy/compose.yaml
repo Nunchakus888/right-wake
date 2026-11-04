@@ -1,6 +1,6 @@
 services:
   right-wake:
-    image: right-wake:0.2.0
+    image: right-wake:0.3.0
     pull_policy: never
     command: ["relay", "serve", "--listen", "0.0.0.0:7433"]
     env_file:

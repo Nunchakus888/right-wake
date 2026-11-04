@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "right-wake",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Wake the right existing Codex thread from verified work events, with local routing and reviewable drafts.",
   "author": {
     "name": "Nunchakus888",

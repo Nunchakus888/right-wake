@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.0 — personal Linear scope and queued continuation
+
+- Add `linear_assignee_id` to Linear sources: new comments on assigned issues and genuine new assignments become candidates without requiring a mention. An explicit organization scopes each personal source.
+- Persist verified Issue ownership, revisions, removals, conflicts, and assignment intervals. Unknown ownership waits; reassignment invalidates unsubmitted work. Late events cannot revive a previous ownership interval. Pending capacity is bounded and advances on events rather than model polling.
+- Add strict `source linear-import` and `source linear-state` commands. Partial snapshots seed known ownership without deleting absent issues or treating a saved baseline as an active subscription. Relay and worker preserve and independently apply assignment facts and static denials.
+- Add opt-in Codex `--delivery queue` using the original owning App Server's experimental atomic queue. Direct `tool-output` remains the default and requires exclusive writer control. Both modes still require an actual restricted tool/credential boundary.
+- Keep queued external content in immutable local storage and expose it through the read-only `right_wake_dispatch_context` MCP tool; accept a completed queued result only after successful context retrieval. Fixed queued notices contain a dispatch UUID, not source text.
+- Correlate queue notices with exact client/thread/turn identity. Preserve unknown outcomes after ambiguous submission, do not automatically retry, and do not force a paused queue to start.
+- Add read-only `host inspect`, concise personal-scope doctor diagnostics, and Agent-friendly schema descriptions. Update the setup Skill to preserve existing profiles/baselines and prepare concrete administrator handoffs.
+- Upgrade current-name 0.2.0 profiles additively to database schema 4; keep bundled SQLite 3.54.1. Native and container installers pin 0.3.0. No registry dependency versions changed.
+
+Release and verification status is recorded in [v0.3.0 verification](docs/releases/v0.3.0-verification.md). Live YCloud registration, public HTTPS reachability, and real original-thread execution remain deployment-specific checks; the release does not invent those missing prerequisites.
+
 ## 0.2.0 — complete RightWake naming
 
 - Use **RightWake** as the product name and **Wake the right Agent thread.** as the slogan. The canonical repository is `Nunchakus888/right-wake`.

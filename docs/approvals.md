@@ -1,6 +1,6 @@
 # Independently approve one exact reply
 
-RightWake creates drafts by default. Sending a draft requires an Ed25519 signature from an independent reviewer. This guide provides a manual, usable approval path for v0.2.0; there is no approval button exposed to the worker or its agent.
+RightWake creates drafts by default. Sending a draft requires an Ed25519 signature from an independent reviewer. This guide provides a manual, usable approval path for v0.3.0; there is no approval button exposed to the worker or its agent.
 
 The RightWake service remains a native binary with no Python dependency. The optional [review-prepare.py](../scripts/review-prepare.py) utility uses only Python 3's standard library **on a separate Linux/macOS reviewer device**. The signing commands below require OpenSSL 3. Check `openssl version`; the system `openssl` on some machines may be a different implementation.
 

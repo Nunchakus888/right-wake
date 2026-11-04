@@ -1,6 +1,6 @@
 # Product definition and user journeys
 
-Status: v0.2.0 product contract. Implementation and actual validation are tracked in [acceptance.md](acceptance.md), not inferred from this design.
+Status: v0.3.0 product contract. Implementation and actual validation are tracked in [acceptance.md](acceptance.md), not inferred from this design.
 
 ## Purpose
 
@@ -70,6 +70,8 @@ The installed version's machine-readable contract is authoritative for flag name
 | --- | --- | --- |
 | “Continue this issue here” | Resolve a real current work thread; bind the exact resource | `bind`, then `bindings` |
 | A mention arrives for a bound issue | Validate, deduplicate, queue to its existing destination | `events show`, `jobs show` |
+| Watch comments on my Linear issues and newly assigned tasks | Maintain observed assignee scope from signed Issue changes and a verified baseline; comments need no mention; preserve existing thread routing | `source linear-import`, `source linear-state`, events and bindings |
+| An issue is transferred away before queued work starts | Recheck its observed assignment and hold work outside the personal scope | `outside_assignment` and the recorded Issue revision |
 | A message adds no actionable work | Update relevant state; do not start an unnecessary model turn | Event skip reason |
 | Two issues share one thread | Keep both bindings and process the thread serially | Jobs ordered by destination |
 | The user changes windows | Preserve the durable destination | Binding remains identical |
@@ -104,6 +106,6 @@ Measure actual first-event setup time after prerequisites are ready, correctly c
 
 [Claude Tag](https://claude.com/resources/articles/claude-tag-now-reads-even-more-of-the-room) uses channel context to decide whether to respond, start deeper work, route a message to work already in progress, or stay silent. That validates a similar user need for semantic participation and workstream continuity. Its [documented Slack memory and identity boundaries](https://support.claude.com/en/articles/15594475-what-is-claude-tag) do not establish an ability to resume arbitrary local Codex threads.
 
-RightWake's specific scope is an external work event returning to an explicitly owned existing **local host and thread**, with durable assignment and visible delivery state. It does not attempt to reproduce Claude Tag's shared Slack workspace in v0.2.0.
+RightWake's specific scope is an external work event returning to an explicitly owned existing **local host and thread**, with durable assignment and visible delivery state. It does not attempt to reproduce Claude Tag's shared Slack workspace.
 
 [OpenAI MCP Events](https://developers.openai.com/plugins/build/mcp-events) is a relevant native subscription path for its supported cloud conversation surfaces. A future adapter may reuse it where the target surface fits. Its existence alone is not proof that local Codex thread continuity, arbitrary existing-thread routing, or a provider's event capability is available.

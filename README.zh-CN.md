@@ -18,26 +18,26 @@ RightWake 以一个原生 Rust 二进制提供 CLI 和 Codex 插件，**内嵌 S
 
 ## 当前状态
 
-**[v0.2.0 实验性预览版已发布](https://github.com/Nunchakus888/right-wake/releases/tag/v0.2.0)。** CLI、插件、Skill、服务、数据路径和安装包全面统一为 `right-wake`。四个 macOS / Linux 原生平台均通过 **96 项测试，0 失败、0 忽略**；Linux amd64 / arm64 的 Docker 与 Compose 检查也已通过。安装包内嵌 SQLite 3.54.1，具体运行、发布资产和安装证据见 [v0.2.0 验证记录](docs/releases/v0.2.0-verification.md)。
+**v0.3.0 新增按 Linear 指派人监听与可选的 Codex 队列投递。** 自动接收自己名下 issue 的新评论，以及新指派给自己的任务，无需每条评论加 mention，也不把今天的任务列表固化为永久范围。归属变化更新本地持久记录；归属未知时暂存，不调用模型。测试、发布和公开安装的实际状态见 [v0.3.0 验证记录](docs/releases/v0.3.0-verification.md)；之前的结果保留在 [v0.2.0 记录](docs/releases/v0.2.0-verification.md)。
 
-真实模型续接、桌面并发和平台授权读写仍需分别验收。自动向 Codex 提交工作要求支持的宿主、已落实的独占写入条件与工具权限隔离，详见[宿主兼容性](docs/host-compatibility.md)和[验收记录](docs/acceptance.md)。
+自动向 Codex 投递可选两种方式：直接 tool-output 要求实际独占写入；实验性的 Queue 方式使用原会话所属 App Server 的原子入队。两者都需要落实工具与凭证权限边界，Queue 还需要同一配置目录的上下文 MCP 工具。真实桌面原会话续接与平台授权读写仍需分别验收，详见[宿主兼容性](docs/host-compatibility.md)和[验收记录](docs/acceptance.md)。
 
 RightWake 是独立项目，不是 OpenAI、Linear、GitHub、GitLab 或 Anthropic 的官方产品。
 
 ## 安装
 
-命令为 `right-wake`，Codex 插件为 `right-wake@right-wake`。v0.2.0 使用统一的新命名和新配置目录，不提供旧名称别名或自动迁移。
+命令为 `right-wake`，Codex 插件为 `right-wake@right-wake`。从 0.2.0 升级时，先备份，再复用原配置目录、事件源、绑定及接入基线；数据库采用增量升级。不安装旧名称别名。
 
 **续接本机原会话用原生安装；VPS Relay 用 [Docker + Compose](deploy/README.md)。** 原生安装只需 shell、`curl`、`tar` 和 SHA-256 工具，**无需 Node.js、Python、Docker、Rust 或 sudo**，支持 macOS / glibc Linux 的 arm64 与 x86_64。安装器校验压缩包和版本，安装到 `~/.local/bin`，不自动启动服务。
 
-安装固定版本 **v0.2.0**：
+确认[发布状态](docs/releases/v0.3.0-verification.md)后，安装固定版本 **v0.3.0**：
 
 ```sh
 curl --proto '=https' --tlsv1.2 --fail --location \
   --output right-wake-install.sh \
-  https://github.com/Nunchakus888/right-wake/releases/download/v0.2.0/install.sh
+  https://github.com/Nunchakus888/right-wake/releases/download/v0.3.0/install.sh
 # 查看下载的安装脚本后执行。
-sh right-wake-install.sh --version v0.2.0
+sh right-wake-install.sh --version v0.3.0
 export PATH="$HOME/.local/bin:$PATH"
 right-wake --version
 right-wake setup
@@ -68,9 +68,13 @@ codex plugin add right-wake@right-wake --json
 
 > 使用 $right-wake-setup 安装并配置 RightWake，把 Linear 的 ENG-123 绑定到当前这个已有工作会话。复用已授权连接和现有配置，启动所需的本地接收服务，逐步验证。默认只生成草稿；遇到确实缺失的条件再告诉我。
 
-现有 setup 技能已包含 [Linear 配置流程](docs/linear.md#agent-led-setup)：发现可复用条件、安装、配置并检查结果。权限、接收入口与准确的 Host/Thread 齐备时，Agent 可在一次调用中推进；首次登录、缺少公网入口或归属不明时，才需要一次有具体原因的交互。
+如果要监听个人 Linear 收件范围，可以直接说：
 
-插件仍是三个技能和本地 MCP 工具，安装配置由 Skill 编排现有原生 CLI 命令。安装插件不通过隐藏钩子启动服务；引导新建的设置对话也不会被自动当作工作目标。详见[插件说明](docs/plugin.md)。
+> 使用 $right-wake-setup 升级并配置 RightWake，监听我名下 issue 的新评论以及新指派给我的任务。保留原配置、已有绑定和已保存的接入基线，将事件分配给对应的已有工作会话。完成能完成的配置，准备缺失的管理员配置交接，并分别报告事件接收与原会话执行结果。默认只生成草稿。
+
+现有 setup 技能已包含 [Linear 配置流程](docs/linear.md#agent-led-setup)：发现可复用条件、安装、配置并检查结果。权限、接收入口与准确的 Host/Thread 齐备时，Agent 可在一次调用中推进。已保存的 issue 列表用于初始化过滤依据，不代表已经订阅，也不会把所有任务绑定到设置对话。缺少管理员权限或公网地址时，先完成本地可执行部分，再给出具体交接材料。
+
+插件包含三个技能和十二个本地 MCP 工具，安装配置由 Skill 编排原生 CLI 命令。安装插件不通过隐藏钩子启动服务；引导新建的设置对话也不会被自动当作工作目标。详见[插件说明](docs/plugin.md)。
 
 已安装 `right-wake` 后，技能更新时让本地 Agent [刷新插件包](docs/plugin.md#refresh-an-existing-installation)，并检查原生二进制满足该插件包的版本要求。
 

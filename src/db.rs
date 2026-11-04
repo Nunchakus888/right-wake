@@ -1,9 +1,11 @@
 use crate::{
     config::{private_dir, Config},
     model::*,
+    provider::SourceConfig,
 };
 use anyhow::{bail, Context, Result};
 use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{
     path::{Path, PathBuf},
@@ -15,6 +17,364 @@ use std::{
 // uses WAL with multiple connections, so validate the linked engine rather
 // than relying on a Cargo package version or the system sqlite3 command.
 pub const MIN_SQLITE_VERSION_NUMBER: i32 = 3_051_003;
+pub const MAX_LINEAR_IMPORT_ISSUES: usize = 10_000;
+
+/// A partial, explicitly supplied read-only snapshot. Omitted issues say nothing
+/// about membership and must never clear existing assignment evidence.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LinearStateImport {
+    pub schema_version: u32,
+    pub organization_id: String,
+    pub issues: Vec<LinearIssueSnapshot>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LinearIssueSnapshot {
+    pub issue_id: String,
+    pub assignee: LinearAssignee,
+    pub updated_at_ms: i64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LinearScopeDecision {
+    Admitted,
+    Waiting(&'static str),
+    Outside(&'static str),
+    Suppressed(&'static str),
+}
+
+impl LinearScopeDecision {
+    pub fn state(self) -> &'static str {
+        match self {
+            Self::Admitted => "received",
+            Self::Waiting(_) => "waiting_assignment",
+            Self::Outside(_) => "outside_assignment",
+            Self::Suppressed(_) => "cached",
+        }
+    }
+    pub fn reason(self) -> Option<&'static str> {
+        match self {
+            Self::Admitted => None,
+            Self::Waiting(reason) | Self::Outside(reason) | Self::Suppressed(reason) => {
+                Some(reason)
+            }
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct LinearProjection {
+    assignee: LinearAssignee,
+    updated_at_ms: i64,
+    conflicted: bool,
+    removed: bool,
+    assigned_since_ms: Option<i64>,
+}
+
+fn linear_resource_key(source: &SourceConfig, organization: &str, issue: &str) -> Result<String> {
+    if source.kind != ProviderKind::Linear
+        || organization.is_empty()
+        || organization.len() > 1024
+        || organization
+            .chars()
+            .any(|value| value.is_whitespace() || value.is_control())
+        || source.tenant_id.as_deref() != Some(organization)
+        || issue.is_empty()
+        || issue.len() > 1024
+        || issue
+            .chars()
+            .any(|value| value.is_whitespace() || value.is_control())
+    {
+        bail!("linear_scope_mismatch: exact configured Linear organization and issue identity required");
+    }
+    let component =
+        |value: &str| url::form_urlencoded::byte_serialize(value.as_bytes()).collect::<String>();
+    Ok(format!(
+        "linear:{}:{}:{}",
+        source.instance_origin()?,
+        component(organization),
+        component(issue)
+    ))
+}
+
+fn validate_linear_assignee(assignee: &LinearAssignee) -> Result<()> {
+    if let LinearAssignee::Assigned { user_id } = assignee {
+        if user_id.is_empty()
+            || user_id.len() > 1024
+            || user_id
+                .chars()
+                .any(|value| value.is_whitespace() || value.is_control())
+        {
+            bail!("invalid_linear_assignee: assigned state requires a bounded user ID");
+        }
+    }
+    Ok(())
+}
+
+fn read_linear_projection(
+    connection: &Connection,
+    source: &str,
+    resource: &str,
+) -> Result<Option<LinearProjection>> {
+    let row: Option<(String, i64, bool, bool, Option<i64>)> = connection.query_row(
+        "SELECT assignee,updated_at_ms,conflicted,removed,assigned_since_ms FROM linear_issues WHERE source_id=?1 AND resource_key=?2",
+        params![source, resource],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+    ).optional()?;
+    row.map(
+        |(assignee, updated_at_ms, conflicted, removed, assigned_since_ms)| {
+            Ok(LinearProjection {
+                assignee: serde_json::from_str(&assignee)?,
+                updated_at_ms,
+                conflicted,
+                removed,
+                assigned_since_ms,
+            })
+        },
+    )
+    .transpose()
+}
+
+/// Equal revisions cannot arbitrate conflicting owners. A tombstone wins an
+/// equal revision, and only a newer snapshot can restore a removed issue.
+fn merge_linear_projection(
+    tx: &rusqlite::Transaction<'_>,
+    source: &SourceConfig,
+    organization: &str,
+    resource: &str,
+    snapshot: &LinearIssueSnapshot,
+    removed: bool,
+    assignment_transition: Option<i64>,
+) -> Result<bool> {
+    let old = read_linear_projection(tx, &source.id, resource)?;
+    let mut next = LinearProjection {
+        assignee: snapshot.assignee.clone(),
+        updated_at_ms: snapshot.updated_at_ms,
+        conflicted: false,
+        removed,
+        assigned_since_ms: assignment_transition,
+    };
+    if let Some(current) = &old {
+        if snapshot.updated_at_ms < current.updated_at_ms {
+            next = LinearProjection {
+                assignee: current.assignee.clone(),
+                updated_at_ms: current.updated_at_ms,
+                conflicted: current.conflicted,
+                removed: current.removed,
+                assigned_since_ms: current.assigned_since_ms,
+            };
+        } else if snapshot.updated_at_ms == current.updated_at_ms {
+            next.conflicted = current.conflicted;
+            next.removed |= current.removed;
+            next.assigned_since_ms = current.assigned_since_ms;
+            if current.conflicted || current.removed || snapshot.assignee == LinearAssignee::Unknown
+            {
+                next.assignee = current.assignee.clone();
+            } else if current.assignee != LinearAssignee::Unknown
+                && current.assignee != snapshot.assignee
+            {
+                next.assignee = LinearAssignee::Unknown;
+                next.conflicted = true;
+                next.assigned_since_ms = None;
+            }
+        } else if current.assignee == snapshot.assignee && !current.conflicted && !current.removed {
+            next.assigned_since_ms = current.assigned_since_ms;
+        }
+    }
+    // A late transition can refine a same-owner interval without rolling the
+    // current projection back to the older revision.
+    if !next.conflicted && !next.removed && next.assignee == snapshot.assignee {
+        if let Some(at) = assignment_transition {
+            next.assigned_since_ms = Some(next.assigned_since_ms.map_or(at, |old| old.max(at)));
+        }
+    }
+    if next.removed || next.assignee == LinearAssignee::Unknown {
+        next.assigned_since_ms = None;
+    }
+    if old.as_ref() == Some(&next) {
+        return Ok(false);
+    }
+    tx.execute("INSERT INTO linear_issues(source_id,resource_key,organization_id,issue_id,assignee,updated_at_ms,conflicted,removed,assigned_since_ms) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9) ON CONFLICT(source_id,resource_key) DO UPDATE SET assignee=excluded.assignee,updated_at_ms=excluded.updated_at_ms,conflicted=excluded.conflicted,removed=excluded.removed,assigned_since_ms=excluded.assigned_since_ms",
+        params![source.id, resource, organization, snapshot.issue_id, serde_json::to_string(&next.assignee)?, next.updated_at_ms, next.conflicted, next.removed, next.assigned_since_ms])?;
+    Ok(true)
+}
+
+fn invalidate_linear_projection(
+    tx: &rusqlite::Transaction<'_>,
+    source: &SourceConfig,
+    organization: &str,
+    resource: &str,
+    issue: &str,
+    removed: bool,
+) -> Result<()> {
+    // An unorderable Issue observation cannot leave a previous positive owner
+    // actionable. Retain the last ordered revision as a recovery floor; an
+    // equal-version replay cannot resolve this uncertainty.
+    tx.execute("INSERT INTO linear_issues(source_id,resource_key,organization_id,issue_id,assignee,updated_at_ms,conflicted,removed,assigned_since_ms) VALUES(?1,?2,?3,?4,?5,0,1,?6,NULL) ON CONFLICT(source_id,resource_key) DO UPDATE SET assignee=excluded.assignee,conflicted=1,removed=max(removed,excluded.removed),assigned_since_ms=NULL",
+        params![source.id, resource, organization, issue, serde_json::to_string(&LinearAssignee::Unknown)?, removed])?;
+    Ok(())
+}
+
+fn linear_scope(
+    connection: &Connection,
+    source: &SourceConfig,
+    event: &NormalizedEvent,
+) -> Result<LinearScopeDecision> {
+    let Some(expected) = &source.linear_assignee_id else {
+        return Ok(LinearScopeDecision::Admitted);
+    };
+    if !event.actionable || !crate::provider::linear_personal_candidate(event, expected) {
+        return Ok(LinearScopeDecision::Suppressed(
+            "linear_intrinsic_or_static_denial",
+        ));
+    }
+    // Reapply current static/actor policy monotonically; ownership evidence must
+    // never turn an event rejected at either relay boundary into a request.
+    let mut checked = event.clone();
+    crate::provider::apply_local_policy(source, &mut checked)?;
+    if !checked.actionable {
+        return Ok(LinearScopeDecision::Suppressed(
+            "linear_intrinsic_or_static_denial",
+        ));
+    }
+    let Some(projection) = read_linear_projection(connection, &source.id, &event.resource_key)?
+    else {
+        return Ok(LinearScopeDecision::Waiting("linear_assignment_unknown"));
+    };
+    if projection.removed {
+        return Ok(LinearScopeDecision::Outside("linear_issue_removed"));
+    }
+    if projection.conflicted {
+        return Ok(LinearScopeDecision::Waiting("linear_assignment_conflict"));
+    }
+    if projection.assignee == LinearAssignee::Unknown {
+        return Ok(LinearScopeDecision::Waiting("linear_assignment_unknown"));
+    }
+    if !projection.assignee.is_assigned_to(expected) {
+        return Ok(LinearScopeDecision::Outside(
+            "linear_not_assigned_to_watched_user",
+        ));
+    }
+    if event.action == "comment.create"
+        && projection
+            .assigned_since_ms
+            .is_some_and(|at| at > event.occurred_at_ms)
+    {
+        return Ok(LinearScopeDecision::Outside(
+            "linear_comment_predates_assignment",
+        ));
+    }
+    if matches!(event.action.as_str(), "issue.create" | "issue.update")
+        && projection.assigned_since_ms.is_some_and(|since| {
+            event
+                .linear
+                .as_ref()
+                .and_then(|metadata| metadata.issue_updated_at_ms)
+                .is_none_or(|at| at < since)
+        })
+    {
+        return Ok(LinearScopeDecision::Outside(
+            "linear_event_predates_assignment",
+        ));
+    }
+    Ok(LinearScopeDecision::Admitted)
+}
+
+fn pending_count(connection: &Connection) -> Result<usize> {
+    Ok(connection.query_row("SELECT count(*) FROM events WHERE state IN ('received','unassigned','routing','router_waiting','router_unknown','queued','held','waiting_assignment','waiting_host','waiting_busy','dispatching','unknown')", [], |row| row.get(0))?)
+}
+
+fn refresh_linear_pending(
+    tx: &rusqlite::Transaction<'_>,
+    source: &SourceConfig,
+    resource: &str,
+    late_assignment_at: Option<i64>,
+    max_pending: usize,
+) -> Result<usize> {
+    if source.linear_assignee_id.is_none() {
+        return Ok(0);
+    }
+    let rows = {
+        let mut statement = tx.prepare("SELECT data,state FROM events WHERE source_id=?1 AND resource_key=?2 AND state IN ('waiting_assignment','outside_assignment','waiting_capacity','received','unassigned','queued','waiting_host','waiting_busy','held','router_waiting')")?;
+        let rows = statement.query_map(params![source.id, resource], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()?
+    };
+    let mut awakened = 0;
+    for (data, old_state) in rows {
+        let event: NormalizedEvent = serde_json::from_str(&data)?;
+        let decision = linear_scope(tx, source, &event)?;
+        if old_state == "outside_assignment"
+            && !(decision == LinearScopeDecision::Admitted
+                && event.action == "comment.create"
+                && late_assignment_at.is_some_and(|at| at <= event.occurred_at_ms))
+        {
+            continue;
+        }
+        let needs_slot = matches!(
+            old_state.as_str(),
+            "outside_assignment" | "waiting_capacity"
+        ) && matches!(
+            decision,
+            LinearScopeDecision::Admitted | LinearScopeDecision::Waiting(_)
+        );
+        if needs_slot && pending_count(tx)? >= max_pending {
+            tx.execute("UPDATE events SET state='waiting_capacity',reason='linear_scope_capacity_wait' WHERE id=?1", [&event.event_id])?;
+            tx.execute("UPDATE jobs SET state='waiting_capacity',reason='linear_scope_capacity_wait' WHERE event_id=?1 AND state IN ('waiting_assignment','outside_assignment','waiting_capacity')", [&event.event_id])?;
+            continue;
+        }
+        let state = if decision == LinearScopeDecision::Admitted {
+            if !source.enabled
+                || !matches!(
+                    old_state.as_str(),
+                    "waiting_assignment" | "outside_assignment" | "waiting_capacity"
+                )
+            {
+                continue;
+            }
+            let changed = tx.execute("UPDATE jobs SET state='queued',reason=NULL WHERE event_id=?1 AND state IN ('waiting_assignment','outside_assignment','waiting_capacity')", [&event.event_id])?;
+            awakened += 1;
+            if changed == 1 {
+                "queued"
+            } else {
+                "received"
+            }
+        } else {
+            tx.execute("UPDATE jobs SET state=?2,reason=?3 WHERE event_id=?1 AND state IN ('queued','waiting_assignment','outside_assignment','waiting_capacity','waiting_host','waiting_busy','held')",
+                params![event.event_id, decision.state(), decision.reason()])?;
+            decision.state()
+        };
+        tx.execute(
+            "UPDATE events SET state=?2,reason=?3 WHERE id=?1",
+            params![event.event_id, state, decision.reason()],
+        )?;
+    }
+    Ok(awakened)
+}
+
+/// Stored late-evidence work is promoted only by an actual state-changing
+/// event. This backlog never self-notifies or bypasses the runnable limit.
+fn wake_linear_capacity(tx: &rusqlite::Transaction<'_>, cfg: &Config) -> Result<usize> {
+    let resources = {
+        let mut statement = tx.prepare("SELECT DISTINCT source_id,resource_key FROM events WHERE state='waiting_capacity' ORDER BY source_id,resource_key LIMIT 1000")?;
+        let rows = statement.query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?;
+        rows.collect::<rusqlite::Result<Vec<_>>>()?
+    };
+    let mut awakened = 0;
+    for (source_id, resource) in resources {
+        if let Ok(source) = cfg.source(&source_id) {
+            if source.enabled {
+                awakened += refresh_linear_pending(tx, source, &resource, None, cfg.max_pending)?;
+            }
+        }
+    }
+    Ok(awakened)
+}
 
 #[derive(Clone)]
 pub struct Db {
@@ -36,7 +396,7 @@ impl Db {
         let c = db.conn()?;
         c.pragma_update(None, "journal_mode", "WAL")?;
         let version: i64 = c.pragma_query_value(None, "user_version", |r| r.get(0))?;
-        if version > 3 {
+        if version > 4 {
             bail!("database schema is newer than this binary; upgrade without deleting data");
         }
         c.execute_batch("BEGIN IMMEDIATE;
@@ -56,7 +416,9 @@ impl Db {
           CREATE INDEX IF NOT EXISTS router_dispatches_state ON router_dispatches(state,created);
           CREATE INDEX IF NOT EXISTS jobs_target_state ON jobs(target_key,state);
           CREATE TABLE IF NOT EXISTS relay_receipts(relay_id TEXT NOT NULL, event_id TEXT NOT NULL REFERENCES events(id), PRIMARY KEY(relay_id,event_id));
-          PRAGMA user_version=3; COMMIT;")?;
+          CREATE TABLE IF NOT EXISTS linear_issues(source_id TEXT NOT NULL, resource_key TEXT NOT NULL, organization_id TEXT NOT NULL, issue_id TEXT NOT NULL, assignee TEXT NOT NULL, updated_at_ms INTEGER NOT NULL, conflicted INTEGER NOT NULL, removed INTEGER NOT NULL, assigned_since_ms INTEGER, PRIMARY KEY(source_id,resource_key));
+          CREATE TABLE IF NOT EXISTS dispatch_contexts(dispatch_id TEXT PRIMARY KEY, target TEXT NOT NULL, payload TEXT NOT NULL, output_schema TEXT, read_at INTEGER);
+          PRAGMA user_version=4; COMMIT;")?;
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
@@ -124,6 +486,195 @@ impl Db {
         Ok(())
     }
 
+    /// Queue notices carry only this identity; external work stays in a tool
+    /// result. An accepted dispatch identity can never be repointed or edited.
+    pub fn put_dispatch_context(
+        &self,
+        dispatch_id: &str,
+        target: &ThreadTarget,
+        prompt: &str,
+        output_schema: Option<&Value>,
+    ) -> Result<()> {
+        if dispatch_id.is_empty() || dispatch_id.len() > 128 || prompt.len() > 2 * 1024 * 1024 {
+            bail!("invalid_dispatch_context: identity and payload must be bounded");
+        }
+        let payload = serde_json::to_string(&serde_json::from_str::<Value>(prompt)?)?;
+        let target = serde_json::to_string(target)?;
+        let schema = output_schema.map(serde_json::to_string).transpose()?;
+        if schema
+            .as_ref()
+            .is_some_and(|value| value.len() > 256 * 1024)
+        {
+            bail!("invalid_dispatch_context: output schema exceeds the limit");
+        }
+        let mut connection = self.conn()?;
+        let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let existing: Option<(String, String, Option<String>)> = tx
+            .query_row(
+                "SELECT target,payload,output_schema FROM dispatch_contexts WHERE dispatch_id=?1",
+                [dispatch_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .optional()?;
+        if let Some(existing) = existing {
+            if existing != (target, payload, schema) {
+                bail!("dispatch_context_conflict: dispatch identity already has different immutable content");
+            }
+        } else {
+            tx.execute(
+                "INSERT INTO dispatch_contexts(dispatch_id,target,payload,output_schema) VALUES(?1,?2,?3,?4)",
+                params![dispatch_id, target, payload, schema],
+            )?;
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
+    pub fn dispatch_context(&self, dispatch_id: &str) -> Result<Value> {
+        let (target, payload, output_schema): (String, String, Option<String>) = self
+            .conn()?
+            .query_row(
+                "SELECT target,payload,output_schema FROM dispatch_contexts WHERE dispatch_id=?1",
+                [dispatch_id],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .context("dispatch_context_not_found")?;
+        Ok(json!({
+            "dispatch_id":dispatch_id,
+            "target":serde_json::from_str::<Value>(&target)?,
+            "payload":serde_json::from_str::<Value>(&payload)?,
+            "output_schema":output_schema.map(|value| serde_json::from_str::<Value>(&value)).transpose()?
+        }))
+    }
+
+    pub fn mark_dispatch_context_read(&self, dispatch_id: &str) -> Result<()> {
+        if self.conn()?.execute(
+            "UPDATE dispatch_contexts SET read_at=coalesce(read_at,?2) WHERE dispatch_id=?1",
+            params![dispatch_id, now_ms()],
+        )? != 1
+        {
+            bail!("dispatch_context_not_found");
+        }
+        Ok(())
+    }
+
+    pub fn dispatch_context_read(&self, dispatch_id: &str) -> Result<bool> {
+        Ok(self.conn()?.query_row(
+            "SELECT EXISTS(SELECT 1 FROM dispatch_contexts WHERE dispatch_id=?1 AND read_at IS NOT NULL)",
+            [dispatch_id], |row| row.get(0),
+        )?)
+    }
+
+    pub fn import_linear_state(
+        &self,
+        source: &SourceConfig,
+        snapshot: &LinearStateImport,
+    ) -> Result<Value> {
+        source.validate()?;
+        if snapshot.schema_version != 1 || snapshot.issues.len() > MAX_LINEAR_IMPORT_ISSUES {
+            bail!("invalid_linear_import: expected schema_version 1 and at most {MAX_LINEAR_IMPORT_ISSUES} issues");
+        }
+        // Validate the complete input before changing any projection or event.
+        for issue in &snapshot.issues {
+            linear_resource_key(source, &snapshot.organization_id, &issue.issue_id)?;
+            validate_linear_assignee(&issue.assignee)?;
+            if issue.assignee == LinearAssignee::Unknown {
+                bail!("invalid_linear_import: bootstrap requires an explicitly assigned or unassigned owner");
+            }
+            if issue.updated_at_ms <= 0 {
+                bail!("invalid_linear_import: updated_at_ms must be a positive issue revision timestamp");
+            }
+        }
+        // Empty imports must still prove the intended source and organization.
+        linear_resource_key(source, &snapshot.organization_id, "scope-check")?;
+        let config = Config::load(self.path.parent().context("database profile missing")?)?;
+        let mut connection = self.conn()?;
+        let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let mut changed = 0;
+        let mut awakened = 0;
+        for issue in &snapshot.issues {
+            let resource = linear_resource_key(source, &snapshot.organization_id, &issue.issue_id)?;
+            changed += usize::from(merge_linear_projection(
+                &tx,
+                source,
+                &snapshot.organization_id,
+                &resource,
+                issue,
+                false,
+                None,
+            )?);
+            // An import is current state, not authenticated evidence of a past
+            // transition. It never replays already-known nonmember comments.
+            awakened += refresh_linear_pending(&tx, source, &resource, None, config.max_pending)?;
+        }
+        awakened += wake_linear_capacity(&tx, &config)?;
+        tx.execute("INSERT INTO audit(at,kind,subject,detail) VALUES(?1,'linear_state_import',?2,?3)",
+            params![now_ms(), source.id, json!({"issues":snapshot.issues.len(),"changed":changed,"awakened":awakened,"partial":true}).to_string()])?;
+        tx.commit()?;
+        Ok(
+            json!({"source_id":source.id,"organization_id":snapshot.organization_id,
+            "imported":snapshot.issues.len(),"changed":changed,"awakened":awakened,
+            "partial":true,"absence_unassigns":false,"model_invoked":false}),
+        )
+    }
+
+    pub fn linear_state(&self, source: &SourceConfig) -> Result<Value> {
+        let organization = source
+            .tenant_id
+            .as_deref()
+            .context("linear_tenant_required")?;
+        linear_resource_key(source, organization, "scope-check")?;
+        let connection = self.conn()?;
+        let mut statement = connection.prepare(
+            "SELECT issue_id,resource_key,assignee,updated_at_ms,conflicted,removed,assigned_since_ms FROM linear_issues WHERE source_id=?1 AND organization_id=?2 ORDER BY issue_id LIMIT 10001",
+        )?;
+        let rows = statement.query_map(params![source.id, organization], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, i64>(3)?,
+                row.get::<_, bool>(4)?,
+                row.get::<_, bool>(5)?,
+                row.get::<_, Option<i64>>(6)?,
+            ))
+        })?;
+        let mut issues = Vec::new();
+        for row in rows {
+            let (id, key, assignee, version, conflicted, removed, since) = row?;
+            issues.push(json!({"issue_id":id,"resource_key":key,"assignee":serde_json::from_str::<LinearAssignee>(&assignee)?,
+                "updated_at_ms":version,"conflicted":conflicted,"removed":removed,"assigned_since_ms":since}));
+        }
+        let truncated = issues.len() > MAX_LINEAR_IMPORT_ISSUES;
+        issues.truncate(MAX_LINEAR_IMPORT_ISSUES);
+        let (waiting_assignment, outside_assignment, waiting_capacity): (i64, i64, i64) = connection.query_row(
+            "SELECT coalesce(sum(state='waiting_assignment'),0),coalesce(sum(state='outside_assignment'),0),coalesce(sum(state='waiting_capacity'),0) FROM events WHERE source_id=?1 AND json_extract(data,'$.tenant_id')=?2",
+            params![source.id, organization], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )?;
+        Ok(
+            json!({"schema_version":1,"source_id":source.id,"organization_id":organization,
+            "linear_assignee_id":source.linear_assignee_id,"issues":issues,"truncated":truncated,
+            "partial":true,"absence_unassigns":false,
+            "waiting_assignment":waiting_assignment,"outside_assignment":outside_assignment,"waiting_capacity":waiting_capacity}),
+        )
+    }
+
+    pub fn linear_scope(
+        &self,
+        source: &SourceConfig,
+        event: &NormalizedEvent,
+    ) -> Result<LinearScopeDecision> {
+        linear_scope(&self.conn()?, source, event)
+    }
+
+    pub fn wake_linear_capacity(&self, cfg: &Config) -> Result<usize> {
+        let mut connection = self.conn()?;
+        let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let awakened = wake_linear_capacity(&tx, cfg)?;
+        tx.commit()?;
+        Ok(awakened)
+    }
+
     /// Returning accepted is only possible after the raw delivery and canonical
     /// event commit. A failed commit propagates to the HTTP caller as failure.
     pub fn receive(&self, event: &NormalizedEvent, raw: &[u8], cfg: &Config) -> Result<Value> {
@@ -159,12 +710,6 @@ impl Db {
             [&event.event_id],
             |r| r.get(0),
         )?;
-        if !exists && event.actionable {
-            let pending:i64=tx.query_row("SELECT count(*) FROM events WHERE state IN ('received','unassigned','routing','router_waiting','router_unknown','queued','held','waiting_host','waiting_busy','dispatching','unknown')",[],|r|r.get(0))?;
-            if pending >= cfg.max_pending as i64 {
-                bail!("queue_full: pending event capacity reached");
-            }
-        }
         tx.execute(
             "INSERT INTO deliveries VALUES(?1,?2,?3,?4,?5)",
             params![
@@ -179,15 +724,89 @@ impl Db {
             tx.commit()?;
             return Ok(json!({"state":"duplicate","event_id":event.event_id}));
         }
-        let state = if event.actionable {
-            "received"
+        let source = cfg.source(&event.source_id).ok();
+        if let Some(source) = source
+            .filter(|source| source.kind == ProviderKind::Linear && source.tenant_id.is_some())
+        {
+            if let Some(metadata) = &event.linear {
+                let key = linear_resource_key(source, &event.tenant_id, &metadata.issue_id)?;
+                if key != event.resource_key || event.provider != ProviderKind::Linear {
+                    bail!("linear_scope_mismatch: event metadata does not identify its resource");
+                }
+                if matches!(
+                    event.action.as_str(),
+                    "issue.create" | "issue.update" | "issue.remove"
+                ) {
+                    validate_linear_assignee(&metadata.assignee)?;
+                    let observed_version = metadata.issue_updated_at_ms.filter(|at| *at > 0);
+                    if let Some(version) = observed_version {
+                        let transition = observed_version.filter(|_| {
+                            matches!(metadata.assignee, LinearAssignee::Assigned { .. })
+                                && (event.action == "issue.create"
+                                    || (event.action == "issue.update"
+                                        && metadata.previous_assignee != LinearAssignee::Unknown
+                                        && metadata.previous_assignee != metadata.assignee))
+                        });
+                        merge_linear_projection(
+                            &tx,
+                            source,
+                            &event.tenant_id,
+                            &key,
+                            &LinearIssueSnapshot {
+                                issue_id: metadata.issue_id.clone(),
+                                assignee: metadata.assignee.clone(),
+                                updated_at_ms: version,
+                            },
+                            event.action == "issue.remove",
+                            transition,
+                        )?;
+                        refresh_linear_pending(&tx, source, &key, transition, cfg.max_pending)?;
+                    } else {
+                        invalidate_linear_projection(
+                            &tx,
+                            source,
+                            &event.tenant_id,
+                            &key,
+                            &metadata.issue_id,
+                            event.action == "issue.remove",
+                        )?;
+                        refresh_linear_pending(&tx, source, &key, None, cfg.max_pending)?;
+                    }
+                }
+            }
+        }
+        let scope = source
+            .map(|source| linear_scope(&tx, source, event))
+            .transpose()?
+            .unwrap_or(LinearScopeDecision::Admitted);
+        let mut state = if event.actionable {
+            scope.state()
         } else {
             "cached"
         };
-        tx.execute("INSERT INTO events(id,source_id,resource_key,data,state,reason,received) VALUES(?1,?2,?3,?4,?5,?6,?7)",params![event.event_id,event.source_id,event.resource_key,serde_json::to_string(event)?,state,event.skip_reason,event.received_at_ms])?;
+        let mut reason = event.skip_reason.as_deref().or(scope.reason());
+        if matches!(state, "received" | "waiting_assignment")
+            && pending_count(&tx)? >= cfg.max_pending
+        {
+            if source.is_some_and(|source| source.linear_assignee_id.is_some())
+                && matches!(
+                    event.action.as_str(),
+                    "issue.create" | "issue.update" | "issue.remove"
+                )
+            {
+                // Preserve signed ownership evidence even when model capacity
+                // is exhausted. Its work waits durably behind active work.
+                state = "waiting_capacity";
+                reason = Some("linear_scope_capacity_wait");
+            } else {
+                bail!("queue_full: pending event capacity reached");
+            }
+        }
+        tx.execute("INSERT INTO events(id,source_id,resource_key,data,state,reason,received) VALUES(?1,?2,?3,?4,?5,?6,?7)",params![event.event_id,event.source_id,event.resource_key,serde_json::to_string(event)?,state,reason,event.received_at_ms])?;
         tx.execute("INSERT INTO resources VALUES(?1,?2,1,?3,?4) ON CONFLICT(source_id,resource_key) DO UPDATE SET revision=revision+1, latest_event=CASE WHEN excluded.latest_at>=latest_at THEN excluded.latest_event ELSE latest_event END, latest_at=max(latest_at,excluded.latest_at)",params![event.source_id,event.resource_key,event.occurred_at_ms,event.event_id])?;
         tx.execute("UPDATE events SET source_version=(SELECT revision FROM resources WHERE source_id=?2 AND resource_key=?3) WHERE id=?1",params![event.event_id,event.source_id,event.resource_key])?;
         tx.execute("UPDATE drafts SET state='stale',reason='A new source event changed the discussion' WHERE source_id=?1 AND resource_key=?2 AND state IN ('draft','approved')",params![event.source_id,event.resource_key])?;
+        wake_linear_capacity(&tx, cfg)?;
         tx.commit()?;
         Ok(
             json!({"state":state,"event_id":event.event_id,"received":true,"model_completed":false,"reply_sent":false}),
@@ -502,6 +1121,19 @@ impl Db {
     pub fn enqueue(&self, event: &NormalizedEvent, binding: &Binding) -> Result<Option<Job>> {
         let mut c = self.conn()?;
         let tx = c.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        if event.provider == ProviderKind::Linear {
+            let config = Config::load(self.path.parent().context("database profile missing")?)?;
+            let source = config.source(&event.source_id)?;
+            let scope = linear_scope(&tx, source, event)?;
+            if scope != LinearScopeDecision::Admitted {
+                tx.execute(
+                    "UPDATE events SET state=?2,reason=?3 WHERE id=?1",
+                    params![event.event_id, scope.state(), scope.reason()],
+                )?;
+                tx.commit()?;
+                return Ok(None);
+            }
+        }
         let valid:bool=tx.query_row("SELECT EXISTS(SELECT 1 FROM bindings WHERE source_id=?1 AND key=?2 AND version=?3 AND enabled=1)",params![binding.source_id,binding.key,binding.version],|r|r.get(0))?;
         if !valid {
             bail!("binding_conflict: binding changed before enqueue");
@@ -595,6 +1227,23 @@ impl Db {
             return Ok(None);
         };
         let mut job: Job = serde_json::from_str(&data)?;
+        if job.event.provider == ProviderKind::Linear {
+            let config = Config::load(self.path.parent().context("database profile missing")?)?;
+            let source = config.source(&job.event.source_id)?;
+            let scope = linear_scope(&tx, source, &job.event)?;
+            if scope != LinearScopeDecision::Admitted {
+                tx.execute(
+                    "UPDATE jobs SET state=?2,reason=?3 WHERE id=?1",
+                    params![id, scope.state(), scope.reason()],
+                )?;
+                tx.execute(
+                    "UPDATE events SET state=?2,reason=?3 WHERE id=?1",
+                    params![job.event.event_id, scope.state(), scope.reason()],
+                )?;
+                tx.commit()?;
+                return Ok(None);
+            }
+        }
         let valid = transaction_binding_for(&tx, &job.event)?.is_some_and(|binding| {
             binding.enabled
                 && binding.key == job.binding_key
@@ -656,6 +1305,13 @@ impl Db {
         if release && !matches!(state, "waiting_host" | "waiting_busy" | "held") {
             wake_router_target(&tx, &target)?;
         }
+        if release {
+            if let Some(dir) = self.path.parent() {
+                if let Ok(config) = Config::load(dir) {
+                    wake_linear_capacity(&tx, &config)?;
+                }
+            }
+        }
         tx.commit()?;
         Ok(())
     }
@@ -711,6 +1367,22 @@ impl Db {
         tx.execute("UPDATE jobs SET state='queued',reason=NULL WHERE state IN ('waiting_host','waiting_busy','held') AND (?1 IS NULL OR json_extract(data,'$.target.host_id')=?1)",params![host_id])?;
         if host_id.is_none() {
             tx.execute("UPDATE events SET state='received',reason=NULL WHERE state='held' AND NOT EXISTS(SELECT 1 FROM jobs WHERE event_id=events.id)",[])?;
+            let config = Config::load(self.path.parent().context("database profile missing")?)?;
+            for source in config
+                .sources
+                .iter()
+                .filter(|source| source.enabled && source.linear_assignee_id.is_some())
+            {
+                let resources = {
+                    let mut statement = tx.prepare("SELECT DISTINCT resource_key FROM events WHERE source_id=?1 AND state='waiting_assignment'")?;
+                    let rows = statement.query_map([&source.id], |row| row.get::<_, String>(0))?;
+                    rows.collect::<rusqlite::Result<Vec<_>>>()?
+                };
+                for resource in resources {
+                    refresh_linear_pending(&tx, source, &resource, None, config.max_pending)?;
+                }
+            }
+            wake_linear_capacity(&tx, &config)?;
         }
         tx.execute("UPDATE events SET state='received',reason=NULL WHERE state='router_waiting' AND (?1 IS NULL OR id IN (SELECT event_id FROM router_dispatches WHERE json_extract(target,'$.host_id')=?1))",params![host_id])?;
         tx.commit()?;

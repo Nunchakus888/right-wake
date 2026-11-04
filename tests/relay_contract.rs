@@ -58,6 +58,7 @@ fn event(id: &str) -> NormalizedEvent {
         explicit_trigger: true,
         skip_reason: None,
         reply_target: None,
+        linear: None,
     }
 }
 
@@ -365,6 +366,110 @@ async fn local_resource_scope_is_applied_before_persistence_and_received_ack() {
     timeout(Duration::from_secs(1), engine.wake.notified())
         .await
         .unwrap();
+    task.abort();
+}
+
+#[tokio::test]
+async fn assignment_waiting_relay_events_resolve_locally_without_upgrading_denied_flags() {
+    use right_wake::{
+        db::{LinearIssueSnapshot, LinearStateImport},
+        model::{LinearAssignee, LinearEventMetadata, ReplyTarget},
+        provider::apply_local_policy,
+    };
+    let (_cloud_dir, cloud, mut cloud_cfg) = setup();
+    cloud_cfg.sources[0].linear_assignee_id = Some("watched".into());
+    cloud_cfg.sources[0].bot_actor_ids = vec!["bot".into()];
+    cloud_cfg.save(&cloud.dir).unwrap();
+    for id in ["human-comment", "bot-comment"] {
+        let mut event = event(id);
+        event.resource_key = "linear:https://linear.app:tenant:issue".into();
+        event.conversation_key = Some(format!("{}:comment:{id}", event.resource_key));
+        event.occurred_at_ms = 200;
+        event.actor_id = if id == "bot-comment" { "bot" } else { "person" }.into();
+        event.reply_target = Some(ReplyTarget {
+            provider: ProviderKind::Linear,
+            container_id: "tenant".into(),
+            resource_id: "issue".into(),
+            comment_id: Some(id.into()),
+            discussion_id: None,
+        });
+        event.linear = Some(LinearEventMetadata {
+            issue_id: "issue".into(),
+            issue_title: Some("Issue".into()),
+            assignee: LinearAssignee::Unknown,
+            previous_assignee: LinearAssignee::Unknown,
+            issue_updated_at_ms: None,
+        });
+        apply_local_policy(&cloud_cfg.sources[0], &mut event).unwrap();
+        persist(&cloud, &cloud_cfg, &event);
+    }
+    assert_eq!(
+        cloud.db.event_detail("human-comment").unwrap()["state"],
+        "waiting_assignment"
+    );
+    assert_eq!(
+        cloud.db.event_detail("bot-comment").unwrap()["state"],
+        "cached"
+    );
+    let forwarded = cloud
+        .db
+        .relay_pending("device", &["source".into()], 10)
+        .unwrap();
+    assert!(forwarded[0].actionable);
+    assert!(!forwarded[1].actionable);
+
+    let (_local_dir, local, mut local_cfg) = setup();
+    local_cfg.sources[0].linear_assignee_id = Some("watched".into());
+    local_cfg.save(&local.dir).unwrap();
+    local
+        .db
+        .import_linear_state(
+            &local_cfg.sources[0],
+            &LinearStateImport {
+                schema_version: 1,
+                organization_id: "tenant".into(),
+                issues: vec![LinearIssueSnapshot {
+                    issue_id: "issue".into(),
+                    assignee: LinearAssignee::Assigned {
+                        user_id: "watched".into(),
+                    },
+                    updated_at_ms: 100,
+                }],
+            },
+        )
+        .unwrap();
+    let (mut peer, client) = sockets().await;
+    let task = tokio::spawn(receive_wire(
+        RelayWire::websocket(client),
+        local.clone(),
+        "relay".into(),
+        vec!["source".into()],
+        local.completed.subscribe(),
+    ));
+    for event in forwarded {
+        send(
+            &mut peer,
+            json!({"type":"event","schema_version":1,"event":event}),
+        )
+        .await;
+        let ack = read(&mut peer).await;
+        assert_eq!(ack["phase"], "received");
+        send(
+            &mut peer,
+            json!({"type":"ack_confirmed","event_id":ack["event_id"],"phase":"received"}),
+        )
+        .await;
+    }
+    assert_eq!(
+        local.db.event_detail("human-comment").unwrap()["state"],
+        "received"
+    );
+    assert_eq!(
+        local.db.event_detail("bot-comment").unwrap()["state"],
+        "cached"
+    );
+    assert!(!local.db.event("bot-comment").unwrap().actionable);
+    assert!(local.db.jobs(None, 10).unwrap().is_empty());
     task.abort();
 }
 

@@ -46,6 +46,7 @@ fn event(id: &str, resource: &str) -> NormalizedEvent {
             comment_id: None,
             discussion_id: None,
         }),
+        linear: None,
     }
 }
 fn setup() -> (TempDir, Db, Config) {
@@ -407,6 +408,7 @@ async fn finite_ingress_batches_notify_until_drained_without_model_calls() {
 async fn restricted_tools_gate_prevents_host_contact_and_busy_spin() {
     let (dir, db, mut cfg) = setup();
     cfg.hosts.push(HostConfig::Codex {
+        delivery: Default::default(),
         id: "host".into(),
         socket: "/nonexistent/socket".into(),
         exclusive_writer: true,

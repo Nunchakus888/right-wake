@@ -1,0 +1,406 @@
+[
+  {
+    "experimental_api": false,
+    "direction": "request",
+    "message": {
+      "id": 1,
+      "method": "initialize",
+      "params": {
+        "clientInfo": {
+          "name": "right_wake_queue_probe",
+          "version": "0.3.0"
+        },
+        "capabilities": {
+          "experimentalApi": false
+        }
+      }
+    }
+  },
+  {
+    "experimental_api": false,
+    "direction": "response",
+    "message": {
+      "id": 1,
+      "result": {
+        "userAgent": "right_wake_queue_probe/0.166.0 (Ubuntu 24.4.0; x86_64) unknown (right_wake_queue_probe; 0.3.0)",
+        "codexHome": "<isolated-probe>/stable-profile",
+        "platformFamily": "unix",
+        "platformOs": "linux"
+      }
+    }
+  },
+  {
+    "experimental_api": false,
+    "direction": "request",
+    "message": {
+      "method": "initialized",
+      "params": {}
+    }
+  },
+  {
+    "experimental_api": false,
+    "direction": "request",
+    "message": {
+      "id": 2,
+      "method": "thread/list",
+      "params": {
+        "limit": 10,
+        "modelProviders": [],
+        "sourceKinds": [],
+        "archived": false
+      }
+    }
+  },
+  {
+    "experimental_api": false,
+    "direction": "response",
+    "message": {
+      "method": "remoteControl/status/changed",
+      "params": {
+        "status": "disabled",
+        "serverName": "<redacted-probe-metadata>",
+        "installationId": "<redacted-probe-metadata>",
+        "environmentId": null
+      },
+      "emittedAtMs": 1793766695851
+    }
+  },
+  {
+    "experimental_api": false,
+    "direction": "response",
+    "message": {
+      "id": 2,
+      "result": {
+        "data": [],
+        "readStates": {},
+        "nextCursor": null,
+        "backwardsCursor": null
+      }
+    }
+  },
+  {
+    "experimental_api": false,
+    "direction": "request",
+    "message": {
+      "id": 3,
+      "method": "thread/read",
+      "params": {
+        "threadId": "00000000-0000-4000-8000-000000000001"
+      }
+    }
+  },
+  {
+    "experimental_api": false,
+    "direction": "response",
+    "message": {
+      "error": {
+        "code": -32600,
+        "message": "thread not loaded: 00000000-0000-4000-8000-000000000001"
+      },
+      "id": 3
+    }
+  },
+  {
+    "experimental_api": false,
+    "direction": "request",
+    "message": {
+      "id": 4,
+      "method": "thread/queue/list",
+      "params": {
+        "threadId": "00000000-0000-4000-8000-000000000001"
+      }
+    }
+  },
+  {
+    "experimental_api": false,
+    "direction": "response",
+    "message": {
+      "error": {
+        "code": -32600,
+        "message": "thread/queue/list requires experimentalApi capability"
+      },
+      "id": 4
+    }
+  },
+  {
+    "experimental_api": false,
+    "direction": "request",
+    "message": {
+      "id": 5,
+      "method": "thread/queue/add",
+      "params": {
+        "threadId": "00000000-0000-4000-8000-000000000001",
+        "clientUserMessageId": "00000000-0000-4000-8000-000000000002",
+        "input": [
+          {
+            "type": "text",
+            "text": "Absent-target protocol probe; no work authorized.",
+            "text_elements": []
+          }
+        ]
+      }
+    }
+  },
+  {
+    "experimental_api": false,
+    "direction": "response",
+    "message": {
+      "error": {
+        "code": -32600,
+        "message": "thread/queue/add requires experimentalApi capability"
+      },
+      "id": 5
+    }
+  },
+  {
+    "experimental_api": false,
+    "direction": "request",
+    "message": {
+      "id": 6,
+      "method": "thread/queue/start",
+      "params": {
+        "threadId": "00000000-0000-4000-8000-000000000001"
+      }
+    }
+  },
+  {
+    "experimental_api": false,
+    "direction": "response",
+    "message": {
+      "error": {
+        "code": -32600,
+        "message": "thread/queue/start requires experimentalApi capability"
+      },
+      "id": 6
+    }
+  },
+  {
+    "experimental_api": false,
+    "direction": "request",
+    "message": {
+      "id": 7,
+      "method": "thread/list",
+      "params": {
+        "limit": 10,
+        "modelProviders": [],
+        "sourceKinds": [],
+        "archived": false
+      }
+    }
+  },
+  {
+    "experimental_api": false,
+    "direction": "response",
+    "message": {
+      "id": 7,
+      "result": {
+        "data": [],
+        "readStates": {},
+        "nextCursor": null,
+        "backwardsCursor": null
+      }
+    }
+  },
+  {
+    "experimental_api": true,
+    "direction": "request",
+    "message": {
+      "id": 1,
+      "method": "initialize",
+      "params": {
+        "clientInfo": {
+          "name": "right_wake_queue_probe",
+          "version": "0.3.0"
+        },
+        "capabilities": {
+          "experimentalApi": true
+        }
+      }
+    }
+  },
+  {
+    "experimental_api": true,
+    "direction": "response",
+    "message": {
+      "id": 1,
+      "result": {
+        "userAgent": "right_wake_queue_probe/0.166.0 (Ubuntu 24.4.0; x86_64) unknown (right_wake_queue_probe; 0.3.0)",
+        "codexHome": "<isolated-probe>/experimental-profile",
+        "platformFamily": "unix",
+        "platformOs": "linux"
+      }
+    }
+  },
+  {
+    "experimental_api": true,
+    "direction": "request",
+    "message": {
+      "method": "initialized",
+      "params": {}
+    }
+  },
+  {
+    "experimental_api": true,
+    "direction": "request",
+    "message": {
+      "id": 2,
+      "method": "thread/list",
+      "params": {
+        "limit": 10,
+        "modelProviders": [],
+        "sourceKinds": [],
+        "archived": false
+      }
+    }
+  },
+  {
+    "experimental_api": true,
+    "direction": "response",
+    "message": {
+      "method": "remoteControl/status/changed",
+      "params": {
+        "status": "disabled",
+        "serverName": "<redacted-probe-metadata>",
+        "installationId": "<redacted-probe-metadata>",
+        "environmentId": null
+      },
+      "emittedAtMs": 1793766696028
+    }
+  },
+  {
+    "experimental_api": true,
+    "direction": "response",
+    "message": {
+      "id": 2,
+      "result": {
+        "data": [],
+        "readStates": {},
+        "nextCursor": null,
+        "backwardsCursor": null
+      }
+    }
+  },
+  {
+    "experimental_api": true,
+    "direction": "request",
+    "message": {
+      "id": 3,
+      "method": "thread/read",
+      "params": {
+        "threadId": "00000000-0000-4000-8000-000000000001"
+      }
+    }
+  },
+  {
+    "experimental_api": true,
+    "direction": "response",
+    "message": {
+      "error": {
+        "code": -32600,
+        "message": "thread not loaded: 00000000-0000-4000-8000-000000000001"
+      },
+      "id": 3
+    }
+  },
+  {
+    "experimental_api": true,
+    "direction": "request",
+    "message": {
+      "id": 4,
+      "method": "thread/queue/list",
+      "params": {
+        "threadId": "00000000-0000-4000-8000-000000000001"
+      }
+    }
+  },
+  {
+    "experimental_api": true,
+    "direction": "response",
+    "message": {
+      "error": {
+        "code": -32603,
+        "message": "failed to read thread: invalid thread-store request: no rollout found for thread id 00000000-0000-4000-8000-000000000001"
+      },
+      "id": 4
+    }
+  },
+  {
+    "experimental_api": true,
+    "direction": "request",
+    "message": {
+      "id": 5,
+      "method": "thread/queue/add",
+      "params": {
+        "threadId": "00000000-0000-4000-8000-000000000001",
+        "clientUserMessageId": "00000000-0000-4000-8000-000000000002",
+        "input": [
+          {
+            "type": "text",
+            "text": "Absent-target protocol probe; no work authorized.",
+            "text_elements": []
+          }
+        ]
+      }
+    }
+  },
+  {
+    "experimental_api": true,
+    "direction": "response",
+    "message": {
+      "error": {
+        "code": -32603,
+        "message": "failed to read thread: invalid thread-store request: no rollout found for thread id 00000000-0000-4000-8000-000000000001"
+      },
+      "id": 5
+    }
+  },
+  {
+    "experimental_api": true,
+    "direction": "request",
+    "message": {
+      "id": 6,
+      "method": "thread/queue/start",
+      "params": {
+        "threadId": "00000000-0000-4000-8000-000000000001"
+      }
+    }
+  },
+  {
+    "experimental_api": true,
+    "direction": "response",
+    "message": {
+      "error": {
+        "code": -32603,
+        "message": "failed to read thread: invalid thread-store request: no rollout found for thread id 00000000-0000-4000-8000-000000000001"
+      },
+      "id": 6
+    }
+  },
+  {
+    "experimental_api": true,
+    "direction": "request",
+    "message": {
+      "id": 7,
+      "method": "thread/list",
+      "params": {
+        "limit": 10,
+        "modelProviders": [],
+        "sourceKinds": [],
+        "archived": false
+      }
+    }
+  },
+  {
+    "experimental_api": true,
+    "direction": "response",
+    "message": {
+      "id": 7,
+      "result": {
+        "data": [],
+        "readStates": {},
+        "nextCursor": null,
+        "backwardsCursor": null
+      }
+    }
+  }
+]
