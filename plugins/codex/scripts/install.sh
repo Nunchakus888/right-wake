@@ -2,22 +2,22 @@
 # Install a pinned, checksummed native release. No service or plugin changes.
 set -eu
 
-version=${WAKING_VERSION:-v0.1.1}
-bin_dir=${WAKING_INSTALL_DIR:-"$HOME/.local/bin"}
+version=${RIGHT_WAKE_VERSION:-v0.2.0}
+bin_dir=${RIGHT_WAKE_INSTALL_DIR:-"$HOME/.local/bin"}
 from_dir=
 repository=Nunchakus888/right-wake
 tmp=
 staged=
 
-fail() { printf 'waking install: %s\n' "$*" >&2; exit 1; }
+fail() { printf 'right-wake install: %s\n' "$*" >&2; exit 1; }
 usage() {
   cat <<'USAGE'
-Usage: install.sh [--version v0.1.1] [--bin-dir DIR] [--from-dir DIR]
+Usage: install.sh [--version v0.2.0] [--bin-dir DIR] [--from-dir DIR]
 
 Install the matching native binary for macOS or glibc Linux, arm64 or x86_64.
 The default release is pinned; no daemon starts and no Codex config is changed.
 --from-dir reads the release archive and SHA256SUMS from a local directory.
-An existing RightWake executable is backed up as waking.previous.
+An existing RightWake executable is backed up as right-wake.previous.
 USAGE
 }
 while [ "$#" -gt 0 ]; do
@@ -47,7 +47,7 @@ case "$(uname -m)" in
   *) fail 'supported architectures: x86_64 and arm64' ;;
 esac
 target=$arch-$os
-asset=waking-$version-$target.tar.gz
+asset=right-wake-$version-$target.tar.gz
 for tool in tar awk mktemp chmod mkdir mv cp; do
   command -v "$tool" >/dev/null 2>&1 || fail "required system tool is missing: $tool"
 done
@@ -58,7 +58,7 @@ elif command -v shasum >/dev/null 2>&1; then
 else
   fail 'sha256sum or shasum is required'
 fi
-tmp=$(mktemp -d "${TMPDIR:-/tmp}/waking-install.XXXXXXXX")
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/right-wake-install.XXXXXXXX")
 cleanup() {
   [ -z "$staged" ] || rm -f -- "$staged"
   [ -z "$tmp" ] || rm -rf -- "$tmp"
@@ -82,30 +82,30 @@ case "$expected" in ''|*[!0-9a-fA-F]*) fail 'missing or ambiguous SHA256SUMS ent
 actual=$(hash_file "$tmp/$asset")
 [ "$actual" = "$expected" ] || fail 'checksum mismatch; installation aborted'
 tar -tzf "$tmp/$asset" > "$tmp/entries" || fail 'invalid release archive'
-awk '$0 != "waking" && $0 != "LICENSE" && $0 != "README.md" {bad=1} $0 == "waking" {count++} END {exit (bad || count != 1)}' "$tmp/entries" || fail 'unexpected archive contents'
+awk '$0 != "right-wake" && $0 != "LICENSE" && $0 != "README.md" {bad=1} $0 == "right-wake" {count++} END {exit (bad || count != 1)}' "$tmp/entries" || fail 'unexpected archive contents'
 # Stream the one regular payload to a file; never extract paths or links.
-tar -xOzf "$tmp/$asset" waking > "$tmp/waking" || fail 'cannot read release binary'
-chmod 755 "$tmp/waking"
-reported=$("$tmp/waking" --version) || fail 'binary cannot run on this machine'
-[ "$reported" = "waking ${version#v}" ] || fail "version mismatch: $reported"
+tar -xOzf "$tmp/$asset" right-wake > "$tmp/right-wake" || fail 'cannot read release binary'
+chmod 755 "$tmp/right-wake"
+reported=$("$tmp/right-wake" --version) || fail 'binary cannot run on this machine'
+[ "$reported" = "right-wake ${version#v}" ] || fail "version mismatch: $reported"
 mkdir -p "$bin_dir"
-destination=$bin_dir/waking
-[ ! -L "$destination" ] || fail 'existing waking is a symlink; update it with its original package manager'
+destination=$bin_dir/right-wake
+[ ! -L "$destination" ] || fail 'existing right-wake is a symlink; update it with its original package manager'
 if [ -e "$destination" ]; then
   [ -f "$destination" ] && [ -x "$destination" ] || fail 'destination exists and is not an executable file'
   old_version=$("$destination" --version 2>/dev/null) || fail 'existing executable is not identifiable; choose another --bin-dir'
-  case "$old_version" in 'waking '*) ;; *) fail 'refusing to replace an unrelated executable' ;; esac
+  case "$old_version" in 'right-wake '*) ;; *) fail 'refusing to replace an unrelated executable' ;; esac
   [ ! -L "$destination.previous" ] || fail 'backup path is a symlink'
   if [ -e "$destination.previous" ]; then
     [ -f "$destination.previous" ] || fail 'backup path exists and is not a regular file'
   fi
   cp -p "$destination" "$destination.previous"
 fi
-staged=$(mktemp "$bin_dir/.waking-install.XXXXXXXX")
-cp "$tmp/waking" "$staged"
+staged=$(mktemp "$bin_dir/.right-wake-install.XXXXXXXX")
+cp "$tmp/right-wake" "$staged"
 chmod 755 "$staged"
 mv -f "$staged" "$destination"
 staged=
 printf 'Installed %s at %s\n' "$reported" "$destination"
 printf 'Next: %s setup\n' "$destination"
-case ":${PATH:-}:" in *":$bin_dir:"*) ;; *) printf 'Add %s to your PATH to use waking by name.\n' "$bin_dir" ;; esac
+case ":${PATH:-}:" in *":$bin_dir:"*) ;; *) printf 'Add %s to your PATH to use right-wake by name.\n' "$bin_dir" ;; esac

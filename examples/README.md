@@ -7,8 +7,8 @@ These files contain synthetic identifiers and environment-variable references, n
 Copy `linear-source.json`, replace its organization UUID, and import it:
 
 ```sh
-waking setup
-waking --json source add --file /absolute/path/to/linear-source.json
+right-wake setup
+right-wake --json source add --file /absolute/path/to/linear-source.json
 ```
 
 An empty `allowed_resources` permits resources within the configured organization; use exact canonical keys or a single suffix `*` to narrow this. Configure `bot_actor_ids` for the identity that will publish replies. The example remains draft-only: it has no review public key or sending identity. Receive the actual API token outside chat; it is only required for authorized platform reads/writes, not raw webhook verification.
@@ -16,10 +16,10 @@ An empty `allowed_resources` permits resources within the configured organizatio
 Register an existing, supported local host, inspect its real threads, and bind the full resource identity:
 
 ```sh
-waking --json host add --id local --socket /absolute/path/to/codex.sock
-waking --json doctor --probe
-waking --json host threads --host local
-waking --json bind --source linear-work \
+right-wake --json host add --id local --socket /absolute/path/to/codex.sock
+right-wake --json doctor --probe
+right-wake --json host threads --host local
+right-wake --json bind --source linear-work \
   --resource 'linear:https://linear.app:ORGANIZATION_UUID:ISSUE_UUID' \
   --host local --thread EXISTING_THREAD_UUID --expected-version 0
 ```
@@ -31,15 +31,15 @@ This deliberately leaves automatic Codex execution held. Only set `--exclusive-w
 `generic-source.json` maps `generic-event.json` using JSON Pointers. Change the source's trusted origin, tenant, and field paths; no Rust changes or expression evaluation are needed:
 
 ```sh
-waking --json source add --file /absolute/path/to/generic-source.json
+right-wake --json source add --file /absolute/path/to/generic-source.json
 ```
 
 The sender uses the exact UTF-8 request bytes, a current Unix timestamp in **seconds**, and its configured secret:
 
 ```text
-X-Waking-Timestamp: <unix seconds>
-X-Waking-Delivery: <unique delivery identifier>
-X-Waking-Signature: sha256=<hex HMAC-SHA256(secret, timestamp + "." + raw_body)>
+X-RightWake-Timestamp: <unix seconds>
+X-RightWake-Delivery: <unique delivery identifier>
+X-RightWake-Signature: sha256=<hex HMAC-SHA256(secret, timestamp + "." + raw_body)>
 ```
 
 Do not reserialize the JSON after signing. A valid signature and mapped event do not assign ownership. Inspect `events list` for its canonical resource key and explicitly bind an existing destination. Generic sources have no built-in external reply adapter; their execution results stay local.
@@ -49,7 +49,7 @@ Do not reserialize the JSON after signing. A valid signature and mapped event do
 Register a trusted adapter with a fixed absolute executable and working directory:
 
 ```sh
-waking --json host add --id custom \
+right-wake --json host add --id custom \
   --program /absolute/path/to/my-adapter \
   --cwd /absolute/path/to/trusted-workspace --timeout 120
 ```
@@ -74,4 +74,4 @@ The request is the flat `DispatchRequest`: `dispatch_id`, `target`, `prompt`, `t
 
 Exit code 0 alone is not completion. Mismatched receipt identifiers, truncated output, timeouts, and possible acceptance without a result remain uncertain. The fixed directory is not a sandbox: use a trusted adapter and isolate credentials and bridge state appropriately.
 
-For an immediately runnable demonstration without credentials, use `waking demo`. It verifies signed fixture events and resumes two pre-existing **mock** threads; it does not represent real Codex or provider acceptance.
+For an immediately runnable demonstration without credentials, use `right-wake demo`. It verifies signed fixture events and resumes two pre-existing **mock** threads; it does not represent real Codex or provider acceptance.

@@ -1,13 +1,13 @@
-use serde_json::json;
-use std::sync::{Arc, Barrier};
-use tempfile::TempDir;
-use waking::{
+use right_wake::{
     config::{Config, HostConfig},
     db::Db,
     engine::Engine,
     model::*,
     provider::SourceConfig,
 };
+use serde_json::json;
+use std::sync::{Arc, Barrier};
+use tempfile::TempDir;
 
 fn target(thread: &str) -> ThreadTarget {
     ThreadTarget {
@@ -34,7 +34,7 @@ fn event(id: &str, resource: &str) -> NormalizedEvent {
         occurred_at_ms: 100,
         received_at_ms: 100,
         source_url: None,
-        content: "@waking follow up".into(),
+        content: "@right-wake follow up".into(),
         revision: "original-source-provenance".into(),
         actionable: true,
         explicit_trigger: true,
@@ -90,8 +90,8 @@ fn linked_sqlite_includes_the_upstream_wal_reset_fix() {
         "SQLite {version} predates the 3.51.3 mainline WAL-reset fix"
     );
     assert!(
-        rusqlite::version_number() >= waking::db::MIN_SQLITE_VERSION_NUMBER,
-        "linked engine does not satisfy Waking's startup requirement"
+        rusqlite::version_number() >= right_wake::db::MIN_SQLITE_VERSION_NUMBER,
+        "linked engine does not satisfy RightWake's startup requirement"
     );
 }
 
@@ -539,7 +539,7 @@ fn backup_is_private_complete_and_never_overwrites_existing_files() {
         .unwrap()
         .file_name()
         .to_string_lossy()
-        .starts_with(".waking-backup-")));
+        .starts_with(".right-wake-backup-")));
 }
 
 #[cfg(unix)]

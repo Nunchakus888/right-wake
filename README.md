@@ -1,10 +1,11 @@
 # RightWake
 
-**Wake the right thread, right away.**
+**Wake the right Agent thread.**
+
+Events and tasks wake the correct existing Agent thread  
+so work continues in its original context.
 
 [简体中文](README.zh-CN.md)
-
-RightWake wakes the right **existing agent thread** when a work event arrives. It connects discussions in Linear, GitHub, and GitLab to the conversations already handling that work, so follow-up work can continue with its original context.
 
 - **Wake on events.** Webhooks trigger work. While idle with no pending work, RightWake submits no model turns; there is no periodic model polling, reducing unnecessary token use.
 - **Route to the right conversation.** Reuse discussion and issue bindings first. When ownership is unknown, an optional event-triggered semantic router compares permitted context cards and recommends an existing thread for a one-time claim.
@@ -17,42 +18,42 @@ Start with [the Codex plugin](#use-from-codex), [Linear setup](docs/linear.md), 
 
 ## Project status
 
-**[v0.1.1 is available as an experimental prerelease](https://github.com/Nunchakus888/right-wake/releases/tag/v0.1.1).** It includes bundled SQLite 3.54.1, four native packages, and Linux amd64/arm64 Docker images with Compose deployment. Each native platform passed **94 tests, with no failures or ignored tests**; both Linux Docker/Compose checks also passed. See [verification](docs/releases/v0.1.1-verification.md) for the exact runs and [acceptance](docs/acceptance.md) for live integration boundaries.
+**v0.2.0 uses the complete RightWake namespace.** This version uses `right-wake` consistently across its CLI, plugin, skills, services, state paths, and release packages. It includes bundled SQLite and targets macOS/Linux arm64/x86_64, plus Linux amd64/arm64 Docker deployment. See [v0.2.0 verification](docs/releases/v0.2.0-verification.md) for current test and publication evidence.
 
-The recorded v0.1.0 checks with official **Codex CLI 0.166.0** passed a no-model host probe and clean-profile plugin installation from both the local repository and the **real GitHub marketplace URL**. The cached MCP launcher passed initialization, tool listing, setup, and status checks. Real model continuation, desktop concurrency, and provider read/write E2E remain separate acceptance work. Automatic Codex dispatch requires a supported host, exclusive writer ownership, and restricted mutation tools; see [host compatibility](docs/host-compatibility.md).
+Real model continuation, desktop concurrency, and provider read/write E2E remain separate acceptance work. Automatic Codex dispatch requires a supported host, exclusive writer ownership, and restricted mutation tools; see [host compatibility](docs/host-compatibility.md) and [acceptance](docs/acceptance.md).
 
 RightWake is an independent project; it is not an official OpenAI, Linear, GitHub, GitLab, or Anthropic product.
 
 ## Install
 
-The current v0.1.x packages use the `waking` CLI, `waking@waking` plugin ID, and `$waking-setup` skill. Existing configuration and data paths remain compatible.
+The command is `right-wake`; the Codex plugin is `right-wake@right-wake`. v0.2.0 starts a new namespace with a fresh profile and no legacy-name aliases or automatic migration.
 
 **Use native installation beside your original local agent; use [Docker + Compose](deploy/README.md) for a VPS relay.** Native installation needs a shell, `curl`, `tar`, and a system SHA-256 tool, with **no Node.js, Python, Docker, Rust, or sudo**. It supports macOS and glibc Linux on arm64/x86_64. The installer verifies the archive and version, installs in `~/.local/bin`, and starts no service.
 
-Install the pinned `v0.1.1` release:
+The pinned v0.2.0 installation commands are below; check [publication status](docs/releases/v0.2.0-verification.md) before downloading:
 
 ```sh
 curl --proto '=https' --tlsv1.2 --fail --location \
-  --output waking-install.sh \
-  https://github.com/Nunchakus888/right-wake/releases/download/v0.1.1/install.sh
+  --output right-wake-install.sh \
+  https://github.com/Nunchakus888/right-wake/releases/download/v0.2.0/install.sh
 # Inspect the downloaded installer, then run it.
-sh waking-install.sh --version v0.1.1
+sh right-wake-install.sh --version v0.2.0
 export PATH="$HOME/.local/bin:$PATH"
-waking --version
-waking setup
-waking --json doctor
+right-wake --version
+right-wake setup
+right-wake --json doctor
 ```
 
 For development, build from the checked-out source:
 
 ```sh
 cargo install --locked --path .
-waking setup
-waking --json schema
-waking --json doctor
+right-wake setup
+right-wake --json schema
+right-wake --json doctor
 ```
 
-Only source builds require Rust. Native configuration and SQLite state default to `~/.local/share/waking` (or `WAKING_DATA_DIR` / `--data-dir`). Docker keeps them in its named volume at `/data`; no database container is required. The [VPS guide](deploy/README.md) loads the matching amd64/arm64 release image with `docker load` and starts Compose explicitly. See [installation and lifecycle](docs/installation.md) for backups, upgrades, and services.
+Only source builds require Rust. Native configuration and SQLite state default to `~/.local/share/right-wake` (or `RIGHT_WAKE_DATA_DIR` / `--data-dir`). Docker keeps them in its named volume at `/data`; no database container is required. The [VPS guide](deploy/README.md) loads the matching amd64/arm64 release image with `docker load` and starts Compose explicitly. See [installation and lifecycle](docs/installation.md) for backups, upgrades, and services.
 
 ## Use from Codex
 
@@ -60,25 +61,25 @@ Add this repository as a plugin marketplace:
 
 ```sh
 codex plugin marketplace add https://github.com/Nunchakus888/right-wake
-codex plugin add waking@waking --json
+codex plugin add right-wake@right-wake --json
 ```
 
 You can also install **RightWake** through `/plugins` in a compatible local Codex host. For Linear, invoke the setup skill **from the existing local work conversation you want to continue**, replacing the example issue:
 
-> Use $waking-setup to install and configure RightWake for Linear issue ENG-123, bound to this existing work conversation. Reuse my authorized connections and existing configuration, start the required local receiver, and verify each available stage. Keep replies as drafts and report any concrete blocker.
+> Use $right-wake-setup to install and configure RightWake for Linear issue ENG-123, bound to this existing work conversation. Reuse my authorized connections and existing configuration, start the required local receiver, and verify each available stage. Keep replies as drafts and report any concrete blocker.
 
 The same setup skill includes a [Linear workflow](docs/linear.md#agent-led-setup) for discovering existing settings, installing, configuring, and checking the result. With the required access, endpoint, and exact host/thread available, the agent can proceed in one invocation. First-time login, a missing public endpoint, or ambiguous ownership may require one focused interaction.
 
 The plugin still has three skills plus local MCP tools. Setup automation comes from the skill coordinating existing native CLI commands. Plugin installation has no hidden daemon-start hook, and a new setup conversation is not automatically the work destination. See [the plugin guide](docs/plugin.md).
 
-Already installed? Have the Agent [refresh the plugin package](docs/plugin.md#refresh-an-existing-installation) before using the updated Linear workflow; the native binary stays at v0.1.1.
+For an existing `right-wake` installation, have the Agent [refresh its plugin package](docs/plugin.md#refresh-an-existing-installation) when the skills change, and check that its native binary satisfies the installed package's version requirement.
 
 ## First work event
 
 To try the signed-event, binding, existing-context, and local-draft flow without credentials:
 
 ```sh
-waking --json demo
+right-wake --json demo
 ```
 
 This explicitly uses two pre-existing **mock** threads. It makes no model or provider call; real Codex continuation has its own acceptance check.
@@ -88,22 +89,22 @@ The minimum useful setup has one verified source, one reachable event receiver, 
 **Already connected to Linear MCP?** That provides tool access to Linear. RightWake still needs a separately configured signed webhook, reachable receiver, source, and thread binding; an MCP connection alone does not establish event delivery. Follow [the Linear setup guide](docs/linear.md).
 
 ```sh
-waking --json schema
-waking --json doctor
-waking --json source list
-waking --json host list
-waking --json bindings
+right-wake --json schema
+right-wake --json doctor
+right-wake --json source list
+right-wake --json host list
+right-wake --json bindings
 ```
 
-Use the installed schema and each command's `--help` to configure the source and host. Provide environment-variable names for credentials; do not paste secret values into a chat or command line. Select the canonical work resource and actual existing thread, then read the binding back. Start `waking serve` in that environment or explicitly install its user service. Configure the provider's webhook to the reachable receiver, then submit one harmless event in an authorized test resource.
+Use the installed schema and each command's `--help` to configure the source and host. Provide environment-variable names for credentials; do not paste secret values into a chat or command line. Select the canonical work resource and actual existing thread, then read the binding back. Start `right-wake serve` in that environment or explicitly install its user service. Configure the provider's webhook to the reachable receiver, then submit one harmless event in an authorized test resource.
 
 Inspect each stage separately:
 
 ```sh
-waking --json status
-waking --json events list
-waking --json jobs list
-waking --json drafts list
+right-wake --json status
+right-wake --json events list
+right-wake --json jobs list
+right-wake --json drafts list
 ```
 
 “Received,” “completed in the original thread,” and “sent to the provider” are different outcomes. `doctor` and the event/job record should identify the next action when one stage is blocked. Full setup and recovery behavior is specified in [user journeys](docs/product.md) and [states](docs/states.md).
@@ -127,7 +128,7 @@ cargo fmt --all -- --check
 cargo clippy --locked --all-targets -- -D warnings
 cargo test --locked
 cargo build --locked
-sh scripts/smoke.sh target/debug/waking
+sh scripts/smoke.sh target/debug/right-wake
 python3 scripts/check-plugin.py
 ```
 

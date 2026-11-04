@@ -6,5 +6,5 @@
   "actor": {"id": "requester-8"},
   "action": "comment.created",
   "revision": "1",
-  "text": "@waking Continue this task using the decisions already made in its existing thread."
+  "text": "@right-wake Continue this task using the decisions already made in its existing thread."
 }

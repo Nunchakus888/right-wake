@@ -1,12 +1,12 @@
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use hmac::{Hmac, Mac};
-use serde_json::{json, Value};
-use sha2::Sha256;
-use waking::model::ProviderKind;
-use waking::provider::{
+use right_wake::model::ProviderKind;
+use right_wake::provider::{
     ingest_with_secret, verify, Headers, IngestOutcome, SignatureScheme, SourceConfig,
     SourceRevision,
 };
+use serde_json::{json, Value};
+use sha2::Sha256;
 
 const NOW: i64 = 1_793_695_800_000;
 const SECRET: &[u8] = b"synthetic-webhook-secret-not-a-real-credential";
@@ -43,7 +43,7 @@ fn github_comment(body: &str) -> Value {
         "comment":{"id":90,"body":body,"updated_at":"2026-11-03T09:10:00Z","html_url":"https://github.com/example/repo/pull/42#issuecomment-90"},"sender":{"id":8}})
 }
 
-fn event(outcome: IngestOutcome) -> waking::model::NormalizedEvent {
+fn event(outcome: IngestOutcome) -> right_wake::model::NormalizedEvent {
     match outcome {
         IngestOutcome::Event(event) => event,
         other => panic!("Expected event, got {other:?}"),
@@ -88,7 +88,7 @@ fn linear_timestamp_is_taken_from_the_signed_body() {
 #[test]
 fn linear_stable_identity_and_provenance() {
     let payload = json!({"type":"Comment","action":"create","organizationId":"workspace-a","actor":{"id":"person"},"webhookTimestamp":NOW,
-        "createdAt":"2026-11-03T09:10:00Z","data":{"id":"reply-2","issueId":"issue-1","parentId":"comment-1","body":"@waking 请继续","updatedAt":"2026-11-03T09:10:00Z"}});
+        "createdAt":"2026-11-03T09:10:00Z","data":{"id":"reply-2","issueId":"issue-1","parentId":"comment-1","body":"@right-wake 请继续","updatedAt":"2026-11-03T09:10:00Z"}});
     let body = serde_json::to_vec(&payload).unwrap();
     let headers = Headers::from([
         ("Linear-Signature".into(), sign(SECRET, &body)),
@@ -127,9 +127,9 @@ fn linear_stable_identity_and_provenance() {
 #[test]
 fn github_pr_comments_and_inline_reviews_share_one_resource() {
     let config = source("github");
-    let (body, headers) = github(&github_comment("@waking inspect"), "issue_comment");
+    let (body, headers) = github(&github_comment("@right-wake inspect"), "issue_comment");
     let first = event(ingest_with_secret(&config, SECRET, &headers, &body, NOW).unwrap());
-    let review = json!({"action":"created","repository":{"id":12,"full_name":"example/repo","owner":{"id":5}},"pull_request":{"id":999,"number":42,"updated_at":"2026-11-03T09:10:00Z"},"comment":{"id":456,"in_reply_to_id":123,"body":"@waking inspect","updated_at":"2026-11-03T09:10:00Z"},"sender":{"id":8}});
+    let review = json!({"action":"created","repository":{"id":12,"full_name":"example/repo","owner":{"id":5}},"pull_request":{"id":999,"number":42,"updated_at":"2026-11-03T09:10:00Z"},"comment":{"id":456,"in_reply_to_id":123,"body":"@right-wake inspect","updated_at":"2026-11-03T09:10:00Z"},"sender":{"id":8}});
     let (body, headers) = github(&review, "pull_request_review_comment");
     let second = event(ingest_with_secret(&config, SECRET, &headers, &body, NOW).unwrap());
     assert_eq!(first.resource_key, second.resource_key);
@@ -149,8 +149,8 @@ fn followups_are_candidates_but_unbound_mentions_require_exact_token() {
     let config = source("github");
     for text in [
         "Any progress?",
-        "@waking_extra inspect",
-        "somebody@waking inspect",
+        "@right-wake_extra inspect",
+        "somebody@right-wake inspect",
     ] {
         let (body, headers) = github(&github_comment(text), "issue_comment");
         let normalized = event(ingest_with_secret(&config, SECRET, &headers, &body, NOW).unwrap());
@@ -165,7 +165,7 @@ fn followups_are_candidates_but_unbound_mentions_require_exact_token() {
 #[test]
 fn self_and_out_of_scope_events_never_wake_the_model() {
     let mut config = source("github");
-    let (body, headers) = github(&github_comment("@waking inspect"), "issue_comment");
+    let (body, headers) = github(&github_comment("@right-wake inspect"), "issue_comment");
     config.bot_actor_ids = vec!["8".into()];
     let normalized = event(ingest_with_secret(&config, SECRET, &headers, &body, NOW).unwrap());
     assert!(!normalized.actionable && !normalized.explicit_trigger);
@@ -178,7 +178,7 @@ fn self_and_out_of_scope_events_never_wake_the_model() {
 
 #[test]
 fn issue_state_changes_with_old_mentions_only_update_cache() {
-    let payload = json!({"action":"closed","repository":{"id":12,"full_name":"example/repo","owner":{"id":5}},"issue":{"id":88,"number":42,"body":"@waking inspect","updated_at":"2026-11-03T09:10:00Z"},"sender":{"id":8}});
+    let payload = json!({"action":"closed","repository":{"id":12,"full_name":"example/repo","owner":{"id":5}},"issue":{"id":88,"number":42,"body":"@right-wake inspect","updated_at":"2026-11-03T09:10:00Z"},"sender":{"id":8}});
     let (body, headers) = github(&payload, "issues");
     let normalized =
         event(ingest_with_secret(&source("github"), SECRET, &headers, &body, NOW).unwrap());
@@ -247,7 +247,7 @@ fn gitlab_discussion_location_is_not_replaced_by_top_level_comment() {
         ),
         ("Idempotency-Key".into(), "delivery-1".into()),
     ]);
-    let mut payload = json!({"object_kind":"note","project":{"id":7},"user":{"id":8},"merge_request":{"iid":42},"object_attributes":{"id":99,"noteable_type":"MergeRequest","type":"DiffNote","note":"@waking inspect","discussion_id":"discussion-root","updated_at":"2026-11-03T09:10:00Z"}});
+    let mut payload = json!({"object_kind":"note","project":{"id":7},"user":{"id":8},"merge_request":{"iid":42},"object_attributes":{"id":99,"noteable_type":"MergeRequest","type":"DiffNote","note":"@right-wake inspect","discussion_id":"discussion-root","updated_at":"2026-11-03T09:10:00Z"}});
     let normalized = event(
         ingest_with_secret(
             &config,
@@ -286,20 +286,20 @@ fn gitlab_discussion_location_is_not_replaced_by_top_level_comment() {
 #[test]
 fn generic_json_pointer_mapping_cannot_select_local_execution() {
     let config:SourceConfig=serde_json::from_value(json!({"id":"custom","kind":"generic","instance":"https://example.test","secret_env":"TEST_SECRET","generic":{"namespace":"tasks","resource_kind":"work","event_id":"/id","resource_id":"/task/id","content":"/task/text"}})).unwrap();
-    let payload = json!({"id":"event-1","task":{"id":"work-2","text":"@waking inspect"},"thread_id":"attacker","cwd":"/etc","command":"sh -c anything"});
+    let payload = json!({"id":"event-1","task":{"id":"work-2","text":"@right-wake inspect"},"thread_id":"attacker","cwd":"/etc","command":"sh -c anything"});
     let raw = serde_json::to_vec(&payload).unwrap();
     let timestamp = (NOW / 1000).to_string();
     let mut message = format!("{timestamp}.").into_bytes();
     message.extend_from_slice(&raw);
     let headers = Headers::from([
-        ("X-Waking-Timestamp".into(), timestamp),
+        ("X-RightWake-Timestamp".into(), timestamp),
         (
-            "X-Waking-Signature".into(),
+            "X-RightWake-Signature".into(),
             format!("sha256={}", sign(SECRET, &message)),
         ),
     ]);
     let normalized = event(ingest_with_secret(&config, SECRET, &headers, &raw, NOW).unwrap());
-    assert_eq!(normalized.content, "@waking inspect");
+    assert_eq!(normalized.content, "@right-wake inspect");
     assert!(normalized.reply_target.is_none());
     let serialized = serde_json::to_value(&normalized).unwrap();
     assert!(
@@ -322,7 +322,7 @@ fn malformed_and_oversized_inputs_fail_before_model_routing() {
         "payload_too_large"
     );
     let config = source("github");
-    let (body, mut headers) = github(&github_comment("@waking inspect"), "issue_comment");
+    let (body, mut headers) = github(&github_comment("@right-wake inspect"), "issue_comment");
     headers.insert("x-hub-signature-256".into(), "sha256=duplicate".into());
     assert_eq!(
         ingest_with_secret(&config, SECRET, &headers, &body, NOW)
@@ -337,7 +337,7 @@ fn malformed_and_oversized_inputs_fail_before_model_routing() {
 fn paused_sources_still_require_signature_and_preserve_receipts() {
     let mut config = source("github");
     config.enabled = false;
-    let (body, headers) = github(&github_comment("@waking continue"), "issue_comment");
+    let (body, headers) = github(&github_comment("@right-wake continue"), "issue_comment");
     let normalized = event(ingest_with_secret(&config, SECRET, &headers, &body, NOW).unwrap());
     assert!(normalized.actionable);
     assert!(ingest_with_secret(&config, b"wrong-secret", &headers, &body, NOW).is_err());
@@ -346,25 +346,25 @@ fn paused_sources_still_require_signature_and_preserve_receipts() {
 #[test]
 fn relay_policy_is_source_scoped_and_can_only_narrow_trigger_flags() {
     let mut config = source("github");
-    let (body, headers) = github(&github_comment("@waking continue"), "issue_comment");
+    let (body, headers) = github(&github_comment("@right-wake continue"), "issue_comment");
     let normalized = event(ingest_with_secret(&config, SECRET, &headers, &body, NOW).unwrap());
     let mut narrowed = normalized.clone();
     config.trigger_patterns = vec!["@different-bot".into()];
-    waking::provider::apply_local_policy(&config, &mut narrowed).unwrap();
+    right_wake::provider::apply_local_policy(&config, &mut narrowed).unwrap();
     assert!(!narrowed.explicit_trigger);
     assert!(narrowed.actionable);
-    config.trigger_patterns = vec!["@waking".into()];
-    waking::provider::apply_local_policy(&config, &mut narrowed).unwrap();
+    config.trigger_patterns = vec!["@right-wake".into()];
+    right_wake::provider::apply_local_policy(&config, &mut narrowed).unwrap();
     assert!(!narrowed.explicit_trigger);
     let mut wrong = normalized.clone();
     wrong.conversation_key = Some("another-resource:comment:1".into());
-    assert!(waking::provider::apply_local_policy(&config, &mut wrong).is_err());
+    assert!(right_wake::provider::apply_local_policy(&config, &mut wrong).is_err());
     let mut wrong = normalized.clone();
     wrong.resource_key = "github:https://untrusted.example:repository:12:pr:42".into();
-    assert!(waking::provider::apply_local_policy(&config, &mut wrong).is_err());
+    assert!(right_wake::provider::apply_local_policy(&config, &mut wrong).is_err());
     let mut wrong = normalized;
     wrong.source_id = "different-source".into();
-    assert!(waking::provider::apply_local_policy(&config, &mut wrong).is_err());
+    assert!(right_wake::provider::apply_local_policy(&config, &mut wrong).is_err());
 }
 
 #[test]
@@ -373,16 +373,16 @@ fn generic_semantic_identity_has_unambiguous_field_boundaries() {
     let mut ids = Vec::new();
     for (action, id) in [("request|x", "y"), ("request", "x|y")] {
         let raw = serde_json::to_vec(
-            &json!({"id":id,"action":action,"resource":"1","text":"@waking continue"}),
+            &json!({"id":id,"action":action,"resource":"1","text":"@right-wake continue"}),
         )
         .unwrap();
         let timestamp = (NOW / 1000).to_string();
         let mut message = format!("{timestamp}.").into_bytes();
         message.extend_from_slice(&raw);
         let headers = Headers::from([
-            ("X-Waking-Timestamp".into(), timestamp),
+            ("X-RightWake-Timestamp".into(), timestamp),
             (
-                "X-Waking-Signature".into(),
+                "X-RightWake-Signature".into(),
                 format!("sha256={}", sign(SECRET, &message)),
             ),
         ]);

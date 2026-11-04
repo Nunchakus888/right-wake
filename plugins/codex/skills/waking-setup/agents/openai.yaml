@@ -1,4 +1,0 @@
-interface:
-  display_name: "RightWake setup"
-  short_description: "Install RightWake and connect Linear to the right thread"
-  default_prompt: "Use $waking-setup to install RightWake, reuse my authorized Linear connection, and connect the selected issue to its existing work thread; configure, start, and verify what is available, keeping replies as drafts."

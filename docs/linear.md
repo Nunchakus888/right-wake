@@ -6,19 +6,19 @@ If Linear MCP is already connected to your agent, keep that connection for its p
 
 Receiving events and producing drafts do not require a Linear API token. They require the webhook signing secret at the receiver and a separately working execution host. Sending a draft adds an independently configured API credential, verified sending identity, and human Ed25519 approval.
 
-Install the published [v0.1.1 native release](https://github.com/Nunchakus888/right-wake/releases/tag/v0.1.1) using the [installation guide](installation.md), then use `waking --json schema` to inspect the installed command contract.
+Install the [v0.2.0 native release](https://github.com/Nunchakus888/right-wake/releases/tag/v0.2.0) after checking [publication status](releases/v0.2.0-verification.md), using the [installation guide](installation.md), then use `right-wake --json schema` to inspect the installed command contract.
 
 ## Agent-led setup
 
-The existing **`waking-setup`** skill includes a Linear workflow. Invoke it from the local existing work conversation you want to continue, with an explicit request such as:
+The existing **`right-wake-setup`** skill includes a Linear workflow. Invoke it from the local existing work conversation you want to continue, with an explicit request such as:
 
-> Use $waking-setup to connect Linear issue ENG-123 to this existing work conversation. Install and configure what is needed, reuse authorized connections and existing settings, start the local receiver, and report the verified result or concrete blocker. Keep replies as drafts.
+> Use $right-wake-setup to connect Linear issue ENG-123 to this existing work conversation. Install and configure what is needed, reuse authorized connections and existing settings, start the local receiver, and report the verified result or concrete blocker. Keep replies as drafts.
 
 Replace the example issue with your intended resource. The skill uses the installed CLI and its bundled installer/reference; it does not require another runtime or a fourth skill. These are the minimum stages it coordinates:
 
 | Stage | Automatic work when the prerequisites are available |
 | --- | --- |
-| Install and select state | Reuse the binary and existing profile, install v0.1.1 if needed, run idempotent setup, and align the CLI/MCP data directory. |
+| Install and select state | Reuse the binary and existing profile, install v0.2.0 if needed, run idempotent setup, and align the CLI/MCP data directory. |
 | Resolve Linear identity | Use permitted MCP/API results to resolve the exact organization and issue UUIDs; reuse the current source scope. |
 | Establish delivery | Reuse an existing HTTPS route or paired relay and signing-secret reference. Inspect and register a webhook only through an available authorized management tool or separately authorized admin API client. |
 | Verify the destination | Reuse the binding or resolve the explicitly intended existing thread through its configured host; verify the exact thread/cwd and host prerequisites. |
@@ -46,7 +46,7 @@ This guide first shows direct local receipt. The same source identity is used on
 | Issue UUID | The exact `data.issueId` for a Comment event, or `data.id` for an Issue event. A display identifier such as `ENG-123` is not this UUID. |
 | `mac-codex` | An operator-chosen RightWake host ID for one explicitly configured App Server. |
 | Thread UUID | The exact existing thread ID returned by that host. A conversation title, another client's family/session label, or a managed cloud task ID is not a substitute. |
-| `WAKING_LINEAR_WEBHOOK_SECRET` | An environment-variable **name**. Its value is the webhook signing secret, kept outside the source configuration. |
+| `RIGHT_WAKE_LINEAR_WEBHOOK_SECRET` | An environment-variable **name**. Its value is the webhook signing secret, kept outside the source configuration. |
 
 Obtain organization and issue IDs from trusted Linear API/tool results that expose those underlying IDs, or from the corresponding webhook records in your own workspace. An existing MCP tool may help inspect an issue if it exposes the required ID; do not infer an organization UUID from a human-readable workspace name.
 
@@ -63,26 +63,26 @@ For a comment discussion, `conversation_key` adds `:comment:COMMENT_ROOT_UUID`. 
 The uppercase identifier strings below are placeholders, not credentials. Replace them with the exact values from your workspace before running the commands. Use the same profile path in every command in this guide.
 
 ```sh
-WAKING_LINEAR_DATA="$HOME/.local/share/waking-linear"
-WAKING_LINEAR_ORG='REPLACE_WITH_ORGANIZATION_UUID'
-WAKING_LINEAR_ISSUE='REPLACE_WITH_ISSUE_UUID'
-WAKING_LINEAR_RESOURCE="linear:https://linear.app:$WAKING_LINEAR_ORG:$WAKING_LINEAR_ISSUE"
+RIGHT_WAKE_LINEAR_DATA="$HOME/.local/share/right-wake-linear"
+RIGHT_WAKE_LINEAR_ORG='REPLACE_WITH_ORGANIZATION_UUID'
+RIGHT_WAKE_LINEAR_ISSUE='REPLACE_WITH_ISSUE_UUID'
+RIGHT_WAKE_LINEAR_RESOURCE="linear:https://linear.app:$RIGHT_WAKE_LINEAR_ORG:$RIGHT_WAKE_LINEAR_ISSUE"
 
-waking --data-dir "$WAKING_LINEAR_DATA" setup
-waking --data-dir "$WAKING_LINEAR_DATA" source add \
+right-wake --data-dir "$RIGHT_WAKE_LINEAR_DATA" setup
+right-wake --data-dir "$RIGHT_WAKE_LINEAR_DATA" source add \
   --id linear-work \
   --kind linear \
   --instance https://linear.app \
-  --tenant "$WAKING_LINEAR_ORG" \
-  --secret-env WAKING_LINEAR_WEBHOOK_SECRET \
-  --trigger '@waking' \
-  --resource "$WAKING_LINEAR_RESOURCE"
-waking --data-dir "$WAKING_LINEAR_DATA" --json source list
+  --tenant "$RIGHT_WAKE_LINEAR_ORG" \
+  --secret-env RIGHT_WAKE_LINEAR_WEBHOOK_SECRET \
+  --trigger '@right-wake' \
+  --resource "$RIGHT_WAKE_LINEAR_RESOURCE"
+right-wake --data-dir "$RIGHT_WAKE_LINEAR_DATA" --json source list
 ```
 
-This example admits one exact issue into automatic routing. Other signed events can be retained as outside-scope records without waking a model. `--resource` is repeatable; its values are canonical resource keys, or configured prefixes ending in `*`. An empty resource list allows the configured tenant's supported resources, so scope it deliberately.
+This example admits one exact issue into automatic routing. Other signed events can be retained as outside-scope records without invoking a model. `--resource` is repeatable; its values are canonical resource keys, or configured prefixes ending in `*`. An empty resource list allows the configured tenant's supported resources, so scope it deliberately.
 
-If the Codex plugin will manage this named profile, set `WAKING_DATA_DIR` to the same absolute directory in its MCP process environment and verify the `data_dir` reported by `waking_setup`. The plugin otherwise uses its default profile, even when a CLI command used `--data-dir`. See [plugin profile selection](plugin.md#use-the-same-local-profile).
+If the Codex plugin will manage this named profile, set `RIGHT_WAKE_DATA_DIR` to the same absolute directory in its MCP process environment and verify the `data_dir` reported by `right_wake_setup`. The plugin otherwise uses its default profile, even when a CLI command used `--data-dir`. See [plugin profile selection](plugin.md#use-the-same-local-profile).
 
 Read `source list` before creating a source. Reuse an equivalent existing source without rewriting it. `source add` with an existing ID replaces that source object. To make an intended update to a source that already has a review key, sending identity, special limits, or other configuration, preserve the complete object and use `source add --file /absolute/path/to/source.json`. Do not accidentally reset those fields by rerunning an incomplete flag example.
 
@@ -102,12 +102,12 @@ Prepare a private environment file without overwriting an existing file:
 
 ```sh
 umask 077
-mkdir -p "$WAKING_LINEAR_DATA"
-touch "$WAKING_LINEAR_DATA/private.env"
-chmod 600 "$WAKING_LINEAR_DATA/private.env"
+mkdir -p "$RIGHT_WAKE_LINEAR_DATA"
+touch "$RIGHT_WAKE_LINEAR_DATA/private.env"
+chmod 600 "$RIGHT_WAKE_LINEAR_DATA/private.env"
 ```
 
-Use a trusted local editor or authorized secret mechanism to place the actual signing secret in that file as `WAKING_LINEAR_WEBHOOK_SECRET`. An agent may reuse an existing private file or securely store a secret obtained through an authorized client without printing it. The file format is plain `NAME=VALUE`, one entry per line: no `export`, shell expansion, or surrounding shell quotes. Keep the actual value out of command arguments, chat, the repository, and logs. Do not paste its contents into a diagnostic report.
+Use a trusted local editor or authorized secret mechanism to place the actual signing secret in that file as `RIGHT_WAKE_LINEAR_WEBHOOK_SECRET`. An agent may reuse an existing private file or securely store a secret obtained through an authorized client without printing it. The file format is plain `NAME=VALUE`, one entry per line: no `export`, shell expansion, or surrounding shell quotes. Keep the actual value out of command arguments, chat, the repository, and logs. Do not paste its contents into a diagnostic report.
 
 The public proxy must preserve the request body bytes and the `Linear-Signature` and `Linear-Delivery` headers. RightWake verifies HMAC over the original bytes and checks the signed `webhookTimestamp`; the default Linear timestamp window is 60 seconds. Keep the receiving machine's clock synchronized. A valid receipt is committed before RightWake responds successfully, and model execution is not part of that HTTP acknowledgement. Proxy timeouts and body-size limits still need to permit that delivery path; see [Linear's current delivery requirements](https://linear.app/developers/webhooks).
 
@@ -128,11 +128,11 @@ Run it only in the intended host environment containing the original sessions. I
 Read `host list` first and reuse a matching host. `host add` replaces the whole entry with that ID, including its declarations and timeout; do not rerun the following new-host example against an existing configured host. For a new host, register it and inspect its available threads without enabling automatic submission:
 
 ```sh
-waking --data-dir "$WAKING_LINEAR_DATA" host add \
+right-wake --data-dir "$RIGHT_WAKE_LINEAR_DATA" host add \
   --id mac-codex \
   --socket /absolute/path/to/owned-codex.sock
-waking --data-dir "$WAKING_LINEAR_DATA" --json doctor --probe
-waking --data-dir "$WAKING_LINEAR_DATA" --json host threads --host mac-codex
+right-wake --data-dir "$RIGHT_WAKE_LINEAR_DATA" --json doctor --probe
+right-wake --data-dir "$RIGHT_WAKE_LINEAR_DATA" --json host threads --host mac-codex
 ```
 
 Thread listing is paginated. Use `host threads --host mac-codex --cursor NEXT_CURSOR` when the response provides another page. Select the actual thread containing the prior work and record its UUID and working directory. Visibility and a successful handshake are not proof that model continuation has been tested.
@@ -142,19 +142,19 @@ Before enabling automatic dispatch, establish both host prerequisites: this inte
 Only after those conditions are true, re-register the same host with the declarations below and bind the exact issue to the existing thread:
 
 ```sh
-waking --data-dir "$WAKING_LINEAR_DATA" host add \
+right-wake --data-dir "$RIGHT_WAKE_LINEAR_DATA" host add \
   --id mac-codex \
   --socket /absolute/path/to/owned-codex.sock \
   --exclusive-writer \
   --restricted-tools
-waking --data-dir "$WAKING_LINEAR_DATA" bind \
+right-wake --data-dir "$RIGHT_WAKE_LINEAR_DATA" bind \
   --source linear-work \
-  --resource "$WAKING_LINEAR_RESOURCE" \
+  --resource "$RIGHT_WAKE_LINEAR_RESOURCE" \
   --host mac-codex \
   --thread EXISTING_CODEX_THREAD_UUID \
   --cwd /absolute/path/to/original-worktree \
   --expected-version 0
-waking --data-dir "$WAKING_LINEAR_DATA" --json bindings
+right-wake --data-dir "$RIGHT_WAKE_LINEAR_DATA" --json bindings
 ```
 
 Use the worktree path observed by that App Server, which must also be available to the executor. Read `bindings` first and skip an equivalent enabled assignment. `--expected-version 0` creates only a previously absent binding; it will conflict when repeated after creation. If the intended change affects an existing binding, use its observed version and exact target. The two host flags assert conditions you have established; they do not configure an OS sandbox, disable MCP tools, or create an atomic lock across Codex clients. Preserve the existing host's other fields when adding these declarations.
@@ -166,25 +166,25 @@ A narrower discussion binding takes precedence over the issue binding. A known t
 Once the public endpoint, signing secret, source, and host are ready, run the receiver in the foreground:
 
 ```sh
-waking --data-dir "$WAKING_LINEAR_DATA" \
-  --env-file "$WAKING_LINEAR_DATA/private.env" \
+right-wake --data-dir "$RIGHT_WAKE_LINEAR_DATA" \
+  --env-file "$RIGHT_WAKE_LINEAR_DATA/private.env" \
   serve --listen 127.0.0.1:7433
 ```
 
 Configure your tunnel or reverse proxy to reach that listener. In a separate terminal, use the same profile path and inspect the process and durable records:
 
 ```sh
-waking --data-dir "$WAKING_LINEAR_DATA" \
-  --env-file "$WAKING_LINEAR_DATA/private.env" --json doctor
-waking --data-dir "$WAKING_LINEAR_DATA" --json status
-waking --data-dir "$WAKING_LINEAR_DATA" --json events list
-waking --data-dir "$WAKING_LINEAR_DATA" --json jobs list
-waking --data-dir "$WAKING_LINEAR_DATA" --json drafts list
+right-wake --data-dir "$RIGHT_WAKE_LINEAR_DATA" \
+  --env-file "$RIGHT_WAKE_LINEAR_DATA/private.env" --json doctor
+right-wake --data-dir "$RIGHT_WAKE_LINEAR_DATA" --json status
+right-wake --data-dir "$RIGHT_WAKE_LINEAR_DATA" --json events list
+right-wake --data-dir "$RIGHT_WAKE_LINEAR_DATA" --json jobs list
+right-wake --data-dir "$RIGHT_WAKE_LINEAR_DATA" --json drafts list
 ```
 
-For an explicitly authorized comment test, create one deliberate comment in the selected issue from an allowed human actor, containing the plain-text token `@waking` and the requested follow-up. An agent must not post this comment solely because installation was requested. **`@waking` is a configured text trigger, not a Linear bot identity that RightWake registers.** Do not assume selecting a similarly named mention automatically emits that literal token in the webhook body. The native source supports Issue and Comment events; it does not provision a Linear agent or claim full personal Inbox/agent-session coverage.
+For an explicitly authorized comment test, create one deliberate comment in the selected issue from an allowed human actor, containing the plain-text token `@right-wake` and the requested follow-up. An agent must not post this comment solely because installation was requested. **`@right-wake` is a configured text trigger, not a Linear bot identity that RightWake registers.** Do not assume selecting a similarly named mention automatically emits that literal token in the webhook body. The native source supports Issue and Comment events; it does not provision a Linear agent or claim full personal Inbox/agent-session coverage.
 
-After an issue/discussion is bound, actionable follow-up comments can reuse the binding without repeating the token. Ordinary status updates do not become new requests merely because an older description contains `@waking`. A model turn may conclude that no reply is needed.
+After an issue/discussion is bound, actionable follow-up comments can reuse the binding without repeating the token. Ordinary status updates do not become new requests merely because an older description contains `@right-wake`. A model turn may conclude that no reply is needed.
 
 Inspect a specific event with `events show EVENT_ID` and its job with `jobs show JOB_ID`. Check these facts separately:
 

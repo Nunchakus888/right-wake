@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare an exact Waking review on a separate reviewer device (stdlib only).
+"""Prepare an exact RightWake review on a separate reviewer device (stdlib only).
 
 This program never opens a private key, signs an approval, or sends a reply.
 Read docs/approvals.md before using the output with an independent signing key.
@@ -19,7 +19,7 @@ import time
 from urllib.parse import urlsplit
 
 
-DOMAIN = b"waking.human-approval.v1\n"
+DOMAIN = b"right-wake.human-approval.v1\n"
 STATEMENT_FIELDS = ("schema_version", "draft_id", "draft_digest", "expires_at_ms")
 TARGET_FIELDS = {
     "domain", "draft_id", "draft_revision", "source_id", "resource_key",
@@ -76,7 +76,7 @@ def hex_digest(value):
 def validate_target(target, statement):
     require(isinstance(target, dict) and set(target) == TARGET_FIELDS,
             "unsupported review target fields; use the matching reviewed tool version")
-    require(target["domain"] == "waking.review.v1", "unsupported review target domain")
+    require(target["domain"] == "right-wake.review.v1", "unsupported review target domain")
     require(target["draft_id"] == statement["draft_id"], "review target draft_id mismatch")
     for field in (
         "draft_id", "source_id", "resource_key", "event_id", "body", "source_revision",
@@ -150,7 +150,7 @@ def prepare(document, current_ms):
     # ASCII JSON makes every control/bidi/non-ASCII character explicit. body.txt
     # separately contains the exact UTF-8 body, without an appended newline.
     review = (
-        "Waking independent review (not yet approved)\n"
+        "RightWake independent review (not yet approved)\n"
         "The complete payload below was parsed from the exact SHA-256-verified bytes.\n"
         "Outer draft fields and exported signing_bytes_base64 are not used.\n"
         "JSON string escapes are literal notation, not additional message characters.\n"
@@ -187,7 +187,7 @@ def write_new_private_directory(output, files):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("export", type=Path, help="JSON produced by waking drafts export")
+    parser.add_argument("export", type=Path, help="JSON produced by right-wake drafts export")
     parser.add_argument("--out", required=True, type=Path, help="new private review directory (must not exist)")
     args = parser.parse_args()
     require(os.name == "posix", "use a Linux/macOS reviewer device with private file permissions")

@@ -1,4 +1,12 @@
 use futures_util::{SinkExt, StreamExt};
+use right_wake::{
+    config::{Config, RelayDevice},
+    db::Db,
+    engine::Engine,
+    model::{NormalizedEvent, ProviderKind, ThreadTarget},
+    relay::{receive_wire, serve_wire, RelayWire},
+    server::AppState,
+};
 use serde_json::{json, Value};
 use std::{sync::Arc, time::Duration};
 use tempfile::TempDir;
@@ -10,14 +18,6 @@ use tokio::{
 use tokio_tungstenite::{
     tungstenite::{protocol::Role, Message},
     WebSocketStream,
-};
-use waking::{
-    config::{Config, RelayDevice},
-    db::Db,
-    engine::Engine,
-    model::{NormalizedEvent, ProviderKind, ThreadTarget},
-    relay::{receive_wire, serve_wire, RelayWire},
-    server::AppState,
 };
 
 type Socket = WebSocketStream<DuplexStream>;
@@ -52,7 +52,7 @@ fn event(id: &str) -> NormalizedEvent {
         occurred_at_ms: 1,
         received_at_ms: 1,
         source_url: None,
-        content: "@waking continue".into(),
+        content: "@right-wake continue".into(),
         revision: format!("rev-{id}"),
         actionable: true,
         explicit_trigger: true,
@@ -133,7 +133,7 @@ async fn send(socket: &mut Socket, value: Value) {
 }
 
 fn relay_state(engine: &Engine, mut cfg: Config) -> (AppState, String) {
-    let variable = format!("WAKING_TEST_RELAY_{}", uuid::Uuid::new_v4().simple());
+    let variable = format!("RIGHT_WAKE_TEST_RELAY_{}", uuid::Uuid::new_v4().simple());
     std::env::set_var(&variable, TOKEN);
     cfg.relay_devices.push(RelayDevice {
         id: "device".into(),
@@ -419,7 +419,7 @@ async fn bounded_replay_reads_live_events_and_only_replays_its_own_receipts() {
         completions,
     ));
     let mut live = event("live");
-    live.content = format!("@waking {}", "x".repeat(96 * 1024));
+    live.content = format!("@right-wake {}", "x".repeat(96 * 1024));
     // The peer writes a large new event while the receiver writes the first
     // history ACK. A single blocking read/write loop deadlocks with 64 B pipes.
     send(

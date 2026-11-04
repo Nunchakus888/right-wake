@@ -11,7 +11,7 @@ use std::{
     time::Duration,
 };
 
-// SQLite fixed the WAL-reset race in the 3.51.3 mainline release. Waking
+// SQLite fixed the WAL-reset race in the 3.51.3 mainline release. RightWake
 // uses WAL with multiple connections, so validate the linked engine rather
 // than relying on a Cargo package version or the system sqlite3 command.
 pub const MIN_SQLITE_VERSION_NUMBER: i32 = 3_051_003;
@@ -25,7 +25,7 @@ impl Db {
     pub fn open(dir: &Path) -> Result<Self> {
         if rusqlite::version_number() < MIN_SQLITE_VERSION_NUMBER {
             bail!(
-                "sqlite_version_unsupported: linked SQLite {} requires an upgrade to 3.51.3 or later before opening Waking state",
+                "sqlite_version_unsupported: linked SQLite {} requires an upgrade to 3.51.3 or later before opening RightWake state",
                 rusqlite::version()
             );
         }
@@ -1332,7 +1332,7 @@ struct BackupStaging {
 }
 impl BackupStaging {
     fn create(parent: &Path) -> Result<(Self, std::fs::File)> {
-        let directory = parent.join(format!(".waking-backup-{}", uuid::Uuid::new_v4()));
+        let directory = parent.join(format!(".right-wake-backup-{}", uuid::Uuid::new_v4()));
         let mut builder = std::fs::DirBuilder::new();
         #[cfg(unix)]
         {

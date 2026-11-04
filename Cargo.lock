@@ -1406,6 +1406,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "right-wake"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "base64 0.22.1",
+ "chrono",
+ "clap",
+ "ed25519-dalek",
+ "fs2",
+ "futures-util",
+ "hex",
+ "hmac",
+ "notify",
+ "rand 0.8.8",
+ "reqwest",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "tokio-tungstenite 0.28.0",
+ "tower",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "uuid",
+]
+
+[[package]]
 name = "ring"
 version = "0.17.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2102,39 +2135,6 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
-
-[[package]]
-name = "waking"
-version = "0.1.1"
-dependencies = [
- "anyhow",
- "async-trait",
- "axum",
- "base64 0.22.1",
- "chrono",
- "clap",
- "ed25519-dalek",
- "fs2",
- "futures-util",
- "hex",
- "hmac",
- "notify",
- "rand 0.8.8",
- "reqwest",
- "rusqlite",
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
- "thiserror",
- "tokio",
- "tokio-tungstenite 0.28.0",
- "tower",
- "tracing",
- "tracing-subscriber",
- "url",
- "uuid",
-]
 
 [[package]]
 name = "walkdir"

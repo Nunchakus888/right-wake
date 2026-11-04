@@ -6,8 +6,8 @@
       "method": "initialize",
       "params": {
         "clientInfo": {
-          "name": "waking_schema_probe",
-          "version": "0.1.0"
+          "name": "right_wake_schema_probe",
+          "version": "0.2.0"
         },
         "capabilities": {
           "experimentalApi": false
@@ -20,7 +20,7 @@
     "message": {
       "id": 1,
       "result": {
-        "userAgent": "waking_schema_probe/0.166.0 (Ubuntu 24.4.0; x86_64) unknown (waking_schema_probe; 0.1.0)",
+        "userAgent": "right_wake_schema_probe/0.166.0 (Ubuntu 24.4.0; x86_64) unknown (right_wake_schema_probe; 0.2.0)",
         "codexHome": "<probe-workspace>/isolated-config",
         "platformFamily": "unix",
         "platformOs": "linux"
@@ -62,7 +62,7 @@
         "installationId": "<redacted-probe-metadata>",
         "environmentId": null
       },
-      "emittedAtMs": 1793698732522
+      "emittedAtMs": 1793762419603
     }
   },
   {

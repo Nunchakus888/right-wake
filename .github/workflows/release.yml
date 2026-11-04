@@ -10,10 +10,10 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing version tag, for example v0.1.1
+        description: Existing version tag, for example v0.2.0
         required: true
         type: string
-        default: v0.1.1
+        default: v0.2.0
       publish:
         description: Publish the preview release after all four platforms pass
         required: true
@@ -163,15 +163,15 @@ jobs:
       - name: Build native binary
         run: cargo build --release --locked --target '${{ matrix.target }}'
       - name: Smoke test native binary and installer
-        run: sh scripts/smoke.sh 'target/${{ matrix.target }}/release/waking'
+        run: sh scripts/smoke.sh 'target/${{ matrix.target }}/release/right-wake'
       - name: Package release
-        run: sh scripts/package-release.sh 'target/${{ matrix.target }}/release/waking' "$RELEASE_TAG" '${{ matrix.target }}' dist
+        run: sh scripts/package-release.sh 'target/${{ matrix.target }}/release/right-wake' "$RELEASE_TAG" '${{ matrix.target }}' dist
       - name: Check container installer failure boundaries
         if: runner.os == 'Linux'
         run: python3 scripts/test-container-installer.py
       - name: Build, verify, and package the native Linux container
         if: runner.os == 'Linux'
-        run: sh scripts/package-container.sh 'target/${{ matrix.target }}/release/waking' "$RELEASE_TAG" '${{ matrix.target }}' dist
+        run: sh scripts/package-container.sh 'target/${{ matrix.target }}/release/right-wake' "$RELEASE_TAG" '${{ matrix.target }}' dist
       - name: Upload verified native and container archives
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
@@ -214,7 +214,7 @@ jobs:
           targets = ['x86_64-unknown-linux-gnu', 'aarch64-unknown-linux-gnu',
                      'x86_64-apple-darwin', 'aarch64-apple-darwin',
                      'container-linux-amd64', 'container-linux-arm64']
-          expected = {f'waking-{tag}-{target}.tar.gz' for target in targets}
+          expected = {f'right-wake-{tag}-{target}.tar.gz' for target in targets}
           entries = Path('dist/SHA256SUMS').read_text().splitlines()
           parsed = [re.fullmatch(r'[0-9a-f]{64}  (.+)', line) for line in entries]
           if len(parsed) != 6 or not all(parsed) or {match[1] for match in parsed} != expected:

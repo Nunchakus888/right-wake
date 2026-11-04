@@ -5,9 +5,9 @@ fail() { printf 'compose smoke: %s\n' "$*" >&2; exit 1; }
 [ "$#" -eq 1 ] || fail 'usage: compose-smoke.sh EXISTING_IMAGE'
 image=$1
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-tmp=$(mktemp -d "${TMPDIR:-/tmp}/waking-compose-smoke.XXXXXXXX")
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/right-wake-compose-smoke.XXXXXXXX")
 project=$(printf '%s' "${tmp##*/}" | tr '[:upper:]' '[:lower:]' | tr '.' '-')
-export WAKING_PORT=0
+export RIGHT_WAKE_PORT=0
 compose() {
   docker compose --project-name "$project" --project-directory "$tmp" \
     -f "$tmp/compose.yaml" "$@"
@@ -31,14 +31,14 @@ trap 'exit 143' TERM
 [ -z "$(docker container ls -aq --filter "label=com.docker.compose.project=$project")" ] || fail 'test project container collision'
 [ -z "$(docker volume ls -q --filter "label=com.docker.compose.project=$project")" ] || fail 'test project volume collision'
 cp "$root/deploy/compose.yaml" "$tmp/compose.yaml"
-printf 'WAKING_COMPOSE_SMOKE_SECRET=synthetic-compose-secret-never-a-provider-credential\n' > "$tmp/private.env"
+printf 'RIGHT_WAKE_COMPOSE_SMOKE_SECRET=synthetic-compose-secret-never-a-provider-credential\n' > "$tmp/private.env"
 chmod 600 "$tmp/private.env"
 compose config --format json > "$tmp/resolved.json"
 python3 - "$tmp/resolved.json" "$image" <<'PY'
 import json, sys
 from pathlib import Path
 cfg = json.loads(Path(sys.argv[1]).read_text())
-service = cfg["services"]["waking"]
+service = cfg["services"]["right-wake"]
 assert service["image"] == sys.argv[2], service
 assert service["pull_policy"] == "never", service
 assert service["restart"] == "unless-stopped", service
@@ -47,13 +47,13 @@ assert len(service["ports"]) == 1 and service["ports"][0]["host_ip"] == "127.0.0
 assert service["ports"][0]["target"] == 7433, service
 assert any(v["type"] == "volume" and v["target"] == "/data" for v in service["volumes"]), service
 PY
-compose run --rm -T waking --json setup > "$tmp/setup.json"
-compose run --rm -T waking --json source add --id container --kind linear \
-  --tenant compose-smoke --secret-env WAKING_COMPOSE_SMOKE_SECRET > "$tmp/source.json"
+compose run --rm -T right-wake --json setup > "$tmp/setup.json"
+compose run --rm -T right-wake --json source add --id container --kind linear \
+  --tenant compose-smoke --secret-env RIGHT_WAKE_COMPOSE_SMOKE_SECRET > "$tmp/source.json"
 compose up --detach
 
 ready() {
-  container=$(compose ps --quiet waking)
+  container=$(compose ps --quiet right-wake)
   [ -n "$container" ] || fail 'Compose service is absent'
   docker container inspect "$container" > "$tmp/container.json"
   port=$(python3 - "$tmp/container.json" <<'PY'
@@ -90,7 +90,7 @@ from pathlib import Path
 body = json.dumps({"type": "Comment", "action": "create", "organizationId": "compose-smoke",
                    "webhookTimestamp": int(time.time() * 1000),
                    "data": {"id": "compose-comment", "issueId": "compose-issue",
-                            "body": "@waking synthetic container persistence check", "user": {"id": "fixture"}}}).encode()
+                            "body": "@right-wake synthetic container persistence check", "user": {"id": "fixture"}}}).encode()
 signature = hmac.new(b"synthetic-compose-secret-never-a-provider-credential", body, hashlib.sha256).hexdigest()
 request = urllib.request.Request("http://127.0.0.1:" + sys.argv[1] + "/hooks/container", body,
                                  {"Content-Type": "application/json", "Linear-Signature": signature,
@@ -104,8 +104,8 @@ Path(sys.argv[2]).write_text(json.dumps(receipt))
 PY
 
 snapshot() {
-  compose exec -T waking /usr/local/bin/waking --data-dir /data --json status > "$tmp/status.json"
-  compose exec -T waking /usr/local/bin/waking --data-dir /data --json events list > "$tmp/events.json"
+  compose exec -T right-wake /usr/local/bin/right-wake --data-dir /data --json status > "$tmp/status.json"
+  compose exec -T right-wake /usr/local/bin/right-wake --data-dir /data --json events list > "$tmp/events.json"
   python3 - "$tmp" <<'PY'
 import json, sys
 from pathlib import Path
@@ -126,15 +126,15 @@ else:
 PY
 }
 snapshot
-original=$(compose ps --quiet waking)
-compose restart waking
+original=$(compose ps --quiet right-wake)
+compose restart right-wake
 ready
-[ "$(compose ps --quiet waking)" = "$original" ] || fail 'restart replaced the container'
+[ "$(compose ps --quiet right-wake)" = "$original" ] || fail 'restart replaced the container'
 snapshot
 compose down --timeout 10
 compose up --detach
 ready
-[ "$(compose ps --quiet waking)" != "$original" ] || fail 'recreation reused the old container'
+[ "$(compose ps --quiet right-wake)" != "$original" ] || fail 'recreation reused the old container'
 snapshot
 printf 'Compose relay startup, signed loopback receipt, restart, and pending-event volume persistence passed.\n'
 printf 'This fixture made no real provider request, model call, external reply, or public relay connection.\n'

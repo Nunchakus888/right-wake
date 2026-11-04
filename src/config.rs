@@ -104,14 +104,14 @@ impl Default for Config {
 }
 
 pub fn default_data_dir() -> PathBuf {
-    if let Some(path) = std::env::var_os("WAKING_DATA_DIR") {
+    if let Some(path) = std::env::var_os("RIGHT_WAKE_DATA_DIR") {
         return path.into();
     }
     if let Some(path) = std::env::var_os("XDG_DATA_HOME") {
-        return PathBuf::from(path).join("waking");
+        return PathBuf::from(path).join("right-wake");
     }
     PathBuf::from(std::env::var_os("HOME").unwrap_or_else(|| ".".into()))
-        .join(".local/share/waking")
+        .join(".local/share/right-wake")
 }
 
 pub fn private_dir(path: &Path) -> Result<()> {
@@ -150,10 +150,9 @@ pub fn atomic_private_write(path: &Path, bytes: &[u8]) -> Result<()> {
 impl Config {
     pub fn load(dir: &Path) -> Result<Self> {
         let path = dir.join("config.json");
-        let value: Self =
-            serde_json::from_slice(&std::fs::read(&path).with_context(|| {
-                format!("run waking --data-dir {} setup first", dir.display())
-            })?)?;
+        let value: Self = serde_json::from_slice(&std::fs::read(&path).with_context(|| {
+            format!("run right-wake --data-dir {} setup first", dir.display())
+        })?)?;
         value.validate()?;
         Ok(value)
     }

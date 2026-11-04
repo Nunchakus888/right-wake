@@ -1,8 +1,11 @@
 # Codex 0.166.0: recorded protocol smoke test
 
 These are sanitized records from an actual official Linux x86-64 Codex CLI
-0.166.0 process, recorded on 2026-11-03. The binary's package checksum matched
-OpenAI's release metadata. See [the compatibility report](../../../docs/host-compatibility.md)
+0.166.0 process, regenerated on 2026-11-04 with the RightWake 0.2.0 probe. The
+official `codex-x86_64-unknown-linux-musl.tar.gz` package matched OpenAI's release
+SHA-256 `a0bf572d2f93f056c6712a6da348e96078dc84f3885fd7be67807ef389cb3978`;
+the extracted binary SHA-256 was `b8a11fedf24b2dfb59a70c9e52b030f9a508dcd49cd2dd0d41956f4c785156b8`.
+See [the compatibility report](../../../docs/host-compatibility.md)
 for checksums and remaining acceptance gates.
 
 The probe generates a schema into a temporary directory, initializes an isolated

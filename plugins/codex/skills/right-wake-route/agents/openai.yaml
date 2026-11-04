@@ -1,4 +1,4 @@
 interface:
   display_name: "RightWake routing"
   short_description: "Bind work resources to existing agent threads"
-  default_prompt: "Use $waking-route to bind this work resource to the correct existing Codex thread."
+  default_prompt: "Use $right-wake-route to bind this work resource to the correct existing Codex thread."

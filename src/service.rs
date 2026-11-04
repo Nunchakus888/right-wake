@@ -7,9 +7,9 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 #[cfg(target_os = "linux")]
-const UNIT: &str = "waking.service";
+const UNIT: &str = "right-wake.service";
 #[cfg(any(test, target_os = "macos"))]
-const LABEL: &str = "io.github.nunchakus888.waking";
+const LABEL: &str = "io.github.nunchakus888.right-wake";
 const MAX_OUTPUT: u64 = 64 * 1024;
 
 struct ManagerResult {
@@ -103,7 +103,7 @@ fn text_path(path: &Path) -> Result<&str> {
 
 fn marker(data_dir: &Path) -> Result<String> {
     Ok(format!(
-        "waking-managed-service-v1:{}",
+        "right-wake-managed-service-v1:{}",
         hex::encode(text_path(data_dir)?.as_bytes())
     ))
 }
@@ -115,7 +115,7 @@ fn check_owned(path: &Path, data_dir: &Path) -> Result<bool> {
         Err(error) => return Err(error.into()),
     };
     if !metadata.is_file() || metadata.len() > MAX_OUTPUT {
-        bail!("refusing to modify a service definition that is not a regular Waking file");
+        bail!("refusing to modify a service definition that is not a regular RightWake file");
     }
     let body = std::fs::read_to_string(path)?;
     let mark = marker(data_dir)?;
@@ -123,7 +123,7 @@ fn check_owned(path: &Path, data_dir: &Path) -> Result<bool> {
         .lines()
         .any(|line| line == format!("# {mark}") || line == format!("<!-- {mark} -->"))
     {
-        bail!("service definition belongs to another application or Waking data directory; leave it intact and uninstall through its original configuration");
+        bail!("service definition belongs to another application or RightWake data directory; leave it intact and uninstall through its original configuration");
     }
     Ok(true)
 }
@@ -173,7 +173,7 @@ fn systemd_quote(value: &str) -> String {
 #[cfg(any(test, target_os = "linux"))]
 fn unit(executable: &Path, data_dir: &Path, env_file: Option<&Path>) -> Result<String> {
     if text_path(executable)?.contains(['\'', '"', '\\']) {
-        bail!("systemd cannot execute a path containing quotes or backslashes; install Waking at a supported absolute path (spaces and Unicode are supported)");
+        bail!("systemd cannot execute a path containing quotes or backslashes; install RightWake at a supported absolute path (spaces and Unicode are supported)");
     }
     let args = arguments(executable, data_dir, env_file)?
         .iter()
@@ -181,7 +181,7 @@ fn unit(executable: &Path, data_dir: &Path, env_file: Option<&Path>) -> Result<S
         .collect::<Vec<_>>()
         .join(" ");
     // The ':' executable prefix disables systemd's $VARIABLE expansion.
-    Ok(format!("# {}\n[Unit]\nDescription=Waking work event bridge\n\n[Service]\nType=exec\nExecStart=:{args}\nRestart=on-failure\nRestartSec=5\nTimeoutStopSec=30\nUMask=0077\nNoNewPrivileges=true\n\n[Install]\nWantedBy=default.target\n", marker(data_dir)?))
+    Ok(format!("# {}\n[Unit]\nDescription=RightWake work event bridge\n\n[Service]\nType=exec\nExecStart=:{args}\nRestart=on-failure\nRestartSec=5\nTimeoutStopSec=30\nUMask=0077\nNoNewPrivileges=true\n\n[Install]\nWantedBy=default.target\n", marker(data_dir)?))
 }
 
 #[cfg(any(test, target_os = "macos"))]
@@ -204,7 +204,7 @@ fn plist(executable: &Path, data_dir: &Path, env_file: Option<&Path>) -> Result<
     Ok(format!("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<!-- {} -->\n<plist version=\"1.0\">\n<dict>\n  <key>Label</key><string>{LABEL}</string>\n  <key>ProgramArguments</key>\n  <array>\n{args}\n  </array>\n  <key>RunAtLoad</key><true/>\n  <key>KeepAlive</key><true/>\n  <key>ThrottleInterval</key><integer>10</integer>\n  <key>Umask</key><integer>63</integer>\n</dict>\n</plist>\n", marker(data_dir)?))
 }
 
-/// Manage only this user's Waking service. `install` enables future login
+/// Manage only this user's RightWake service. `install` enables future login
 /// startup; `start` explicitly starts it now. Existing database files are kept.
 pub fn manage(
     action: &str,
@@ -278,7 +278,7 @@ fn linux(
         require(manager, &["--user", "daemon-reload"])?;
         require(manager, &["--user", "enable", UNIT])?;
         return Ok(
-            json!({"manager":"systemd", "action":action, "definition":path, "changed":changed, "started":false, "next_action":"run waking service start", "data_preserved":true}),
+            json!({"manager":"systemd", "action":action, "definition":path, "changed":changed, "started":false, "next_action":"run right-wake service start", "data_preserved":true}),
         );
     }
     if !installed {
@@ -287,7 +287,7 @@ fn linux(
                 json!({"manager":"systemd", "action":action, "installed":false, "data_preserved":true}),
             );
         }
-        bail!("Waking user service is not installed; run service install first");
+        bail!("RightWake user service is not installed; run service install first");
     }
     match action {
         "start" => require(manager, &["--user", "start", UNIT])?,
@@ -339,7 +339,7 @@ fn macos(
         // Enable the registered label; bootstrap/start is a separate action.
         require(manager, &["enable", &target])?;
         return Ok(
-            json!({"manager":"launchd", "action":action, "definition":path, "changed":changed, "started":false, "next_action":"run waking service start; if updating a running service, stop then start to load the new definition", "data_preserved":true}),
+            json!({"manager":"launchd", "action":action, "definition":path, "changed":changed, "started":false, "next_action":"run right-wake service start; if updating a running service, stop then start to load the new definition", "data_preserved":true}),
         );
     }
     if !installed {
@@ -348,7 +348,7 @@ fn macos(
                 json!({"manager":"launchd", "action":action, "installed":false, "data_preserved":true}),
             );
         }
-        bail!("Waking user service is not installed; run service install first");
+        bail!("RightWake user service is not installed; run service install first");
     }
     let loaded = run(manager, &["print", &target])?;
     match action {
@@ -385,35 +385,35 @@ mod tests {
     #[test]
     fn unit_paths_cannot_expand_environment_or_specifiers() {
         let body = unit(
-            Path::new("/apps/a $HOME %t/waking"),
+            Path::new("/apps/a $HOME %t/right-wake"),
             Path::new("/data/a b\"c\\d"),
             Some(Path::new("/private/token.env")),
         )
         .unwrap();
-        assert!(body.contains("ExecStart=:\"/apps/a $HOME %%t/waking\""));
+        assert!(body.contains("ExecStart=:\"/apps/a $HOME %%t/right-wake\""));
         assert!(body.contains("\"--data-dir\" \"/data/a b\\\"c\\\\d\""));
         assert!(body.contains("\"--env-file\" \"/private/token.env\""));
         assert!(!body.contains("Environment="));
         assert!(!body.contains("sh -c"));
         assert!(unit(
-            Path::new("/apps/waking\nExecStart=bad"),
+            Path::new("/apps/right-wake\nExecStart=bad"),
             Path::new("/data"),
             None
         )
         .is_err());
-        assert!(unit(Path::new("/apps/a\"b/waking"), Path::new("/data"), None).is_err());
-        assert!(unit(Path::new("/apps/a\\b/waking"), Path::new("/data"), None).is_err());
+        assert!(unit(Path::new("/apps/a\"b/right-wake"), Path::new("/data"), None).is_err());
+        assert!(unit(Path::new("/apps/a\\b/right-wake"), Path::new("/data"), None).is_err());
     }
 
     #[test]
     fn plist_preserves_argument_boundaries_and_escapes_xml() {
         let body = plist(
-            Path::new("/apps/a & b/<waking>"),
+            Path::new("/apps/a & b/<right-wake>"),
             Path::new("/data/a'\"b"),
             Some(Path::new("/private/keys.env")),
         )
         .unwrap();
-        assert!(body.contains("<string>/apps/a &amp; b/&lt;waking&gt;</string>"));
+        assert!(body.contains("<string>/apps/a &amp; b/&lt;right-wake&gt;</string>"));
         assert!(body.contains("<string>/data/a&apos;&quot;b</string>"));
         assert!(
             body.contains("<string>--env-file</string>\n    <string>/private/keys.env</string>")
@@ -428,8 +428,8 @@ mod tests {
         let data = dir.path().join("data");
         std::fs::create_dir(&data).unwrap();
         std::fs::write(data.join("state.sqlite"), b"keep this data").unwrap();
-        let definition = dir.path().join("service/waking.service");
-        let body = unit(Path::new("/usr/local/bin/waking"), &data, None).unwrap();
+        let definition = dir.path().join("service/right-wake.service");
+        let body = unit(Path::new("/usr/local/bin/right-wake"), &data, None).unwrap();
         assert!(write_definition(&definition, &data, &body).unwrap());
         assert!(!write_definition(&definition, &data, &body).unwrap());
         assert!(remove_definition(&definition, &data).unwrap());
@@ -443,10 +443,10 @@ mod tests {
     #[test]
     fn refuses_unowned_definition_or_another_profile() {
         let dir = tempfile::tempdir().unwrap();
-        let definition = dir.path().join("waking.service");
+        let definition = dir.path().join("right-wake.service");
         std::fs::write(&definition, "[Service]\nExecStart=/another/app\n").unwrap();
         assert!(remove_definition(&definition, Path::new("/data")).is_err());
-        let body = unit(Path::new("/apps/waking"), Path::new("/data/one"), None).unwrap();
+        let body = unit(Path::new("/apps/right-wake"), Path::new("/data/one"), None).unwrap();
         std::fs::write(&definition, body).unwrap();
         assert!(check_owned(&definition, Path::new("/data/two")).is_err());
         assert!(definition.exists());

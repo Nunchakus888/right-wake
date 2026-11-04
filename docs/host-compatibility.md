@@ -186,13 +186,14 @@ stdin, a successful process exit without a valid receipt, rejection of invalid
 working directories, and a real child process using the configured directory
 while ignoring conflicting input fields.
 
-### Actual CLI protocol smoke test (2026-11-03)
+### Actual CLI protocol smoke test (2026-11-04)
 
-The official Linux x86-64 Codex CLI 0.166.0 package was downloaded from OpenAI's
-release service and checked against its published SHA-256 metadata:
+The official Linux x86-64 Codex CLI 0.166.0
+[`codex-x86_64-unknown-linux-musl.tar.gz` package](https://github.com/openai/codex/releases/download/rust-v0.166.0/codex-x86_64-unknown-linux-musl.tar.gz)
+was downloaded from OpenAI's GitHub release and checked against its release-asset SHA-256 digest. The RightWake 0.2.0 reproduction script then regenerated the sanitized probe records:
 
 ```text
-package SHA-256: 1d44b28bc4ac9937d7d3532264baa68a507ce364956a0d4ebb856f331cdee254
+package SHA-256: a0bf572d2f93f056c6712a6da348e96078dc84f3885fd7be67807ef389cb3978
 CLI binary SHA-256: b8a11fedf24b2dfb59a70c9e52b030f9a508dcd49cd2dd0d41956f4c785156b8
 ```
 

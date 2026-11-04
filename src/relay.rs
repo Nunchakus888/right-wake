@@ -63,12 +63,12 @@ fn same_secret(a: &str, b: &str) -> bool {
     let Ok(mut first) = Hmac::<Sha256>::new_from_slice(a.as_bytes()) else {
         return false;
     };
-    first.update(b"waking-relay-token");
+    first.update(b"right-wake-relay-token");
     let hash = first.finalize().into_bytes();
     let Ok(mut second) = Hmac::<Sha256>::new_from_slice(b.as_bytes()) else {
         return false;
     };
-    second.update(b"waking-relay-token");
+    second.update(b"right-wake-relay-token");
     second.verify_slice(&hash).is_ok()
 }
 

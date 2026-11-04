@@ -1,6 +1,6 @@
 # Linear onboarding
 
-Use this reference with `waking-setup` in a local Agent that can run the native CLI. The RightWake MCP management tools alone do not install services, add sources/hosts, or register provider webhooks. Reuse the user's existing Linear connection within its actual capabilities.
+Use this reference with `right-wake-setup` in a local Agent that can run the native CLI. The RightWake MCP management tools alone do not install services, add sources/hosts, or register provider webhooks. Reuse the user's existing Linear connection within its actual capabilities.
 
 ## Discover before asking
 
@@ -18,7 +18,7 @@ Do not assume an MCP tool exists because its name sounds plausible. Linear docum
 If an authorized GraphQL client is already available, this read query illustrates identity discovery; use variables and the actual supported schema:
 
 ```graphql
-query WakingIdentity($issue: String!) {
+query RightWakeIdentity($issue: String!) {
   organization { id name }
   issue(id: $issue) {
     id
@@ -36,7 +36,7 @@ Use the true organization UUID as RightWake's tenant. The canonical issue key is
 
 **Cloud relay plus local worker:** keep two distinct profiles. Register the provider webhook and signing secret at the cloud receiver; configure the local source with the same provider/organization identity and matching or narrower resource scope. The local worker uses its own host, exact thread binding, and authorized device token for outbound WSS. A relay-only local worker need not hold the provider signing-secret value, although its source still declares the `secret_env` field. Reuse the selected relay/device; do not create an unrelated hosted account or move local session history into the cloud.
 
-If deployment infrastructure is missing, complete independent installation/discovery and report `public_endpoint_required` or `relay_access_required`. Provision an already-authorized tunnel/proxy/VPS when the available tools and scope support it. Do not pick a paid provider or an unowned URL automatically. For full operator details, use the [published deployment guide](https://github.com/Nunchakus888/right-wake/blob/v0.1.1/docs/deployment.md).
+If deployment infrastructure is missing, complete independent installation/discovery and report `public_endpoint_required` or `relay_access_required`. Provision an already-authorized tunnel/proxy/VPS when the available tools and scope support it. Do not pick a paid provider or an unowned URL automatically. For full operator details, use the [published deployment guide](https://github.com/Nunchakus888/right-wake/blob/v0.2.0/docs/deployment.md).
 
 ## Preserve local configuration
 
@@ -46,7 +46,7 @@ Read `source list`, `host list`, `bindings`, and status with `--json` in the cho
 2. For a new source, choose an unused stable ID and an explicit signing-secret environment-variable name. Admit only the authorized resource scope. Do not provision external sending credentials or approval keys as part of receipt-only setup.
 3. When changing an existing source is necessary, retain the full object, modify only requested fields, and pass a private JSON file to `source add --file`. Re-read state if another writer changed it. Do not use `sed`/`awk` to patch JSON or rebuild an existing source from minimal flags.
 4. Reuse a supported host/socket in the owning environment. For a new host, register it for inspection first, then run `doctor --probe` and paginate `host threads`. Inspect `codex app-server --help` if an explicitly authorized owning App Server must be started; use that installed version's supported Unix-domain WebSocket. Do not guess a Desktop socket or launch a substitute host with no access to the original thread.
-5. Verify the exact existing work thread and its worktree through that host. A UUID-shaped string and a successful handshake are insufficient. For an explicit request to attach the current original work conversation, trusted `waking_identity` metadata may supply the ID; null identity or an onboarding-only conversation requires another source of exact identity.
+5. Verify the exact existing work thread and its worktree through that host. A UUID-shaped string and a successful handshake are insufficient. For an explicit request to attach the current original work conversation, trusted `right_wake_identity` metadata may supply the ID; null identity or an onboarding-only conversation requires another source of exact identity.
 6. Establish actual exclusive writer ownership and restricted mutation tools before setting their host declarations. A writable Linear MCP connected to an automatic execution host may bypass RightWake's draft approval. Inspect the actual deployment; preserve the user's MCP configuration and report `host_prerequisites_missing` when conditions are not established. Do not invent a new history/thread to resolve this.
 7. Reuse an enabled exact binding. For an absent binding, use `--expected-version 0`; for an explicitly authorized rebind, use the current version and preserve the requested scope. Read it back. Preserve a target that is busy/offline; do not route it elsewhere.
 

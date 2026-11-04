@@ -1,19 +1,19 @@
 #!/bin/sh
 # Local native-binary checks only. No real providers, model calls, or user services.
 set -eu
-binary=${1:-target/debug/waking}
+binary=${1:-target/debug/right-wake}
 binary_dir=$(CDPATH= cd -- "$(dirname -- "$binary")" && pwd)
 binary=$binary_dir/$(basename -- "$binary")
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-tmp=$(mktemp -d "${TMPDIR:-/tmp}/waking-smoke.XXXXXXXX")
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/right-wake-smoke.XXXXXXXX")
 trap 'rm -rf -- "$tmp"' EXIT HUP INT TERM
 fail() { printf 'smoke: %s\n' "$*" >&2; exit 1; }
 json_envelope() {
   awk '/"schema_version"[[:space:]]*:[[:space:]]*1/ {found=1} END {exit !found}' "$1" || fail "missing JSON envelope: $1"
 }
 reported=$("$binary" --version)
-case "$reported" in 'waking '[0-9]*) ;; *) fail 'unexpected binary/version' ;; esac
-version=v${reported#waking }
+case "$reported" in 'right-wake '[0-9]*) ;; *) fail 'unexpected binary/version' ;; esac
+version=v${reported#right-wake }
 "$binary" --json schema > "$tmp/schema.json"
 json_envelope "$tmp/schema.json"
 "$binary" --data-dir "$tmp/data" --json setup > "$tmp/setup.json"
@@ -40,13 +40,13 @@ target=$arch-$os
 sh "$root/scripts/package-release.sh" "$binary" "$version" "$target" "$tmp/release" > "$tmp/package.txt"
 cat "$tmp/release"/*.sha256 > "$tmp/release/SHA256SUMS"
 sh "$root/scripts/install.sh" --version "$version" --bin-dir "$tmp/bin with spaces" --from-dir "$tmp/release"
-cmp "$binary" "$tmp/bin with spaces/waking" || fail 'installed binary differs'
+cmp "$binary" "$tmp/bin with spaces/right-wake" || fail 'installed binary differs'
 sh "$root/scripts/install.sh" --version "$version" --bin-dir "$tmp/bin with spaces" --from-dir "$tmp/release"
-cmp "$binary" "$tmp/bin with spaces/waking.previous" || fail 'upgrade backup differs'
-printf 'corrupted archive\n' >> "$tmp/release/waking-$version-$target.tar.gz"
+cmp "$binary" "$tmp/bin with spaces/right-wake.previous" || fail 'upgrade backup differs'
+printf 'corrupted archive\n' >> "$tmp/release/right-wake-$version-$target.tar.gz"
 if sh "$root/scripts/install.sh" --version "$version" --bin-dir "$tmp/bin with spaces" --from-dir "$tmp/release" > "$tmp/rejected.log" 2>&1; then
   fail 'installer accepted corrupt archive'
 fi
-cmp "$binary" "$tmp/bin with spaces/waking" || fail 'failed install changed existing binary'
+cmp "$binary" "$tmp/bin with spaces/right-wake" || fail 'failed install changed existing binary'
 printf 'Native CLI, idempotent setup, package, install, backup, and checksum-rejection smoke passed.\n'
 printf 'No real Codex, provider write, plugin installation, or service-manager check was run.\n'

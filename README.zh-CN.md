@@ -1,10 +1,11 @@
 # RightWake
 
-**Wake the right thread, right away. 及时唤醒正确的工作会话。**
+**Wake the right Agent thread.**
+
+事件与任务唤醒正确的已有 Agent 会话，  
+让工作沿原有上下文继续。
 
 [English](README.md)
-
-RightWake 在工作事件到来时，唤醒正确的**已有 Agent 会话**。把 Linear、GitHub、GitLab 中的新讨论送回正在负责这项工作的会话，让后续工作沿着原有上下文继续。
 
 - **有事件才唤醒，减少无效 token 消耗。** 由 Webhook 触发工作；空闲且没有待处理任务时，RightWake 不调用模型，不做定时模型轮询。
 - **把事件归到对应会话。** 优先复用讨论级、Issue 级归属绑定；归属未知时，可由事件触发语义路由，比较权限范围内的上下文卡片，推荐一个已有会话供一次性认领。
@@ -17,42 +18,42 @@ RightWake 以一个原生 Rust 二进制提供 CLI 和 Codex 插件，**内嵌 S
 
 ## 当前状态
 
-**[v0.1.1 实验性预览版已发布](https://github.com/Nunchakus888/right-wake/releases/tag/v0.1.1)。** 包含内嵌 SQLite 3.54.1、四个平台的原生安装包，以及 Linux amd64/arm64 Docker 镜像和 Compose 配置。每个原生平台均通过 **94 项测试，0 失败、0 忽略**；两个 Linux 平台的真实 Docker/Compose 检查也已通过。具体运行证据见[验证记录](docs/releases/v0.1.1-verification.md)，真实平台集成边界仍见[验收记录](docs/acceptance.md)。
+**v0.2.0 全面统一 RightWake 命名。** CLI、插件、Skill、服务、数据路径和安装包统一使用 `right-wake` 命名。该版本内嵌 SQLite，面向 macOS / Linux 的 arm64、x86_64 平台，并提供 Linux amd64 / arm64 Docker 部署方式。当前测试与发布证据见 [v0.2.0 验证记录](docs/releases/v0.2.0-verification.md)。
 
-已记录的 v0.1.0 验证中，官方 **Codex CLI 0.166.0** 通过了无模型宿主探测，以及隔离空配置中的本地仓库和**真实 GitHub marketplace URL** 插件安装；缓存 MCP 的启动、工具发现、setup 和 status 也已通过。真实模型续接、桌面并发和平台授权读写仍需分别验收。自动向 Codex 提交工作要求支持的宿主、已落实的独占写入条件与工具权限隔离，详见[宿主兼容性](docs/host-compatibility.md)。
+真实模型续接、桌面并发和平台授权读写仍需分别验收。自动向 Codex 提交工作要求支持的宿主、已落实的独占写入条件与工具权限隔离，详见[宿主兼容性](docs/host-compatibility.md)和[验收记录](docs/acceptance.md)。
 
 RightWake 是独立项目，不是 OpenAI、Linear、GitHub、GitLab 或 Anthropic 的官方产品。
 
 ## 安装
 
-当前 v0.1.x 安装包继续使用 `waking` 命令、`waking@waking` 插件标识和 `$waking-setup` 等技能名，已有配置与数据目录可直接沿用。
+命令为 `right-wake`，Codex 插件为 `right-wake@right-wake`。v0.2.0 使用统一的新命名和新配置目录，不提供旧名称别名或自动迁移。
 
 **续接本机原会话用原生安装；VPS Relay 用 [Docker + Compose](deploy/README.md)。** 原生安装只需 shell、`curl`、`tar` 和 SHA-256 工具，**无需 Node.js、Python、Docker、Rust 或 sudo**，支持 macOS / glibc Linux 的 arm64 与 x86_64。安装器校验压缩包和版本，安装到 `~/.local/bin`，不自动启动服务。
 
-安装固定版本 `v0.1.1`：
+以下命令固定安装 v0.2.0；下载前可查看[发布状态](docs/releases/v0.2.0-verification.md)：
 
 ```sh
 curl --proto '=https' --tlsv1.2 --fail --location \
-  --output waking-install.sh \
-  https://github.com/Nunchakus888/right-wake/releases/download/v0.1.1/install.sh
+  --output right-wake-install.sh \
+  https://github.com/Nunchakus888/right-wake/releases/download/v0.2.0/install.sh
 # 查看下载的安装脚本后执行。
-sh waking-install.sh --version v0.1.1
+sh right-wake-install.sh --version v0.2.0
 export PATH="$HOME/.local/bin:$PATH"
-waking --version
-waking setup
-waking --json doctor
+right-wake --version
+right-wake setup
+right-wake --json doctor
 ```
 
 需要开发时，可在仓库目录从源码安装：
 
 ```sh
 cargo install --locked --path .
-waking setup
-waking --json schema
-waking --json doctor
+right-wake setup
+right-wake --json schema
+right-wake --json doctor
 ```
 
-只有源码编译需要 Rust。本机配置和 SQLite 数据默认保存在 `~/.local/share/waking`，可通过 `WAKING_DATA_DIR` / `--data-dir` 指定；Docker 将其保存在挂载至 `/data` 的命名卷，无需数据库容器。[VPS 指南](deploy/README.md)提供 amd64/arm64 镜像包的 `docker load` 与显式启动 Compose 步骤。[安装与生命周期](docs/installation.md)说明备份、升级、服务和卸载。
+只有源码编译需要 Rust。本机配置和 SQLite 数据默认保存在 `~/.local/share/right-wake`，可通过 `RIGHT_WAKE_DATA_DIR` / `--data-dir` 指定；Docker 将其保存在挂载至 `/data` 的命名卷，无需数据库容器。[VPS 指南](deploy/README.md)提供 amd64/arm64 镜像包的 `docker load` 与显式启动 Compose 步骤。[安装与生命周期](docs/installation.md)说明备份、升级、服务和卸载。
 
 ## 在 Codex 中使用
 
@@ -60,25 +61,25 @@ waking --json doctor
 
 ```sh
 codex plugin marketplace add https://github.com/Nunchakus888/right-wake
-codex plugin add waking@waking --json
+codex plugin add right-wake@right-wake --json
 ```
 
 也可以在支持该插件格式的本地 Codex 中通过 `/plugins` 安装 **RightWake**。接入 Linear 时，在**准备续接的本地已有工作会话**中调用，把示例 Issue 替换成真实对象：
 
-> 使用 $waking-setup 安装并配置 RightWake，把 Linear 的 ENG-123 绑定到当前这个已有工作会话。复用已授权连接和现有配置，启动所需的本地接收服务，逐步验证。默认只生成草稿；遇到确实缺失的条件再告诉我。
+> 使用 $right-wake-setup 安装并配置 RightWake，把 Linear 的 ENG-123 绑定到当前这个已有工作会话。复用已授权连接和现有配置，启动所需的本地接收服务，逐步验证。默认只生成草稿；遇到确实缺失的条件再告诉我。
 
 现有 setup 技能已包含 [Linear 配置流程](docs/linear.md#agent-led-setup)：发现可复用条件、安装、配置并检查结果。权限、接收入口与准确的 Host/Thread 齐备时，Agent 可在一次调用中推进；首次登录、缺少公网入口或归属不明时，才需要一次有具体原因的交互。
 
 插件仍是三个技能和本地 MCP 工具，安装配置由 Skill 编排现有原生 CLI 命令。安装插件不通过隐藏钩子启动服务；引导新建的设置对话也不会被自动当作工作目标。详见[插件说明](docs/plugin.md)。
 
-已经安装过？让本地 Agent 先[刷新插件包](docs/plugin.md#refresh-an-existing-installation)再使用新版 Linear 流程；原生二进制保持 v0.1.1，无需重装。
+已安装 `right-wake` 后，技能更新时让本地 Agent [刷新插件包](docs/plugin.md#refresh-an-existing-installation)，并检查原生二进制满足该插件包的版本要求。
 
 ## 跑通第一条事件
 
 安装后可以立即运行无需凭证的演示：
 
 ```sh
-waking --json demo
+right-wake --json demo
 ```
 
 它会验签、落盘、沿已有绑定续接两条**模拟会话**并生成草稿；不调用真实模型或平台。真实 Codex 原会话续接单独验收。
@@ -88,22 +89,22 @@ waking --json demo
 **已经连接 Linear MCP？** 这提供的是访问 Linear 的工具能力。RightWake 仍需要单独配置签名 Webhook、可达的接收入口、事件源和 Thread 绑定；连接 MCP 本身不会建立这条事件投递链路。具体步骤见 [Linear 接入说明](docs/linear.md)。
 
 ```sh
-waking --json schema
-waking --json doctor
-waking --json source list
-waking --json host list
-waking --json bindings
+right-wake --json schema
+right-wake --json doctor
+right-wake --json source list
+right-wake --json host list
+right-wake --json bindings
 ```
 
-通过安装版本的 schema 与各命令 `--help` 配置来源和 Host。凭证使用环境变量名引用，不把 token 值发进聊天或放入命令参数。确认工作对象的完整身份与真实 Thread，再读取绑定检查。使用带有凭证环境的 `waking serve`，或明确安装用户级服务；将平台 Webhook 指向可访问的接收端，在获准的测试工作对象中触发一条无害事件。
+通过安装版本的 schema 与各命令 `--help` 配置来源和 Host。凭证使用环境变量名引用，不把 token 值发进聊天或放入命令参数。确认工作对象的完整身份与真实 Thread，再读取绑定检查。使用带有凭证环境的 `right-wake serve`，或明确安装用户级服务；将平台 Webhook 指向可访问的接收端，在获准的测试工作对象中触发一条无害事件。
 
 分别查看各阶段：
 
 ```sh
-waking --json status
-waking --json events list
-waking --json jobs list
-waking --json drafts list
+right-wake --json status
+right-wake --json events list
+right-wake --json jobs list
+right-wake --json drafts list
 ```
 
 “已接收”“原会话已完成”“平台已收到回复”是三种结果。[产品流程](docs/product.md)和[状态说明](docs/states.md)给出每一步阻塞时的下一项操作。五分钟激活是外部权限就绪后的设计目标，目前不作为已测结论。
@@ -127,7 +128,7 @@ cargo fmt --all -- --check
 cargo clippy --locked --all-targets -- -D warnings
 cargo test --locked
 cargo build --locked
-sh scripts/smoke.sh target/debug/waking
+sh scripts/smoke.sh target/debug/right-wake
 python3 scripts/check-plugin.py
 ```
 

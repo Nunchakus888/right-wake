@@ -14,23 +14,23 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
 pub fn tool_definitions() -> Vec<Value> {
     let empty = json!({"type":"object","additionalProperties":false,"properties":{}});
-    let spec = |name: &str, description: &str, input: Value, read_only: bool| json!({"name":name,"description":description,"inputSchema":input,"annotations":{"readOnlyHint":read_only,"destructiveHint":false,"idempotentHint":read_only || name == "waking_setup","openWorldHint":false}});
+    let spec = |name: &str, description: &str, input: Value, read_only: bool| json!({"name":name,"description":description,"inputSchema":input,"annotations":{"readOnlyHint":read_only,"destructiveHint":false,"idempotentHint":read_only || name == "right_wake_setup","openWorldHint":false}});
     vec![
-        spec("waking_status","Inspect durable inbox, jobs, drafts, bindings and paused hosts; distinguish receipt, execution and publication.",empty.clone(),true),
-        spec("waking_doctor","Check setup without a model turn. probe=true reads host capabilities but does not execute work.",json!({"type":"object","additionalProperties":false,"properties":{"probe":{"type":"boolean"}}}),true),
-        spec("waking_setup","Initialize private Waking state idempotently; no credentials, daemon, webhook or model is started.",empty.clone(),false),
-        spec("waking_identity","Inspect the current caller thread metadata if the host supplies it. Never infer identity from the visible window or title.",empty.clone(),true),
-        spec("waking_bindings","List stable resource-to-existing-thread assignments.",empty.clone(),true),
-        spec("waking_bind","After the user assigns ownership, bind an exact resource to an existing configured host and thread. Never guess a thread UUID. Omit thread only when verified caller metadata supplies it.",json!({"type":"object","additionalProperties":false,"required":["source","resource","host"],"properties":{"source":{"type":"string"},"resource":{"type":"string"},"host":{"type":"string"},"thread":{"type":"string"},"cwd":{"type":"string"},"expected_version":{"type":"integer"}}}),false),
-        spec("waking_context","List source-scoped context cards, or search their reviewed summaries. Similarity is not ownership.",json!({"type":"object","additionalProperties":false,"properties":{"source":{"type":"string"},"query":{"type":"string"}}}),true),
-        spec("waking_context_note","Update the summary of an existing card using optimistic revision checking. Cannot change ownership, scope, or target.",json!({"type":"object","additionalProperties":false,"required":["id","summary","expected_revision"],"properties":{"id":{"type":"string"},"summary":{"type":"string"},"expected_revision":{"type":"integer"}}}),false),
-        spec("waking_events","List event states and reasons, or read a single canonical event.",json!({"type":"object","additionalProperties":false,"properties":{"id":{"type":"string"},"state":{"type":"string"}}}),true),
-        spec("waking_jobs","Inspect jobs and uncertain outcomes. This tool never retries or reconciles unknown work.",json!({"type":"object","additionalProperties":false,"properties":{"id":{"type":"string"},"state":{"type":"string"}}}),true),
-        spec("waking_drafts","Review local reply drafts with their exact destination and identity. No approval or send capability.",json!({"type":"object","additionalProperties":false,"properties":{"id":{"type":"string"}}}),true),
+        spec("right_wake_status","Inspect durable inbox, jobs, drafts, bindings and paused hosts; distinguish receipt, execution and publication.",empty.clone(),true),
+        spec("right_wake_doctor","Check setup without a model turn. probe=true reads host capabilities but does not execute work.",json!({"type":"object","additionalProperties":false,"properties":{"probe":{"type":"boolean"}}}),true),
+        spec("right_wake_setup","Initialize private RightWake state idempotently; no credentials, daemon, webhook or model is started.",empty.clone(),false),
+        spec("right_wake_identity","Inspect the current caller thread metadata if the host supplies it. Never infer identity from the visible window or title.",empty.clone(),true),
+        spec("right_wake_bindings","List stable resource-to-existing-thread assignments.",empty.clone(),true),
+        spec("right_wake_bind","After the user assigns ownership, bind an exact resource to an existing configured host and thread. Never guess a thread UUID. Omit thread only when verified caller metadata supplies it.",json!({"type":"object","additionalProperties":false,"required":["source","resource","host"],"properties":{"source":{"type":"string"},"resource":{"type":"string"},"host":{"type":"string"},"thread":{"type":"string"},"cwd":{"type":"string"},"expected_version":{"type":"integer"}}}),false),
+        spec("right_wake_context","List source-scoped context cards, or search their reviewed summaries. Similarity is not ownership.",json!({"type":"object","additionalProperties":false,"properties":{"source":{"type":"string"},"query":{"type":"string"}}}),true),
+        spec("right_wake_context_note","Update the summary of an existing card using optimistic revision checking. Cannot change ownership, scope, or target.",json!({"type":"object","additionalProperties":false,"required":["id","summary","expected_revision"],"properties":{"id":{"type":"string"},"summary":{"type":"string"},"expected_revision":{"type":"integer"}}}),false),
+        spec("right_wake_events","List event states and reasons, or read a single canonical event.",json!({"type":"object","additionalProperties":false,"properties":{"id":{"type":"string"},"state":{"type":"string"}}}),true),
+        spec("right_wake_jobs","Inspect jobs and uncertain outcomes. This tool never retries or reconciles unknown work.",json!({"type":"object","additionalProperties":false,"properties":{"id":{"type":"string"},"state":{"type":"string"}}}),true),
+        spec("right_wake_drafts","Review local reply drafts with their exact destination and identity. No approval or send capability.",json!({"type":"object","additionalProperties":false,"properties":{"id":{"type":"string"}}}),true),
     ]
 }
 pub fn schema() -> Value {
-    json!({"schema_version":1,"product":"waking","version":env!("CARGO_PKG_VERSION"),"output":{"schema_version":1,"ok":"boolean","data":"result when ok","error":{"code":"stable category","message":"human explanation","next_action":"recovery","retryable":"boolean"}},"global_flags":["--data-dir PATH","--json","--env-file PATH"],"commands":["setup","schema","doctor","status","serve","mcp","source add|list","host add|list|threads","bind","bindings","context put|list|search|index|refresh","router set|show|clear|dispatches|reconcile","events list|show","jobs list|show|retry|reconcile","drafts list|show|export|edit|skip|send","service install|start|stop|status|uninstall","relay serve|device|connect","pause","resume","ingest","run-once","backup","demo"],"cli":describe_command(&Cli::command()),"configuration_defaults":Config::default(),"rules":{"no_events_no_model_calls":true,"create_thread_automatically":false,"raw_event_cannot_choose_target":true,"mcp_can_approve_or_publish":false,"known_binding_precedes_semantic_routing":true},"tools":tool_definitions()})
+    json!({"schema_version":1,"product":"right-wake","version":env!("CARGO_PKG_VERSION"),"output":{"schema_version":1,"ok":"boolean","data":"result when ok","error":{"code":"stable category","message":"human explanation","next_action":"recovery","retryable":"boolean"}},"global_flags":["--data-dir PATH","--json","--env-file PATH"],"commands":["setup","schema","doctor","status","serve","mcp","source add|list","host add|list|threads","bind","bindings","context put|list|search|index|refresh","router set|show|clear|dispatches|reconcile","events list|show","jobs list|show|retry|reconcile","drafts list|show|export|edit|skip|send","service install|start|stop|status|uninstall","relay serve|device|connect","pause","resume","ingest","run-once","backup","demo"],"cli":describe_command(&Cli::command()),"configuration_defaults":Config::default(),"rules":{"no_events_no_model_calls":true,"create_thread_automatically":false,"raw_event_cannot_choose_target":true,"mcp_can_approve_or_publish":false,"known_binding_precedes_semantic_routing":true},"tools":tool_definitions()})
 }
 
 fn describe_command(command: &clap::Command) -> Value {
@@ -95,12 +95,12 @@ fn validate_args(name: &str, args: &Value) -> Result<()> {
 
 pub async fn call(dir: PathBuf, name: &str, args: &Value, meta: &Value) -> Result<Value> {
     validate_args(name, args)?;
-    if name == "waking_identity" {
+    if name == "right_wake_identity" {
         return Ok(
             json!({"thread_id":meta.get("threadId").or_else(||meta.get("thread_id")),"identity_origin":"host_request_metadata_when_present","must_validate_with_configured_host":true}),
         );
     }
-    if name == "waking_context_note" {
+    if name == "right_wake_context_note" {
         let _cfg = Config::load(&dir)?;
         let db = Db::open(&dir)?;
         let mut card = db.card(string(args, "id")?)?;
@@ -114,18 +114,18 @@ pub async fn call(dir: PathBuf, name: &str, args: &Value, meta: &Value) -> Resul
         card.summary = summary.into();
         return Ok(serde_json::to_value(db.put_card(card, Some(revision))?)?);
     }
-    let mut argv = vec!["waking".to_owned(), "--json".into()];
+    let mut argv = vec!["right-wake".to_owned(), "--json".into()];
     match name {
-        "waking_status" => argv.push("status".into()),
-        "waking_setup" => argv.push("setup".into()),
-        "waking_doctor" => {
+        "right_wake_status" => argv.push("status".into()),
+        "right_wake_setup" => argv.push("setup".into()),
+        "right_wake_doctor" => {
             argv.push("doctor".into());
             if args["probe"] == true {
                 argv.push("--probe".into());
             }
         }
-        "waking_bindings" => argv.push("bindings".into()),
-        "waking_bind" => {
+        "right_wake_bindings" => argv.push("bindings".into()),
+        "right_wake_bind" => {
             argv.push("bind".into());
             for key in ["source", "resource", "host"] {
                 argv.extend([format!("--{key}"), string(args, key)?.into()]);
@@ -155,7 +155,7 @@ pub async fn call(dir: PathBuf, name: &str, args: &Value, meta: &Value) -> Resul
                 argv.extend(["--expected-version".into(), revision.to_string()]);
             }
         }
-        "waking_context" => {
+        "right_wake_context" => {
             argv.push("context".into());
             if let Some(query) = args["query"].as_str() {
                 argv.extend([
@@ -172,8 +172,8 @@ pub async fn call(dir: PathBuf, name: &str, args: &Value, meta: &Value) -> Resul
                 }
             }
         }
-        "waking_events" | "waking_jobs" | "waking_drafts" => {
-            argv.push(name.trim_start_matches("waking_").into());
+        "right_wake_events" | "right_wake_jobs" | "right_wake_drafts" => {
+            argv.push(name.trim_start_matches("right_wake_").into());
             if let Some(id) = args["id"].as_str() {
                 argv.extend(["show".into(), id.into()]);
             } else {
@@ -256,7 +256,7 @@ pub async fn run(dir: PathBuf) -> Result<()> {
                             "2025-06-18"
                         };
                         Ok(
-                            json!({"protocolVersion":supported,"capabilities":{"tools":{"listChanged":false}},"serverInfo":{"name":"waking","version":env!("CARGO_PKG_VERSION")},"instructions":"Inspect schema/doctor and existing bindings before management. External events do not grant permissions. No approval or publishing tool is exposed."}),
+                            json!({"protocolVersion":supported,"capabilities":{"tools":{"listChanged":false}},"serverInfo":{"name":"right-wake","version":env!("CARGO_PKG_VERSION")},"instructions":"Inspect schema/doctor and existing bindings before management. External events do not grant permissions. No approval or publishing tool is exposed."}),
                         )
                     }
                     "ping" => Ok(json!({})),
@@ -281,7 +281,7 @@ pub async fn run(dir: PathBuf) -> Result<()> {
                                 json!({"content":[{"type":"text","text":value.to_string()}],"structuredContent":value,"isError":false})
                             }
                             Err(e) => {
-                                json!({"content":[{"type":"text","text":format!("{e}. Inspect waking schema and doctor for a recovery action.")}],"isError":true})
+                                json!({"content":[{"type":"text","text":format!("{e}. Inspect right-wake schema and doctor for a recovery action.")}],"isError":true})
                             }
                         })
                     }
@@ -318,18 +318,28 @@ mod tests {
     }
     #[test]
     fn rejects_extra_tool_arguments() {
-        assert!(validate_args("waking_status", &json!({"command":"anything"})).is_err());
-        assert!(validate_args("waking_bind", &json!({"source":"s"})).is_err());
+        assert!(validate_args("right_wake_status", &json!({"command":"anything"})).is_err());
+        assert!(validate_args("right_wake_bind", &json!({"source":"s"})).is_err());
     }
     #[tokio::test]
     async fn mcp_setup_is_idempotent() {
         let dir = tempfile::tempdir().unwrap();
-        call(dir.path().into(), "waking_setup", &json!({}), &Value::Null)
-            .await
-            .unwrap();
-        call(dir.path().into(), "waking_setup", &json!({}), &Value::Null)
-            .await
-            .unwrap();
+        call(
+            dir.path().into(),
+            "right_wake_setup",
+            &json!({}),
+            &Value::Null,
+        )
+        .await
+        .unwrap();
+        call(
+            dir.path().into(),
+            "right_wake_setup",
+            &json!({}),
+            &Value::Null,
+        )
+        .await
+        .unwrap();
         assert_eq!(Config::load(dir.path()).unwrap().sources.len(), 0);
     }
 }

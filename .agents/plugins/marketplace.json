@@ -1,11 +1,11 @@
 {
-  "name": "waking",
+  "name": "right-wake",
   "interface": {
     "displayName": "RightWake"
   },
   "plugins": [
     {
-      "name": "waking",
+      "name": "right-wake",
       "source": {
         "source": "local",
         "path": "./plugins/codex"

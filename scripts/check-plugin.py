@@ -17,7 +17,7 @@ def require(condition, message):
 def check():
     manifest = json.loads((PLUGIN / "plugin.json").read_text())
     version = re.search(r'^version\s*=\s*"([^"]+)"', (ROOT / "Cargo.toml").read_text(), re.M).group(1)
-    require(manifest["name"] == "waking", "plugin name differs from binary")
+    require(manifest["name"] == "right-wake", "plugin name differs from binary")
     require(manifest["version"] == version, "plugin version differs from crate")
     require(manifest["$schema"] == "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", "portable plugin schema missing")
     require(manifest["repository"] == "https://github.com/Nunchakus888/right-wake", "repository URL differs")
@@ -30,14 +30,14 @@ def check():
 
     mcp = json.loads((PLUGIN / "mcp.json").read_text())
     require(mcp["$schema"] == "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json", "portable MCP schema missing")
-    require(set(mcp["mcpServers"]) == {"waking"}, "unexpected MCP server")
-    server = mcp["mcpServers"]["waking"]
+    require(set(mcp["mcpServers"]) == {"right-wake"}, "unexpected MCP server")
+    server = mcp["mcpServers"]["right-wake"]
     require(server["type"] == "stdio" and server["command"] == "sh", "MCP transport changed")
     require(server["args"] == ["${PLUGIN_ROOT}/scripts/mcp.sh"], "MCP launcher must be plugin-contained")
     require((PLUGIN / "scripts/mcp.sh").is_file(), "MCP launcher missing")
     installer = (ROOT / "scripts/install.sh").read_text()
     require((PLUGIN / "scripts/install.sh").read_text() == installer, "cached plugin installer differs from the release installer")
-    require(f"version=${{WAKING_VERSION:-v{version}}}" in installer, "native installer default differs from crate")
+    require(f"version=${{RIGHT_WAKE_VERSION:-v{version}}}" in installer, "native installer default differs from crate")
     require(f"scripts/install.sh --version v{version}" in (PLUGIN / onboarding).read_text(), "setup skill installer pin differs from crate")
     for document in (PLUGIN / "skills").rglob("*.md"):
         for link in re.findall(r"\]\(([^)]+)\)", document.read_text()):
@@ -48,14 +48,17 @@ def check():
             require(target.exists(), f"skill reference is missing: {document}: {link}")
 
     market = json.loads((ROOT / ".agents/plugins/marketplace.json").read_text())
+    require(market["name"] == manifest["name"], "marketplace identifier differs from plugin")
     entries = market["plugins"]
-    require(len(entries) == 1 and entries[0]["name"] == "waking", "marketplace entry differs")
+    require(len(entries) == 1 and entries[0]["name"] == "right-wake", "marketplace entry differs")
     require(entries[0]["source"] == {"source": "local", "path": "./plugins/codex"}, "marketplace path must be repository-relative")
     require(entries[0]["policy"] == {"installation": "AVAILABLE", "authentication": "ON_INSTALL"}, "marketplace policy missing")
     require(entries[0]["category"] == "Productivity", "marketplace category missing")
 
     skills = sorted((PLUGIN / "skills").glob("*/SKILL.md"))
-    require(len(skills) == 3, "expected setup, route, and review skills")
+    require({file.parent.name for file in skills} == {
+        "right-wake-setup", "right-wake-route", "right-wake-review"
+    }, "expected only the three RightWake skill identifiers")
     for file in skills:
         text = file.read_text()
         require(text.startswith("---\n") and "\n---\n" in text[4:], f"missing frontmatter: {file}")

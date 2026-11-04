@@ -1,0 +1,4 @@
+interface:
+  display_name: "RightWake review"
+  short_description: "Inspect routing, delivery, and pending drafts"
+  default_prompt: "Use $right-wake-review to explain pending events, delivery state, and drafts without sending them."

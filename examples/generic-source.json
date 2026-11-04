@@ -3,9 +3,9 @@
   "kind": "generic",
   "instance": "https://events.invalid",
   "tenant_id": "my-workspace",
-  "secret_env": "WAKING_CUSTOM_WEBHOOK_SECRET",
+  "secret_env": "RIGHT_WAKE_CUSTOM_WEBHOOK_SECRET",
   "signature": "generic_hmac",
-  "trigger_patterns": ["@waking"],
+  "trigger_patterns": ["@right-wake"],
   "generic": {
     "namespace": "internal-work",
     "resource_kind": "task",

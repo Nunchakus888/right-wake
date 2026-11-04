@@ -1,5 +1,5 @@
 /target/
-/.waking/
+/.right-wake/
 *.db
 *.db-shm
 *.db-wal

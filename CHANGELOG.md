@@ -1,34 +1,17 @@
 # Changelog
 
-## RightWake naming update after 0.1.1
+## 0.2.0 — complete RightWake naming
 
-- Use **RightWake** as the product display name and **Wake the right thread, right away.** as its slogan; move canonical repository and documentation links to `Nunchakus888/right-wake`.
-- Update plugin/skill display metadata, installer download URLs, and the release workflow's repository check for the renamed repository.
-- Keep the current `waking` executable, plugin/skill IDs, environment variables, data paths, and published v0.1.1 asset names compatible. The container installer accepts the historical source label only for v0.1.1; subsequent releases use the new repository label.
+- Use **RightWake** as the product name and **Wake the right Agent thread.** as the slogan. The canonical repository is `Nunchakus888/right-wake`.
+- Rename the Rust package and executable to `right-wake`; Rust imports use `right_wake`. Help, schema, diagnostics, package filenames, installation scripts, and release workflows use the same identity.
+- Publish the Codex plugin as `right-wake@right-wake`, with `right-wake-setup`, `right-wake-route`, and `right-wake-review` skills, and `right_wake_*` MCP tools.
+- Use `RIGHT_WAKE_*` environment variables, `~/.local/share/right-wake` state, `right-wake.service`, the `io.github.nunchakus888.right-wake` launchd identity, and `right-wake` container/service/volume names.
+- Set the default text trigger to `@right-wake`, Generic Webhook headers to `X-RightWake-*`, and approval/review/credential domains to `right-wake.*`.
+- Remove legacy-name aliases, fallback discovery, historical image-source acceptance, and compatibility/migration advice. Configure 0.2.0 with current names and a fresh profile.
+- Keep event-driven execution, explicit existing-thread ownership, durable queues, scoped context routing, and independent approval boundaries intact.
 
-## Plugin workflow update after 0.1.1
+Validation and publication are pending recorded evidence in [v0.2.0 verification](docs/releases/v0.2.0-verification.md). This entry describes the change; it does not assert a successful release or live provider/model acceptance.
 
-- Extend the existing `waking-setup` skill with a bundled Linear onboarding reference: discover and reuse authorization/profile/source/host/binding state, configure available delivery, and report exact unresolved prerequisites.
-- Preserve existing configuration on repeat runs, require trusted original-thread ownership, and distinguish configuration from actual provider receipt and model continuation.
-- Keep the published native binary and installer at v0.1.1. The workflow adds no runtime dependency; refresh the installed plugin package to receive the updated skill. Authorized webhook administration remains a prerequisite for automatic provider registration.
+## Earlier previews
 
-## 0.1.1 — SQLite update and Docker distribution
-
-- Upgrade bundled SQLite from 3.46.0 to 3.54.1 through `rusqlite` 0.41.1 / `libsqlite3-sys` 0.39.1, including the upstream WAL-reset fix. Refuse state access with a linked SQLite older than 3.51.3 and report the actual runtime version in `doctor`.
-- Keep database schema version 3. Verify isolated data created by the published v0.1.0 binary can be opened, backed up, and restored with v0.1.1 without changing its stored records.
-- Add checksummed Linux amd64/arm64 Docker-load image archives, a load-only installer, and Compose configuration for a persistent VPS relay. Release images reuse the corresponding tested native binaries; no GHCR package is required.
-- Pin native/plugin installation to v0.1.1 and document native local execution, Docker relay storage, and the boundary around original local session history. SQLite remains embedded; no separate database service is introduced.
-- Raise source-build MSRV to Rust 1.89 for the dependency update; the pinned Rust 1.99.1 toolchain is unchanged.
-- Make native package smoke invoke the actual backup CLI and inspect its snapshot, in addition to the existing core backup regression tests.
-
-Published as an [experimental prerelease](https://github.com/Nunchakus888/right-wake/releases/tag/v0.1.1) on 2026-11-03. All four native platforms passed 94 tests each, and both Linux Docker/Compose release checks passed. Exact runs and publication evidence are recorded in [v0.1.1 verification](docs/releases/v0.1.1-verification.md); real host/provider integration remains separately tracked.
-
-## 0.1.0 — initial preview
-
-- Native Rust CLI, local management interface, and repository Codex plugin.
-- Event ingress and normalized identity for scoped provider adapters.
-- Durable explicit bindings to existing threads, context cards, and observable job states.
-- Draft-first output and independently signed publication review.
-- Native installation, user-service definitions, four-target release workflow, and source container recipe.
-
-Implementation, local validation, real integration, and public release results are recorded separately in [docs/acceptance.md](docs/acceptance.md). This entry describes the preview's intended release contents and is not evidence that every original acceptance scenario has passed.
+The immutable [historical archive](docs/archive/README.md) retains the original 0.1.0 and 0.1.1 release notes, verification reports, plugin-installation results, and earlier changelog. Published tags and assets retain their original contents. These records document prior work; they are not installation instructions or compatibility guarantees for 0.2.0.

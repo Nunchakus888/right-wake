@@ -31,7 +31,7 @@ jobs:
       - name: Build
         run: cargo build --locked
       - name: Local CLI and installer smoke tests
-        run: sh scripts/smoke.sh target/debug/waking
+        run: sh scripts/smoke.sh target/debug/right-wake
       - name: Check plugin metadata
         run: python3 scripts/check-plugin.py
       - name: Audit locked dependencies against RustSec

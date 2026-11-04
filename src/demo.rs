@@ -19,7 +19,7 @@ pub async fn run(base: &Path) -> Result<Value> {
     let mut cfg = Config::setup(&dir)?;
     let secret = uuid::Uuid::new_v4().to_string();
     let source: SourceConfig = serde_json::from_value(
-        json!({"id":"demo","kind":"linear","secret_env":"WAKING_DEMO_SECRET","tenant_id":"demo-workspace","sending_identity":"demo-only","trigger_patterns":["@waking"]}),
+        json!({"id":"demo","kind":"linear","secret_env":"RIGHT_WAKE_DEMO_SECRET","tenant_id":"demo-workspace","sending_identity":"demo-only","trigger_patterns":["@right-wake"]}),
     )?;
     cfg.sources.push(source.clone());
     cfg.hosts.push(HostConfig::Command {
@@ -53,7 +53,7 @@ pub async fn run(base: &Path) -> Result<Value> {
     ] {
         let timestamp = now_ms();
         let raw = serde_json::to_vec_pretty(
-            &json!({"action":"create","type":"Comment","organizationId":"demo-workspace","webhookTimestamp":timestamp,"createdAt":chrono::Utc::now().to_rfc3339(),"data":{"id":format!("comment-{i}"),"issueId":issue,"body":"@waking Please continue the previous decision and prepare a draft.","user":{"id":"demo-requester"},"createdAt":chrono::Utc::now().to_rfc3339(),"updatedAt":chrono::Utc::now().to_rfc3339(),"issue":{"id":issue,"updatedAt":chrono::Utc::now().to_rfc3339()}}}),
+            &json!({"action":"create","type":"Comment","organizationId":"demo-workspace","webhookTimestamp":timestamp,"createdAt":chrono::Utc::now().to_rfc3339(),"data":{"id":format!("comment-{i}"),"issueId":issue,"body":"@right-wake Please continue the previous decision and prepare a draft.","user":{"id":"demo-requester"},"createdAt":chrono::Utc::now().to_rfc3339(),"updatedAt":chrono::Utc::now().to_rfc3339(),"issue":{"id":issue,"updatedAt":chrono::Utc::now().to_rfc3339()}}}),
         )?;
         let mut h = Headers::new();
         h.insert("Linear-Delivery".into(), format!("delivery-{i}"));

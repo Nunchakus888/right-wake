@@ -2,7 +2,7 @@
 
 RightWake processes untrusted work events and may reach powerful existing agent sessions. Report suspected routing bypass, signature verification failure, credential exposure, approval bypass, source isolation failure, or unsafe duplicate delivery privately using the repository's GitHub security reporting facility when it is enabled. Do not include live credentials or private task content in a public issue. If private reporting is unavailable, open a minimal issue requesting a private contact without exploit details or secrets.
 
-The v0.1.0 preview has no promised security response SLA. Supported security fixes target the latest published version. There is no implied security audit.
+Experimental preview releases have no promised security response SLA. Supported security fixes target the latest published version. There is no implied security audit.
 
 ## Relevant boundaries
 

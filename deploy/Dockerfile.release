@@ -1,23 +1,23 @@
 # The release matrix has already built and tested this native Linux binary.
 # Build with only the tested binary and license; no Rust rebuild here.
 FROM debian:bookworm-slim
-ARG WAKING_VERSION
+ARG RIGHT_WAKE_VERSION
 LABEL org.opencontainers.image.title="RightWake" \
-      org.opencontainers.image.version="${WAKING_VERSION}" \
+      org.opencontainers.image.version="${RIGHT_WAKE_VERSION}" \
       org.opencontainers.image.source="https://github.com/Nunchakus888/right-wake" \
       org.opencontainers.image.licenses="Apache-2.0"
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
-    && groupadd --gid 10001 waking \
-    && useradd --uid 10001 --gid 10001 --create-home waking \
+    && groupadd --gid 10001 right-wake \
+    && useradd --uid 10001 --gid 10001 --create-home right-wake \
     && install -d -o 10001 -g 10001 -m 0700 /data
-COPY waking /usr/local/bin/waking
-COPY LICENSE /usr/share/licenses/waking/LICENSE
-RUN chmod 0755 /usr/local/bin/waking
+COPY right-wake /usr/local/bin/right-wake
+COPY LICENSE /usr/share/licenses/right-wake/LICENSE
+RUN chmod 0755 /usr/local/bin/right-wake
 USER 10001:10001
-ENV WAKING_DATA_DIR=/data
+ENV RIGHT_WAKE_DATA_DIR=/data
 VOLUME ["/data"]
 EXPOSE 7433
-ENTRYPOINT ["/usr/local/bin/waking", "--data-dir", "/data"]
+ENTRYPOINT ["/usr/local/bin/right-wake", "--data-dir", "/data"]
 CMD ["relay", "serve", "--listen", "0.0.0.0:7433"]

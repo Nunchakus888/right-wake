@@ -96,12 +96,12 @@ pub fn approval_target_bytes(source: &SourceConfig, draft: &Draft) -> anyhow::Re
         .as_ref()
         .map(|name| {
             std::env::var(name)
-                .map(|token| sha256_hex(format!("waking.credential.v1\0{token}").as_bytes()))
+                .map(|token| sha256_hex(format!("right-wake.credential.v1\0{token}").as_bytes()))
                 .map_err(|_| anyhow::anyhow!("api_credential_unavailable"))
         })
         .transpose()?;
     let value = ReviewTarget {
-        domain: "waking.review.v1",
+        domain: "right-wake.review.v1",
         draft_id: &draft.id,
         draft_revision: draft.revision,
         source_id: &draft.source_id,
@@ -147,7 +147,7 @@ pub fn prepare_approval_statement(
 /// The external reviewer signs these exact bytes; the domain prevents a valid
 /// signature on unrelated application data from being accepted as an approval.
 pub fn approval_signing_bytes(statement: &ApprovalStatement) -> anyhow::Result<Vec<u8>> {
-    let mut bytes = b"waking.human-approval.v1\n".to_vec();
+    let mut bytes = b"right-wake.human-approval.v1\n".to_vec();
     bytes.extend_from_slice(&serde_json::to_vec(statement)?);
     Ok(bytes)
 }
@@ -278,7 +278,7 @@ where
         .connect_timeout(Duration::from_secs(5))
         .timeout(Duration::from_secs(20))
         .redirect(reqwest::redirect::Policy::none())
-        .user_agent("Waking/0.1")
+        .user_agent(concat!("RightWake/", env!("CARGO_PKG_VERSION")))
         .build()
     {
         Ok(client) => client,
@@ -659,9 +659,9 @@ pub async fn preflight_remote(
                 return Err("unsupported_remote_preflight".to_owned());
             }
             let query = if is_comment {
-                "query WakingPreflight($id: String!, $issueId: String!) { comment(id: $id) { id body updatedAt issue { id } } issue(id: $issueId) { id updatedAt archivedAt comments(first: 100) { nodes { id updatedAt parent { id } } pageInfo { hasNextPage } } } }"
+                "query RightWakePreflight($id: String!, $issueId: String!) { comment(id: $id) { id body updatedAt issue { id } } issue(id: $issueId) { id updatedAt archivedAt comments(first: 100) { nodes { id updatedAt parent { id } } pageInfo { hasNextPage } } } }"
             } else {
-                "query WakingPreflight($id: String!, $issueId: String!) { source: issue(id: $id) { id description updatedAt } issue(id: $issueId) { id updatedAt archivedAt comments(first: 100) { nodes { id updatedAt parent { id } } pageInfo { hasNextPage } } } }"
+                "query RightWakePreflight($id: String!, $issueId: String!) { source: issue(id: $id) { id description updatedAt } issue(id: $issueId) { id updatedAt archivedAt comments(first: 100) { nodes { id updatedAt parent { id } } pageInfo { hasNextPage } } } }"
             };
             let request = client.post(base).json(&json!({"query":query,"variables":{"id":snapshot.entity_id,"issueId":target.resource_id}}));
             let request = if token.starts_with("lin_api_") {
@@ -749,7 +749,7 @@ async fn verify_remote_identity(
         ProviderKind::Linear => {
             let request = client
                 .post(base.clone())
-                .json(&json!({"query":"query WakingIdentity { viewer { id } }"}));
+                .json(&json!({"query":"query RightWakeIdentity { viewer { id } }"}));
             let request = if token.starts_with("lin_api_") {
                 request.header(reqwest::header::AUTHORIZATION, token)
             } else {
@@ -811,7 +811,7 @@ pub fn build_write_request(
                 input["parentId"] = json!(parent);
             }
             let body = json!({
-                "query": "mutation WakingReply($input: CommentCreateInput!) { commentCreate(input: $input) { success comment { id url } } }",
+                "query": "mutation RightWakeReply($input: CommentCreateInput!) { commentCreate(input: $input) { success comment { id url } } }",
                 "variables": { "input": input }
             });
             let request = client.post(url).json(&body);

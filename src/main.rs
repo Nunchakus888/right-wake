@@ -1,5 +1,5 @@
 use clap::Parser;
-use waking::{cli::Cli, model::ok};
+use right_wake::{cli::Cli, model::ok};
 
 #[tokio::main]
 async fn main() {
@@ -17,14 +17,14 @@ async fn main() {
             if machine && e.use_stderr() {
                 println!(
                     "{}",
-                    serde_json::json!({"schema_version":1,"ok":false,"error":{"code":"invalid_arguments","message":e.to_string(),"next_action":"Run waking schema or the command's --help","retryable":false}})
+                    serde_json::json!({"schema_version":1,"ok":false,"error":{"code":"invalid_arguments","message":e.to_string(),"next_action":"Run right-wake schema or the command's --help","retryable":false}})
                 );
                 std::process::exit(2);
             }
             e.exit();
         }
     };
-    match waking::cli::execute(cli).await {
+    match right_wake::cli::execute(cli).await {
         Ok(Some(value)) => println!(
             "{}",
             if machine {
@@ -41,7 +41,7 @@ async fn main() {
                 .next()
                 .filter(|s| s.bytes().all(|b| b.is_ascii_lowercase() || b == b'_'))
                 .unwrap_or("operation_failed");
-            let envelope = serde_json::json!({"schema_version":1,"ok":false,"error":{"code":code,"message":message,"next_action":"Run waking doctor; inspect the named event/job before retrying. Unknown outcomes require reconciliation.","retryable":false}});
+            let envelope = serde_json::json!({"schema_version":1,"ok":false,"error":{"code":code,"message":message,"next_action":"Run right-wake doctor; inspect the named event/job before retrying. Unknown outcomes require reconciliation.","retryable":false}});
             println!("{}", envelope);
             std::process::exit(1);
         }

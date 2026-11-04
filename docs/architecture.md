@@ -16,7 +16,7 @@ flowchart TD
     H --> I["Independent approval and provider outbox"]
 ```
 
-The native `waking` process supplies CLI, local MCP, receiver, queue, and optional relay modes. The Codex plugin is a management interface. Installing the plugin does not establish network reachability or start the background receiver.
+The native `right-wake` process supplies CLI, local MCP, receiver, queue, and optional relay modes. The Codex plugin is a management interface. Installing the plugin does not establish network reachability or start the background receiver.
 
 ## Canonical identity
 

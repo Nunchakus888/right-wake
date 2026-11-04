@@ -1,6 +1,6 @@
 # States and recovery
 
-This is the user-facing state vocabulary. Runtime JSON state strings are defined by the installed `waking --json schema` and record output; the table describes their meaning and required next action rather than promising every UI affordance is already implemented.
+This is the user-facing state vocabulary. Runtime JSON state strings are defined by the installed `right-wake --json schema` and record output; the table describes their meaning and required next action rather than promising every UI affordance is already implemented.
 
 | User-visible state | Condition | Explanation | Primary action | Secondary action | Automatic recovery |
 | --- | --- | --- | --- | --- | --- |
@@ -48,7 +48,7 @@ Installation success identifies a runnable binary and version. Plugin success id
 
 ## Inspecting an interrupted router
 
-`waking --json router dispatches` shows durable router attempts separately from work jobs. `router reconcile EVENT_ID` reads a bounded page of the original Codex router thread. An absent result in that page does not prove the turn never started.
+`right-wake --json router dispatches` shows durable router attempts separately from work jobs. `router reconcile EVENT_ID` reads a bounded page of the original Codex router thread. An absent result in that page does not prove the turn never started.
 
 After establishing concrete evidence on the host, an operator may use `--not-started-evidence TEXT` to release an unknown attempt for a fresh routing attempt, or `--completed-evidence TEXT` to record completion and leave ownership for explicit assignment. Neither option creates a thread or automatically accepts a semantic candidate. These recovery mutations are not exposed through MCP.
 
@@ -56,4 +56,4 @@ After establishing concrete evidence on the host, an operator may use `--not-sta
 
 ## Pause one host
 
-Use `waking pause --host HOST_ID` to retain its bindings and hold future work without pausing other hosts. `waking resume --host HOST_ID` wakes that same host's known-safe waiting work; it also works before a later manual `run-once`. The host flag cannot be combined with source/resource scope. Resuming a host does not remove global/source pauses or replay an unknown dispatch. Pause stops work that has not been submitted; it does not withdraw an already accepted model turn.
+Use `right-wake pause --host HOST_ID` to retain its bindings and hold future work without pausing other hosts. `right-wake resume --host HOST_ID` wakes that same host's known-safe waiting work; it also works before a later manual `run-once`. The host flag cannot be combined with source/resource scope. Resuming a host does not remove global/source pauses or replay an unknown dispatch. Pause stops work that has not been submitted; it does not withdraw an already accepted model turn.

@@ -2,7 +2,7 @@
 
 Place execution beside the host that owns the existing conversation. A public receiver or relay can run elsewhere, but moving RightWake to a VPS does not move a Mac's Codex thread, credentials, worktree, or session history. A thread ID is meaningful only on the host that actually serves it.
 
-Recommended starting point: **native RightWake on the local computer, Docker + Compose for the VPS relay**. Both include SQLite in the binary, so neither needs a separate database service. The [native installation guide](installation.md) and [container guide](../deploy/README.md) cover the published v0.1.1 packages and explicit setup.
+Recommended starting point: **native RightWake on the local computer, Docker + Compose for the VPS relay**. Both include SQLite in the binary, so neither needs a separate database service. The [native installation guide](installation.md) and [container guide](../deploy/README.md) cover the v0.2.0 packages and explicit setup; [verification](releases/v0.2.0-verification.md) records their current publication status.
 
 RightWake currently has two host adapters: Codex App Server over an explicitly configured Unix-domain WebSocket, and a trusted fixed executable implementing the GenericCommand JSON contract. It has no implemented or accepted adapter that attaches to an existing managed Codex Cloud task. See the [host compatibility guide](host-compatibility.md) for the exact protocol and remaining real-host validation boundaries.
 
@@ -19,7 +19,7 @@ These are placement choices, not automatic migration or provisioning commands. R
 
 ## Shared prerequisites
 
-Use a private, persistent data directory for each independently running receiver/worker. A RightWake profile contains `config.json`, `state.sqlite3`, raw/normalized deliveries, bindings, jobs, drafts, and receipt state. Native installation defaults to `~/.local/share/waking` when no explicit/XDG directory is set; use `--data-dir` or `WAKING_DATA_DIR` for a deliberate profile. The Compose service mounts a named volume at `/data`, with no additional database container. Use local persistent storage, retain any SQLite WAL/SHM sidecars when making an offline copy, and do not concurrently share one profile between unrelated hosts. The daemon/worker lock prevents `serve`, `relay connect`, and manual dispatch from owning the same profile simultaneously.
+Use a private, persistent data directory for each independently running receiver/worker. A RightWake profile contains `config.json`, `state.sqlite3`, raw/normalized deliveries, bindings, jobs, drafts, and receipt state. Native installation defaults to `~/.local/share/right-wake` when no explicit/XDG directory is set; use `--data-dir` or `RIGHT_WAKE_DATA_DIR` for a deliberate profile. The Compose service mounts a named volume at `/data`, with no additional database container. Use local persistent storage, retain any SQLite WAL/SHM sidecars when making an offline copy, and do not concurrently share one profile between unrelated hosts. The daemon/worker lock prevents `serve`, `relay connect`, and manual dispatch from owning the same profile simultaneously.
 
 Credential values belong in the launching environment or a private `--env-file`, not in source JSON, URLs, images, or the repository. The file must be private on Unix, such as mode `0600`, and uses plain `NAME=VALUE` entries without shell syntax. Configuration contains environment-variable **names**. Editing the file does not change an existing process's environment; restart that process when values change.
 
@@ -32,8 +32,8 @@ Receiving credentials and external-write authority are separate. Protect both Ri
 After configuring the source and exact local host/thread as in the Linear guide:
 
 ```sh
-waking --data-dir /absolute/path/to/local-waking \
-  --env-file /absolute/path/to/local-waking/private.env \
+right-wake --data-dir /absolute/path/to/local-right-wake \
+  --env-file /absolute/path/to/local-right-wake/private.env \
   serve --listen 127.0.0.1:7433
 ```
 
@@ -42,10 +42,10 @@ Point your existing tunnel or reverse proxy's public HTTPS URL at this listener 
 The native helper can supervise this direct receiver on a supported logged-in Linux/macOS user session:
 
 ```sh
-waking --data-dir /absolute/path/to/local-waking \
-  --env-file /absolute/path/to/local-waking/private.env service install
-waking --data-dir /absolute/path/to/local-waking service start
-waking --data-dir /absolute/path/to/local-waking service status
+right-wake --data-dir /absolute/path/to/local-right-wake \
+  --env-file /absolute/path/to/local-right-wake/private.env service install
+right-wake --data-dir /absolute/path/to/local-right-wake service start
+right-wake --data-dir /absolute/path/to/local-right-wake service status
 ```
 
 The built-in service definition always starts `serve`. It does not launch Codex or the tunnel, and it does not install `relay connect` or `relay serve`. The [installation guide](installation.md#user-service) describes ownership, stop, and uninstall behavior.
@@ -57,8 +57,8 @@ Install the native binary on the VPS, create its private profile, and configure 
 The RightWake command remains ordinary `serve`:
 
 ```sh
-waking --data-dir /absolute/path/to/vps-waking \
-  --env-file /absolute/path/to/vps-waking/private.env \
+right-wake --data-dir /absolute/path/to/vps-right-wake \
+  --env-file /absolute/path/to/vps-right-wake/private.env \
   serve --listen 127.0.0.1:7433
 ```
 
@@ -70,9 +70,9 @@ If the original work still belongs to the Mac, use the hybrid deployment below. 
 
 A long-running VM, persistent Linux container deployment, or orchestrated service can host the native receiver or relay. Provide stable storage, a supervised process, controlled TLS ingress, and the exact source/device configuration. Keep the executor and its own session/worktree storage persistent as well if execution also lives there.
 
-The [Docker + Compose path](../deploy/README.md) loads a checksummed amd64/arm64 image from a published GitHub Release. It runs as UID/GID `10001`, persists state in the Compose project's `waking-data` volume mounted at `/data`, and uses `private.env` for process credentials. The Compose service defaults to `relay serve --listen 0.0.0.0:7433`, publishes `127.0.0.1:7433`, and uses `pull_policy: never` with the explicitly loaded `waking:0.1.1` image. The installer does not start the service or create secrets.
+The [Docker + Compose path](../deploy/README.md) loads a checksummed amd64/arm64 image from a published GitHub Release. It runs as UID/GID `10001`, persists state in the Compose project's `right-wake-data` volume mounted at `/data`, and uses `private.env` for process credentials. The Compose service defaults to `relay serve --listen 0.0.0.0:7433`, publishes `127.0.0.1:7433`, and uses `pull_policy: never` with the explicitly loaded `right-wake:0.2.0` image. The installer does not start the service or create secrets.
 
-Follow the container guide to initialize the volume, configure the source/device, and start the service. Run management commands as `docker compose run --rm waking ...` in that same Compose project. The native `--data-dir` examples below do not populate a Docker volume; do not accidentally configure a host-side profile and then start an empty container profile. Keep the same project identity during upgrades. Docker Compose's `env_file` supplies process variables; it is separate from passing RightWake's own `--env-file` argument.
+Follow the container guide to initialize the volume, configure the source/device, and start the service. Run management commands as `docker compose run --rm right-wake ...` in that same Compose project. The native `--data-dir` examples below do not populate a Docker volume; do not accidentally configure a host-side profile and then start an empty container profile. Keep the same project identity during upgrades. Docker Compose's `env_file` supplies process variables; it is separate from passing RightWake's own `--env-file` argument.
 
 ### Accessing a host's Codex socket from a container
 
@@ -80,11 +80,11 @@ Mounting a pathname is not enough to establish the host contract. The container 
 
 On Docker Desktop, a macOS host and a Linux container do not share one kernel. Do not assume bind-mounting a Mac socket makes the Linux container an App Server client for that Mac. Keep the local worker native beside the Mac's App Server, or run the supported host and worker together in a verified Linux environment. A mount does not import the Mac's session store, credentials, or original worktree.
 
-### Verified container evidence
+### Container verification evidence
 
-[Container smoke run 41619362708](https://github.com/Nunchakus888/right-wake/actions/runs/41619362708) succeeded for commit [`52dff8a4fd2522c793ef2b6bc709d561922f4790`](https://github.com/Nunchakus888/right-wake/commit/52dff8a4fd2522c793ef2b6bc709d561922f4790). It built the image, ran the explicit synthetic demo, started the real receiver, and preserved the original two completed job records and two unsent drafts across restart and container replacement with the same volume.
+Current release-image, Compose, and persistence checks are tracked in [v0.2.0 verification](releases/v0.2.0-verification.md). Each passing result must identify the actual source commit and runner. Until that report records the checks, the presence of a Dockerfile or Compose file is preparation evidence only.
 
-The [v0.1.1 release run](https://github.com/Nunchakus888/right-wake/actions/runs/41634516676) also passed actual image build/load and Compose checks on Linux amd64 and arm64. It verified SQLite 3.54.1, original jobs/drafts, and a pending synthetic event across restart and container replacement. See [verification](releases/v0.1.1-verification.md) for the exact evidence. These local container checks did not use a real Codex model, provider write, public webhook, or public relay connection.
+Prior native/container checks are retained in the [historical archive](archive/README.md). Live provider receipt, a public HTTPS/WSS route, and original-thread model continuation still require their own integration evidence.
 
 ## Cloud relay plus local worker
 
@@ -109,30 +109,30 @@ The public webhook hostname and the provider instance origin have different role
 Replace the organization/issue placeholders with the same exact IDs used locally. The following example admits one issue and pairs one named device:
 
 ```sh
-WAKING_RELAY_DATA="$HOME/.local/share/waking-relay"
-WAKING_LINEAR_ORG='REPLACE_WITH_ORGANIZATION_UUID'
-WAKING_LINEAR_ISSUE='REPLACE_WITH_ISSUE_UUID'
-WAKING_LINEAR_RESOURCE="linear:https://linear.app:$WAKING_LINEAR_ORG:$WAKING_LINEAR_ISSUE"
+RIGHT_WAKE_RELAY_DATA="$HOME/.local/share/right-wake-relay"
+RIGHT_WAKE_LINEAR_ORG='REPLACE_WITH_ORGANIZATION_UUID'
+RIGHT_WAKE_LINEAR_ISSUE='REPLACE_WITH_ISSUE_UUID'
+RIGHT_WAKE_LINEAR_RESOURCE="linear:https://linear.app:$RIGHT_WAKE_LINEAR_ORG:$RIGHT_WAKE_LINEAR_ISSUE"
 
-waking --data-dir "$WAKING_RELAY_DATA" setup
-waking --data-dir "$WAKING_RELAY_DATA" source add \
+right-wake --data-dir "$RIGHT_WAKE_RELAY_DATA" setup
+right-wake --data-dir "$RIGHT_WAKE_RELAY_DATA" source add \
   --id linear-work --kind linear \
-  --instance https://linear.app --tenant "$WAKING_LINEAR_ORG" \
-  --secret-env WAKING_LINEAR_WEBHOOK_SECRET \
-  --trigger '@waking' --resource "$WAKING_LINEAR_RESOURCE"
-waking --data-dir "$WAKING_RELAY_DATA" relay device \
-  --id mac-work --token-env WAKING_RELAY_DEVICE_TOKEN --source linear-work
+  --instance https://linear.app --tenant "$RIGHT_WAKE_LINEAR_ORG" \
+  --secret-env RIGHT_WAKE_LINEAR_WEBHOOK_SECRET \
+  --trigger '@right-wake' --resource "$RIGHT_WAKE_LINEAR_RESOURCE"
+right-wake --data-dir "$RIGHT_WAKE_RELAY_DATA" relay device \
+  --id mac-work --token-env RIGHT_WAKE_RELAY_DEVICE_TOKEN --source linear-work
 
 umask 077
-touch "$WAKING_RELAY_DATA/private.env"
-chmod 600 "$WAKING_RELAY_DATA/private.env"
+touch "$RIGHT_WAKE_RELAY_DATA/private.env"
+chmod 600 "$RIGHT_WAKE_RELAY_DATA/private.env"
 ```
 
 Use a trusted editor/secret mechanism to put the actual webhook signing secret and device-token values into the named entries of the relay's `private.env`. Transfer only the paired device token to the authorized local client through your trusted channel. Then run:
 
 ```sh
-waking --data-dir "$WAKING_RELAY_DATA" \
-  --env-file "$WAKING_RELAY_DATA/private.env" \
+right-wake --data-dir "$RIGHT_WAKE_RELAY_DATA" \
+  --env-file "$RIGHT_WAKE_RELAY_DATA/private.env" \
   relay serve --listen 127.0.0.1:7433
 ```
 
@@ -143,39 +143,39 @@ Expose the provider route as `https://relay.example.com/hooks/linear-work` and t
 On the local machine, initialize a separate persistent profile and recreate the same non-secret source identity:
 
 ```sh
-WAKING_LOCAL_DATA="$HOME/.local/share/waking-local"
-WAKING_LINEAR_ORG='REPLACE_WITH_ORGANIZATION_UUID'
-WAKING_LINEAR_ISSUE='REPLACE_WITH_ISSUE_UUID'
-WAKING_LINEAR_RESOURCE="linear:https://linear.app:$WAKING_LINEAR_ORG:$WAKING_LINEAR_ISSUE"
+RIGHT_WAKE_LOCAL_DATA="$HOME/.local/share/right-wake-local"
+RIGHT_WAKE_LINEAR_ORG='REPLACE_WITH_ORGANIZATION_UUID'
+RIGHT_WAKE_LINEAR_ISSUE='REPLACE_WITH_ISSUE_UUID'
+RIGHT_WAKE_LINEAR_RESOURCE="linear:https://linear.app:$RIGHT_WAKE_LINEAR_ORG:$RIGHT_WAKE_LINEAR_ISSUE"
 
-waking --data-dir "$WAKING_LOCAL_DATA" setup
-waking --data-dir "$WAKING_LOCAL_DATA" source add \
+right-wake --data-dir "$RIGHT_WAKE_LOCAL_DATA" setup
+right-wake --data-dir "$RIGHT_WAKE_LOCAL_DATA" source add \
   --id linear-work --kind linear \
-  --instance https://linear.app --tenant "$WAKING_LINEAR_ORG" \
-  --secret-env WAKING_LINEAR_WEBHOOK_SECRET \
-  --trigger '@waking' --resource "$WAKING_LINEAR_RESOURCE"
+  --instance https://linear.app --tenant "$RIGHT_WAKE_LINEAR_ORG" \
+  --secret-env RIGHT_WAKE_LINEAR_WEBHOOK_SECRET \
+  --trigger '@right-wake' --resource "$RIGHT_WAKE_LINEAR_RESOURCE"
 
 umask 077
-touch "$WAKING_LOCAL_DATA/private.env"
-chmod 600 "$WAKING_LOCAL_DATA/private.env"
+touch "$RIGHT_WAKE_LOCAL_DATA/private.env"
+chmod 600 "$RIGHT_WAKE_LOCAL_DATA/private.env"
 ```
 
-Put the matching `WAKING_RELAY_DEVICE_TOKEN` value in the local file. It need not contain `WAKING_LINEAR_WEBHOOK_SECRET` for this relay-client-only path: the local client validates the authenticated normalized envelope and its local source policy without rechecking an expired webhook timestamp. `doctor` may therefore report `secret_available: false` for direct ingress; that field does not describe device-token authorization.
+Put the matching `RIGHT_WAKE_RELAY_DEVICE_TOKEN` value in the local file. It need not contain `RIGHT_WAKE_LINEAR_WEBHOOK_SECRET` for this relay-client-only path: the local client validates the authenticated normalized envelope and its local source policy without rechecking an expired webhook timestamp. `doctor` may therefore report `secret_available: false` for direct ingress; that field does not describe device-token authorization.
 
 Configure the actual local App Server and exact binding by following [the Linear host/thread steps](linear.md#5-select-the-actual-existing-host-and-thread), using this local profile path. The host must meet both exclusive-writer and tool-isolation prerequisites. Do not create that binding only on the cloud relay and expect it to select a local session.
 
-For management through the Codex plugin, set its MCP process's `WAKING_DATA_DIR` to this local profile, not the cloud relay profile. Check the `data_dir` returned by `waking_setup` before assigning work. [Plugin profile selection](plugin.md#use-the-same-local-profile) explains terminal and already-running desktop environments.
+For management through the Codex plugin, set its MCP process's `RIGHT_WAKE_DATA_DIR` to this local profile, not the cloud relay profile. Check the `data_dir` returned by `right_wake_setup` before assigning work. [Plugin profile selection](plugin.md#use-the-same-local-profile) explains terminal and already-running desktop environments.
 
 ### C. Start the outbound local worker
 
-If a `serve` process already owns this local profile, stop it first. For an existing service-managed direct receiver, use `waking --data-dir /absolute/path/to/waking-local service stop`; do not run both processes against the same profile.
+If a `serve` process already owns this local profile, stop it first. For an existing service-managed direct receiver, use `right-wake --data-dir /absolute/path/to/right-wake-local service stop`; do not run both processes against the same profile.
 
 ```sh
-waking --data-dir "$WAKING_LOCAL_DATA" \
-  --env-file "$WAKING_LOCAL_DATA/private.env" \
+right-wake --data-dir "$RIGHT_WAKE_LOCAL_DATA" \
+  --env-file "$RIGHT_WAKE_LOCAL_DATA/private.env" \
   relay connect \
   --url wss://relay.example.com/relay/mac-work \
-  --token-env WAKING_RELAY_DEVICE_TOKEN \
+  --token-env RIGHT_WAKE_RELAY_DEVICE_TOKEN \
   --source linear-work
 ```
 

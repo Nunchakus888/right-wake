@@ -2,14 +2,14 @@
 # Verify and load a pinned release into the selected Docker daemon. Never start it.
 set -eu
 
-version=${WAKING_VERSION:-v0.1.1}
+version=${RIGHT_WAKE_VERSION:-v0.2.0}
 from_dir=
 repository=Nunchakus888/right-wake
 tmp=
-fail() { printf 'waking container install: %s\n' "$*" >&2; exit 1; }
+fail() { printf 'right-wake container install: %s\n' "$*" >&2; exit 1; }
 usage() {
   cat <<'USAGE'
-Usage: install-container.sh [--version v0.1.1] [--from-dir DIR]
+Usage: install-container.sh [--version v0.2.0] [--from-dir DIR]
 
 Load the checksummed Linux amd64 or arm64 image for the Docker server's platform.
 The default release is pinned. Docker and its daemon must already be available.
@@ -30,7 +30,7 @@ for tool in docker awk mktemp cp rm; do
 done
 printf '%s\n' "$version" | awk '/^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$/ {ok=1} END {exit !ok}' || fail 'invalid version (expected vMAJOR.MINOR.PATCH)'
 [ "${#version}" -le 129 ] || fail 'version exceeds the Docker tag limit'
-image=waking:${version#v}
+image=right-wake:${version#v}
 # Docker Desktop and remote contexts can differ from the client host's uname.
 platform=$(docker version --format '{{.Server.Os}}/{{.Server.Arch}}') || fail 'Docker daemon is unavailable'
 case "$platform" in
@@ -38,7 +38,7 @@ case "$platform" in
   linux/arm64) arch=arm64 ;;
   *) fail "unsupported Docker server platform: $platform (expected linux/amd64 or linux/arm64)" ;;
 esac
-asset=waking-$version-container-linux-$arch.tar.gz
+asset=right-wake-$version-container-linux-$arch.tar.gz
 if command -v sha256sum >/dev/null 2>&1; then
   hash_file() { sha256sum "$1" | awk '{print $1}'; }
 elif command -v shasum >/dev/null 2>&1; then
@@ -46,7 +46,7 @@ elif command -v shasum >/dev/null 2>&1; then
 else
   fail 'sha256sum or shasum is required'
 fi
-tmp=$(mktemp -d "${TMPDIR:-/tmp}/waking-container-install.XXXXXXXX")
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/right-wake-container-install.XXXXXXXX")
 cleanup() {
   [ -z "$tmp" ] || rm -rf -- "$tmp"
 }
@@ -72,22 +72,13 @@ case "$expected" in ''|*[!0-9a-f]*) fail 'missing or ambiguous SHA256SUMS entry'
 [ "$(hash_file "$tmp/$asset")" = "$expected" ] || fail 'checksum mismatch; image was not loaded'
 metadata_format='{{.Os}}/{{.Architecture}} {{index .Config.Labels "org.opencontainers.image.version"}} {{index .Config.Labels "org.opencontainers.image.source"}}'
 expected_metadata="$platform ${version#v} https://github.com/$repository"
-metadata_matches() {
-  if [ "$1" = "$expected_metadata" ]; then
-    return 0
-  fi
-  # The immutable v0.1.1 archives predate the repository rename. No other
-  # release may use this legacy source, and platform/version must still match.
-  [ "$version" = v0.1.1 ] &&
-    [ "$1" = "$platform 0.1.1 https://github.com/Nunchakus888/waking" ]
-}
 if existing=$(docker image inspect --format "$metadata_format" "$image" 2>/dev/null); then
-  metadata_matches "$existing" || fail "existing $image has different metadata; refusing to replace it"
+  [ "$existing" = "$expected_metadata" ] || fail "existing $image has different metadata; refusing to replace it"
 fi
 docker image load --input "$tmp/$asset" > "$tmp/load.log" || fail 'Docker could not load the verified archive'
 # A pre-existing matching tag must not disguise an archive carrying other tags.
 awk -v expected="Loaded image: $image" '$0 == expected {found=1} END {exit !found}' "$tmp/load.log" || fail "archive did not report the expected tag $image; inspect Docker images before retrying"
 metadata=$(docker image inspect --format "$metadata_format" "$image") || fail 'loaded image tag is missing'
-metadata_matches "$metadata" || fail 'loaded image metadata differs from the requested version/platform'
+[ "$metadata" = "$expected_metadata" ] || fail 'loaded image metadata differs from the requested version/platform'
 printf 'Loaded %s for %s. No container was started.\n' "$image" "$platform"
-printf 'Next: prepare private.env and compose.yaml, then docker compose run --rm waking setup.\n'
+printf 'Next: prepare private.env and compose.yaml, then docker compose run --rm right-wake setup.\n'

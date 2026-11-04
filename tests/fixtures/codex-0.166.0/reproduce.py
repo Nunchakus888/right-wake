@@ -28,7 +28,7 @@ def main():
         "redactions": ["temporary configuration path", "host name", "installation ID"],
     }
 
-    with tempfile.TemporaryDirectory(prefix="waking-codex-probe-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="right-wake-codex-probe-") as temporary:
         workspace = Path(temporary)
         config = workspace / "isolated-config"
         project = workspace / "empty-project"
@@ -120,7 +120,7 @@ def main():
 
         try:
             send({"id": 1, "method": "initialize", "params": {
-                "clientInfo": {"name": "waking_schema_probe", "version": "0.1.0"},
+                "clientInfo": {"name": "right_wake_schema_probe", "version": "0.2.0"},
                 "capabilities": {"experimentalApi": False},
             }})
             initialized = reply(1)

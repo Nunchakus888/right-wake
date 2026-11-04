@@ -23,7 +23,7 @@ fn content_limit_default() -> usize {
     16 * 1024
 }
 fn trigger_patterns_default() -> Vec<String> {
-    vec!["@waking".to_owned()]
+    vec!["@right-wake".to_owned()]
 }
 
 /// Authentication, origins, scope, and identity are trusted local configuration.
@@ -268,8 +268,8 @@ fn timestamp_recent(timestamp_ms: i64, now_ms: i64, max_age_ms: i64) -> Result<(
 
 /// Validate exactly the authentication mode configured for this source.
 ///
-/// Generic HMAC uses `X-Waking-Timestamp` (Unix seconds) and
-/// `X-Waking-Signature: sha256=<hex(HMAC(secret, timestamp + '.' + raw_body))>`.
+/// Generic HMAC uses `X-RightWake-Timestamp` (Unix seconds) and
+/// `X-RightWake-Signature: sha256=<hex(HMAC(secret, timestamp + '.' + raw_body))>`.
 pub fn verify(
     scheme: SignatureScheme,
     secret: &[u8],
@@ -352,7 +352,7 @@ pub fn verify(
             // Compare fixed-size hashes with HMAC's constant-time verifier; do not
             // fall back here from a source configured to require signed payloads.
             let received = header(headers, "X-Gitlab-Token")?;
-            let comparison_key = b"waking-secret-comparison-v1";
+            let comparison_key = b"right-wake-secret-comparison-v1";
             let mut mac = Hmac::<Sha256>::new_from_slice(comparison_key)
                 .map_err(|_| ProviderError::new("invalid_secret", "Invalid comparison key"))?;
             mac.update(secret);
@@ -360,7 +360,7 @@ pub fn verify(
             verify_hmac(comparison_key, received.as_bytes(), &expected)?;
         }
         SignatureScheme::GenericHmac => {
-            let timestamp_text = header(headers, "X-Waking-Timestamp")?;
+            let timestamp_text = header(headers, "X-RightWake-Timestamp")?;
             let timestamp = timestamp_text
                 .parse::<i64>()
                 .ok()
@@ -368,7 +368,7 @@ pub fn verify(
                 .ok_or_else(|| {
                     ProviderError::new("invalid_timestamp", "Invalid webhook timestamp")
                 })?;
-            let signature = header(headers, "X-Waking-Signature")?
+            let signature = header(headers, "X-RightWake-Signature")?
                 .strip_prefix("sha256=")
                 .ok_or_else(|| {
                     ProviderError::new("invalid_signature", "Expected sha256 signature prefix")
@@ -1277,7 +1277,7 @@ fn normalize_generic(
         .as_ref()
         .and_then(|p| at(payload, p))
         .unwrap_or_else(|| sha256_hex(content.as_bytes()));
-    let delivery = header(headers, "X-Waking-Delivery")
+    let delivery = header(headers, "X-RightWake-Delivery")
         .map(str::to_owned)
         .unwrap_or_else(|_| event_id.clone());
     let occurred_at_ms = occurred(

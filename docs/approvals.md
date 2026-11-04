@@ -1,6 +1,6 @@
 # Independently approve one exact reply
 
-RightWake creates drafts by default. Sending a draft requires an Ed25519 signature from an independent reviewer. This guide provides a manual, usable approval path for v0.1.0; there is no approval button exposed to the worker or its agent.
+RightWake creates drafts by default. Sending a draft requires an Ed25519 signature from an independent reviewer. This guide provides a manual, usable approval path for v0.2.0; there is no approval button exposed to the worker or its agent.
 
 The RightWake service remains a native binary with no Python dependency. The optional [review-prepare.py](../scripts/review-prepare.py) utility uses only Python 3's standard library **on a separate Linux/macOS reviewer device**. The signing commands below require OpenSSL 3. Check `openssl version`; the system `openssl` on some machines may be a different implementation.
 
@@ -13,8 +13,8 @@ Run these commands in a trusted terminal. The new directory must not already exi
 ```sh
 set -eu
 umask 077
-mkdir -m 700 waking-reviewer
-cd waking-reviewer
+mkdir -m 700 right-wake-reviewer
+cd right-wake-reviewer
 openssl genpkey -algorithm ED25519 -aes-256-cbc -out reviewer-private.pem
 openssl pkey -in reviewer-private.pem -pubout -out reviewer-public.pem
 openssl pkey -pubin -in reviewer-public.pem -outform DER -out reviewer-public.der
@@ -42,46 +42,46 @@ Keep an encrypted backup of the private key under the reviewer's control. Only t
 
 ## 2. Configure the public key and sending identity
 
-On the RightWake machine, the trusted operator obtains the existing source configuration with `waking --json source list`, copies the relevant source object into a separate `source.json`, and adds these fields while preserving its existing tenant, triggers, scope, and other settings:
+On the RightWake machine, the trusted operator obtains the existing source configuration with `right-wake --json source list`, copies the relevant source object into a separate `source.json`, and adds these fields while preserving its existing tenant, triggers, scope, and other settings:
 
 ```json
 {
   "review_public_key": "BASE64_OF_THE_32_RAW_PUBLIC_BYTES",
   "sending_identity": "EXACT_PROVIDER_ACCOUNT_ID",
-  "token_env": "WAKING_PROVIDER_TOKEN"
+  "token_env": "RIGHT_WAKE_PROVIDER_TOKEN"
 }
 ```
 
 This is a field fragment, **not a complete source file**. `source add --file` replaces the source with the same ID; importing only this fragment would omit required settings. The sending identity is the provider's account ID, not a display name. RightWake checks it against the account returned by the provider before sending. Configure the referenced provider token through the protected environment file already used by the service, then import the complete source object:
 
 ```sh
-waking --data-dir /path/to/waking-data source add --file /path/to/source.json
+right-wake --data-dir /path/to/right-wake-data source add --file /path/to/source.json
 ```
 
 The public key is trusted operator configuration. An executing agent that can replace this configuration can replace the approval authority, so restrict access to the configuration as well as to the private key. Configure the identity before generating the draft; changing an existing draft's identity is not an approval operation. Key, credential, origin, identity, content, or version changes invalidate old approval statements.
 
 ## 3. Export the draft, then prepare the review independently
 
-On the RightWake machine, substitute the exact draft ID from `waking drafts list`:
+On the RightWake machine, substitute the exact draft ID from `right-wake drafts list`:
 
 ```sh
 set -eu
 umask 077
 set -C
-waking --data-dir /path/to/waking-data --env-file /path/to/waking.env --json \
+right-wake --data-dir /path/to/right-wake-data --env-file /path/to/right-wake.env --json \
   drafts export EXACT_DRAFT_ID --expires-in 3600 > draft-export.json
 ```
 
 The export contains plaintext reply content and identifiers, plus a credential fingerprint and environment-variable name; it does not contain the API token. Transfer the file to the reviewer through your trusted transfer channel. Obtain the prepare utility from a reviewed RightWake revision independently of the draft export. Run it on the reviewer device with a fresh output directory:
 
 ```sh
-python3 /path/to/waking/scripts/review-prepare.py draft-export.json --out review-001
+python3 /path/to/right-wake/scripts/review-prepare.py draft-export.json --out review-001
 ```
 
 The utility verifies SHA-256 of the **exact UTF-8 `review_target_json` string** against `statement.draft_digest`. It then parses that same payload and checks the draft ID, schema, strict statement fields, and an expiry in the next 24 hours. It rejects duplicate JSON fields and malformed or unsupported targets. It reconstructs the bytes to sign using the Rust field order, independent of any exported `signing_bytes_base64`:
 
 ```text
-waking.human-approval.v1\n
+right-wake.human-approval.v1\n
 {"schema_version":1,"draft_id":"...","draft_digest":"...","expires_at_ms":...}
 ```
 
@@ -132,7 +132,7 @@ now = time.time_ns() // 1_000_000
 if not now < statement["expires_at_ms"] <= now + 86_400_000:
     raise SystemExit("Export again: statement expiry is invalid")
 ordered = {field: statement[field] for field in fields}
-expected = b"waking.human-approval.v1\n" + json.dumps(
+expected = b"right-wake.human-approval.v1\n" + json.dumps(
     ordered, ensure_ascii=False, separators=(",", ":")
 ).encode("utf-8")
 if (folder / "signing.bin").read_bytes() != expected:
@@ -152,7 +152,7 @@ PY
 Return only `approval.json` to the authorized operator. Keep all private-key material on the reviewer device. The operator invokes the native CLI:
 
 ```sh
-waking --data-dir /path/to/waking-data --env-file /path/to/waking.env --json \
+right-wake --data-dir /path/to/right-wake-data --env-file /path/to/right-wake.env --json \
   drafts send EXACT_DRAFT_ID --approval /path/to/approval.json
 ```
 

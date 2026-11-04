@@ -3,11 +3,7 @@ use axum::{
     http::{Request, StatusCode},
 };
 use hmac::{Hmac, Mac};
-use serde_json::{json, Value};
-use sha2::Sha256;
-use std::sync::Arc;
-use tower::ServiceExt;
-use waking::{
+use right_wake::{
     config::Config,
     db::Db,
     engine::Engine,
@@ -15,6 +11,10 @@ use waking::{
     provider::SourceConfig,
     server::{app, AppState},
 };
+use serde_json::{json, Value};
+use sha2::Sha256;
+use std::sync::Arc;
+use tower::ServiceExt;
 
 struct Fixture {
     _dir: tempfile::TempDir,
@@ -27,7 +27,7 @@ impl Fixture {
         let dir = tempfile::tempdir().unwrap();
         let mut cfg = Config::setup(dir.path()).unwrap();
         let secret = uuid::Uuid::new_v4().to_string();
-        let env = format!("WAKING_HTTP_TEST_{}", uuid::Uuid::new_v4().simple());
+        let env = format!("RIGHT_WAKE_HTTP_TEST_{}", uuid::Uuid::new_v4().simple());
         std::env::set_var(&env, &secret);
         let source: SourceConfig = serde_json::from_value(
             json!({"id":"test","kind":"linear","secret_env":env,"tenant_id":"test-workspace"}),
@@ -45,7 +45,7 @@ impl Fixture {
         }
     }
     fn body(&self, id: &str) -> Vec<u8> {
-        serde_json::to_vec_pretty(&json!({"type":"Comment","action":"create","organizationId":"test-workspace","webhookTimestamp":now_ms(),"data":{"id":id,"issueId":"test-issue","body":"@waking 继续先前的工作。\nPreserve the original context.","user":{"id":"requester"},"createdAt":"2026-11-03T08:00:00Z","updatedAt":"2026-11-03T08:00:00Z"}})).unwrap()
+        serde_json::to_vec_pretty(&json!({"type":"Comment","action":"create","organizationId":"test-workspace","webhookTimestamp":now_ms(),"data":{"id":id,"issueId":"test-issue","body":"@right-wake 继续先前的工作。\nPreserve the original context.","user":{"id":"requester"},"createdAt":"2026-11-03T08:00:00Z","updatedAt":"2026-11-03T08:00:00Z"}})).unwrap()
     }
     fn request(&self, body: Vec<u8>, delivery: &str, valid: bool) -> Request<Body> {
         let mut mac = Hmac::<Sha256>::new_from_slice(self.secret.as_bytes()).unwrap();
@@ -177,7 +177,10 @@ async fn relay_rejects_an_untransmittable_envelope_before_persisting_or_acknowle
     fixture.cfg.sources[0].max_content_chars = fixture.cfg.max_payload_bytes;
     fixture.cfg.save(&fixture.engine.dir).unwrap();
     let mut payload: Value = serde_json::from_slice(&fixture.body("large-relay")).unwrap();
-    payload["data"]["body"] = json!(format!("@waking {}", "x".repeat(waking::relay::MAX_FRAME)));
+    payload["data"]["body"] = json!(format!(
+        "@right-wake {}",
+        "x".repeat(right_wake::relay::MAX_FRAME)
+    ));
     let raw = serde_json::to_vec(&payload).unwrap();
     let router = app(
         AppState {

@@ -14,30 +14,30 @@ case "$target" in
 esac
 printf '%s\n' "$version" | awk '/^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$/ {ok=1} END {exit !ok}' || fail 'invalid release version'
 [ -f "$binary" ] && [ -x "$binary" ] || fail 'native release binary is missing'
-[ "$("$binary" --version)" = "waking ${version#v}" ] || fail 'binary version differs from release tag'
+[ "$("$binary" --version)" = "right-wake ${version#v}" ] || fail 'binary version differs from release tag'
 [ "$(docker version --format '{{.Server.Os}}/{{.Server.Arch}}')" = "linux/$arch" ] || fail 'Docker daemon must match this native Linux release target'
 docker compose version >/dev/null || fail 'Docker Compose v2 is required for release verification'
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 mkdir -p "$output"
 output=$(CDPATH= cd -- "$output" && pwd)
-tmp=$(mktemp -d "${TMPDIR:-/tmp}/waking-container-package.XXXXXXXX")
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/right-wake-container-package.XXXXXXXX")
 trap 'rm -rf -- "$tmp"' 0
 trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
 mkdir "$tmp/context"
-cp "$binary" "$tmp/context/waking"
+cp "$binary" "$tmp/context/right-wake"
 cp "$root/LICENSE" "$tmp/context/LICENSE"
 cp "$root/deploy/Dockerfile.release" "$tmp/context/Dockerfile"
-image=waking:${version#v}
-docker build --platform "linux/$arch" --build-arg "WAKING_VERSION=${version#v}" \
+image=right-wake:${version#v}
+docker build --platform "linux/$arch" --build-arg "RIGHT_WAKE_VERSION=${version#v}" \
   --label "org.opencontainers.image.revision=$(git -C "$root" rev-parse HEAD)" \
   --tag "$image" "$tmp/context"
 [ "$(docker image inspect --format '{{.Os}}/{{.Architecture}} {{.Config.User}}' "$image")" = "linux/$arch 10001:10001" ] || fail 'image platform or runtime user differs from the release contract'
-[ "$(docker run --rm --network none "$image" --version)" = "waking ${version#v}" ] || fail 'container binary version mismatch'
+[ "$(docker run --rm --network none "$image" --version)" = "right-wake ${version#v}" ] || fail 'container binary version mismatch'
 sh "$root/scripts/container-smoke.sh" --image "$image"
 sh "$root/scripts/compose-smoke.sh" "$image"
-asset=waking-$version-container-linux-$arch.tar.gz
+asset=right-wake-$version-container-linux-$arch.tar.gz
 # Separate commands preserve docker-save errors on POSIX shells without pipefail.
 docker image save --output "$tmp/image.tar" "$image"
 gzip -n -c "$tmp/image.tar" > "$tmp/$asset"

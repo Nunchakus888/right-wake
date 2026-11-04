@@ -15,16 +15,16 @@ command -v python3 >/dev/null 2>&1 || fail 'Python 3 is required on the test hos
 docker info >/dev/null || fail 'Docker daemon is unavailable'
 
 smoke_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-smoke_tmp=$(mktemp -d "${TMPDIR:-/tmp}/waking-container-smoke.XXXXXXXX")
+smoke_tmp=$(mktemp -d "${TMPDIR:-/tmp}/right-wake-container-smoke.XXXXXXXX")
 smoke_run=${smoke_tmp##*/}
-smoke_image=waking-container-smoke:${smoke_run##*.}
+smoke_image=right-wake-container-smoke:${smoke_run##*.}
 [ -z "$smoke_existing_image" ] || smoke_image=$smoke_existing_image
 smoke_volume=$smoke_run-data
 smoke_setup=$smoke_run-setup
 smoke_demo=$smoke_run-demo
 smoke_receiver=$smoke_run-receiver
 smoke_recreated=$smoke_run-recreated
-smoke_label=waking.container-smoke.run=$smoke_run
+smoke_label=right-wake.container-smoke.run=$smoke_run
 
 cleanup() {
   smoke_exit=$?
@@ -33,7 +33,7 @@ cleanup() {
   # Names are unique, and labels must also match before any Docker deletion.
   # Never prune the daemon, remove unrelated images, or touch a user volume.
   for cleanup_name in "$smoke_setup" "$smoke_demo" "$smoke_receiver" "$smoke_recreated"; do
-    cleanup_owner=$(docker container inspect --format '{{ index .Config.Labels "waking.container-smoke.run" }}' "$cleanup_name" 2>/dev/null)
+    cleanup_owner=$(docker container inspect --format '{{ index .Config.Labels "right-wake.container-smoke.run" }}' "$cleanup_name" 2>/dev/null)
     if [ "$cleanup_owner" = "$smoke_run" ]; then
       if [ "$smoke_exit" -ne 0 ]; then
         printf '\nContainer log: %s\n' "$cleanup_name" >&2
@@ -42,11 +42,11 @@ cleanup() {
       docker container rm --force "$cleanup_name" >/dev/null || smoke_exit=1
     fi
   done
-  cleanup_owner=$(docker volume inspect --format '{{ index .Labels "waking.container-smoke.run" }}' "$smoke_volume" 2>/dev/null)
+  cleanup_owner=$(docker volume inspect --format '{{ index .Labels "right-wake.container-smoke.run" }}' "$smoke_volume" 2>/dev/null)
   if [ "$cleanup_owner" = "$smoke_run" ]; then
     docker volume rm "$smoke_volume" >/dev/null || smoke_exit=1
   fi
-  cleanup_owner=$(docker image inspect --format '{{ index .Config.Labels "waking.container-smoke.run" }}' "$smoke_image" 2>/dev/null)
+  cleanup_owner=$(docker image inspect --format '{{ index .Config.Labels "right-wake.container-smoke.run" }}' "$smoke_image" 2>/dev/null)
   if [ -z "$smoke_existing_image" ] && [ "$cleanup_owner" = "$smoke_run" ]; then
     docker image rm "$smoke_image" >/dev/null || smoke_exit=1
   fi
@@ -59,7 +59,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 # Python runs only on the test host, reading CLI stdout. The image needs only
-# its installed waking binary; no Python, curl, or extra product dependency.
+# its installed right-wake binary; no Python, curl, or extra product dependency.
 check_output() {
   python3 - "$@" <<'PY'
 import json
@@ -137,7 +137,7 @@ PY
 container_cli() {
   cli_container=$1
   shift
-  docker exec "$cli_container" /usr/local/bin/waking --data-dir "$smoke_state_dir" --json "$@"
+  docker exec "$cli_container" /usr/local/bin/right-wake --data-dir "$smoke_state_dir" --json "$@"
 }
 
 wait_receiver() {
@@ -179,7 +179,7 @@ start_receiver() {
   # All runtime containers are offline. No ports are published to the host.
   docker run --detach --name "$start_name" --label "$smoke_label" \
     --network none --mount "type=volume,src=$smoke_volume,dst=/data" \
-    --entrypoint /usr/local/bin/waking "$smoke_image" \
+    --entrypoint /usr/local/bin/right-wake "$smoke_image" \
     --data-dir "$smoke_state_dir" serve --listen 127.0.0.1:7433 >/dev/null
 }
 

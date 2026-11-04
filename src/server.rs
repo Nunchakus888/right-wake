@@ -26,7 +26,7 @@ pub struct AppState {
 }
 
 pub fn app(state: AppState, max_bytes: usize) -> Router {
-    Router::new().route("/health",get(||async{Json(ok(json!({"service":"waking","receiving":true,"model_completed":false,"reply_sent":false})))}))
+    Router::new().route("/health",get(||async{Json(ok(json!({"service":"right-wake","receiving":true,"model_completed":false,"reply_sent":false})))}))
         .route("/hooks/{source}",post(webhook))
         .route("/relay/{device}",get(crate::relay::upgrade))
         .layer(DefaultBodyLimit::max(max_bytes)).with_state(state)
@@ -44,7 +44,7 @@ async fn webhook(
             return fail(
                 StatusCode::SERVICE_UNAVAILABLE,
                 "configuration_unavailable",
-                "Run waking doctor",
+                "Run right-wake doctor",
             )
         }
     };
@@ -160,7 +160,7 @@ pub async fn serve(engine: Engine, listen: Option<String>, relay_only: bool) -> 
     let _watcher = watch_controls(&state)?;
     let address = listen.unwrap_or(cfg.listen.clone());
     let listener = tokio::net::TcpListener::bind(&address).await?;
-    tracing::info!(address=%listener.local_addr()?,relay_only,"Waking receiving events");
+    tracing::info!(address=%listener.local_addr()?,relay_only,"RightWake receiving events");
     struct AbortWorker(Option<tokio::task::JoinHandle<Result<()>>>);
     impl Drop for AbortWorker {
         fn drop(&mut self) {

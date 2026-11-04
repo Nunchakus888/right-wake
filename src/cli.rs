@@ -16,12 +16,12 @@ use std::{
 
 #[derive(Debug, Parser)]
 #[command(
-    name = "waking",
+    name = "right-wake",
     version,
-    about = "Wake the right thread. Event-driven continuity for local agents."
+    about = "Wake the right Agent thread. Event-driven continuity for local agents."
 )]
 pub struct Cli {
-    #[arg(long, global = true, env = "WAKING_DATA_DIR")]
+    #[arg(long, global = true, env = "RIGHT_WAKE_DATA_DIR")]
     pub data_dir: Option<PathBuf>,
     /// Versioned JSON on stdout. Diagnostics are always on stderr.
     #[arg(long, global = true)]
@@ -433,7 +433,7 @@ pub async fn execute(cli: Cli) -> Result<Option<Value>> {
             }
             Db::open(&dir)?;
             return Ok(Some(
-                json!({"state":"configured","data_dir":dir,"next_actions":["waking source add --help","waking host add --help","waking bind --help","waking serve"],"service_started":false,"webhook_verified":false}),
+                json!({"state":"configured","data_dir":dir,"next_actions":["right-wake source add --help","right-wake host add --help","right-wake bind --help","right-wake serve"],"service_started":false,"webhook_verified":false}),
             ));
         }
         Command::Demo => return Ok(Some(crate::demo::run(&dir).await?)),
@@ -458,7 +458,7 @@ pub async fn execute(cli: Cli) -> Result<Option<Value>> {
         Command::Source(SourceCommand::Add(args))=>{
             let SourceAddArgs{file,id,kind,secret_env,token_env,tenant,instance,trigger,resource,bot_actor}=*args;
             let source:SourceConfig=if let Some(file)=file{serde_json::from_value(read_json(&file)?)?}else{
-                serde_json::from_value(json!({"id":id.context("--id is required")?,"kind":ProviderKind::from(kind.context("--kind is required")?),"secret_env":secret_env.context("--secret-env is required")?,"token_env":token_env,"tenant_id":tenant,"instance":instance.unwrap_or_default(),"trigger_patterns":if trigger.is_empty(){vec!["@waking".to_owned()]}else{trigger},"allowed_resources":resource,"bot_actor_ids":bot_actor}))?
+                serde_json::from_value(json!({"id":id.context("--id is required")?,"kind":ProviderKind::from(kind.context("--kind is required")?),"secret_env":secret_env.context("--secret-env is required")?,"token_env":token_env,"tenant_id":tenant,"instance":instance.unwrap_or_default(),"trigger_patterns":if trigger.is_empty(){vec!["@right-wake".to_owned()]}else{trigger},"allowed_resources":resource,"bot_actor_ids":bot_actor}))?
             };
             source.validate()?;
             if let Some(old)=cfg.sources.iter_mut().find(|s|s.id==source.id){*old=source.clone();}else{cfg.sources.push(source.clone());}

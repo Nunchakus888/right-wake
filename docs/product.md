@@ -1,6 +1,6 @@
 # Product definition and user journeys
 
-Status: v0.1.0 product contract. Implementation and actual validation are tracked in [acceptance.md](acceptance.md), not inferred from this design.
+Status: v0.2.0 product contract. Implementation and actual validation are tracked in [acceptance.md](acceptance.md), not inferred from this design.
 
 ## Purpose
 
@@ -23,7 +23,7 @@ The user's later requirements override the original prompt's optional automatic 
 | Distribution | Native CLI and repository Codex plugin | Public plugin-directory acceptance is a separate process |
 | Deployment | Local, self-hosted relay plus local executor, self-hosted cloud | No assumed hosted relay and no automatic migration of local chat history |
 
-Slack support, a general workflow canvas, organizational task management, and broad multi-agent orchestration are outside this first release. The full original requirements that remain incomplete are retained as pending items, not reclassified as optional.
+Slack support, a general workflow canvas, organizational task management, and broad multi-agent orchestration are outside this release. The full original requirements that remain incomplete are retained as pending items, not reclassified as optional.
 
 ## Information the user manages
 
@@ -62,7 +62,7 @@ If ownership is already explicit, do not ask this question repeatedly. If requir
 5. Start `serve` or explicitly install the user service. Configure reachable webhook ingress.
 6. Send the authorized test event and inspect events, jobs, and drafts.
 
-The first release's machine-readable contract is authoritative for flag names. Agent helpers discover it instead of carrying stale copies. [Installation](installation.md) documents the native platform and service requirements.
+The installed version's machine-readable contract is authoritative for flag names. Agent helpers discover it instead of carrying stale copies. [Installation](installation.md) documents the native platform and service requirements.
 
 ## Daily journeys
 
@@ -104,6 +104,6 @@ Measure actual first-event setup time after prerequisites are ready, correctly c
 
 [Claude Tag](https://claude.com/resources/articles/claude-tag-now-reads-even-more-of-the-room) uses channel context to decide whether to respond, start deeper work, route a message to work already in progress, or stay silent. That validates a similar user need for semantic participation and workstream continuity. Its [documented Slack memory and identity boundaries](https://support.claude.com/en/articles/15594475-what-is-claude-tag) do not establish an ability to resume arbitrary local Codex threads.
 
-RightWake's specific scope is an external work event returning to an explicitly owned existing **local host and thread**, with durable assignment and visible delivery state. It does not attempt to reproduce Claude Tag's shared Slack workspace in v0.1.0.
+RightWake's specific scope is an external work event returning to an explicitly owned existing **local host and thread**, with durable assignment and visible delivery state. It does not attempt to reproduce Claude Tag's shared Slack workspace in v0.2.0.
 
 [OpenAI MCP Events](https://developers.openai.com/plugins/build/mcp-events) is a relevant native subscription path for its supported cloud conversation surfaces. A future adapter may reuse it where the target surface fits. Its existence alone is not proof that local Codex thread continuity, arbitrary existing-thread routing, or a provider's event capability is available.

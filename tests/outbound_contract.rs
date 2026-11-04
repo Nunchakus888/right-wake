@@ -1,14 +1,14 @@
 use base64::{engine::general_purpose::STANDARD, Engine as _};
 use ed25519_dalek::{Signer, SigningKey};
-use serde_json::{json, Value};
-use waking::model::{now_ms, Draft, ProviderKind, ReplyTarget};
-use waking::outbound::{
-    approval_signing_bytes, build_write_request, prepare_approval_statement, verify_approval,
-    ApprovalEnvelope, ApprovedAction, CurrentDraftState,
+use right_wake::model::{now_ms, Draft, ProviderKind, ReplyTarget};
+use right_wake::outbound::{
+    approval_signing_bytes, approval_target_bytes, build_write_request, prepare_approval_statement,
+    verify_approval, ApprovalEnvelope, ApprovedAction, CurrentDraftState,
 };
-use waking::provider::{sha256_hex, SourceConfig, SourceRevision};
+use right_wake::provider::{sha256_hex, SourceConfig, SourceRevision};
+use serde_json::{json, Value};
 
-const ORIGINAL: &str = "@waking please inspect this issue";
+const ORIGINAL: &str = "@right-wake please inspect this issue";
 const UPDATED: &str = "2026-11-03T09:10:00Z";
 
 fn fixture(provider: &str) -> (SourceConfig, Draft, SigningKey) {
@@ -97,6 +97,31 @@ fn signed(
 }
 
 #[test]
+fn review_domain_is_explicit_and_cross_application_signatures_are_rejected() {
+    let (source, draft, key) = fixture("github");
+    let target: Value =
+        serde_json::from_slice(&approval_target_bytes(&source, &draft).unwrap()).unwrap();
+    assert_eq!(target["domain"], "right-wake.review.v1");
+
+    let time = now_ms();
+    let (mut action, current) = signed(&source, &draft, &key, time);
+    let bytes = approval_signing_bytes(&action.approval.statement).unwrap();
+    let statement = bytes
+        .strip_prefix(b"right-wake.human-approval.v1\n")
+        .unwrap();
+    assert_eq!(
+        serde_json::from_slice::<Value>(statement).unwrap(),
+        serde_json::to_value(&action.approval.statement).unwrap()
+    );
+    verify_approval(&source, &action, &current, time).unwrap();
+
+    let mut unrelated = b"unrelated.human-approval.v1\n".to_vec();
+    unrelated.extend_from_slice(statement);
+    action.approval.signature = STANDARD.encode(key.sign(&unrelated).to_bytes());
+    assert!(verify_approval(&source, &action, &current, time).is_err());
+}
+
+#[test]
 fn external_signature_is_required_and_bound_to_exact_review() {
     let (source, draft, key) = fixture("github");
     let time = now_ms();
@@ -144,7 +169,7 @@ fn key_identity_api_origin_and_credential_rotation_revoke_old_approval() {
     source.api_base = Some("https://another-api.example.test".into());
     assert!(verify_approval(&source, &action, &current, time).is_err());
     let (mut source, draft, key) = fixture("github");
-    let env = format!("WAKING_TEST_TOKEN_{}", uuid::Uuid::new_v4().simple());
+    let env = format!("RIGHT_WAKE_TEST_TOKEN_{}", uuid::Uuid::new_v4().simple());
     std::env::set_var(&env, "synthetic-credential-one");
     source.token_env = Some(env.clone());
     let (action, current) = signed(&source, &draft, &key, time);
@@ -222,11 +247,11 @@ mod native_socket {
         routing::any,
         Json, Router,
     };
+    use right_wake::outbound::{send_approved, send_approved_guarded, SendOutcome};
     use std::sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
     };
-    use waking::outbound::{send_approved, send_approved_guarded, SendOutcome};
 
     #[derive(Clone)]
     struct Fake {
@@ -287,7 +312,7 @@ mod native_socket {
             ProviderKind::Linear
                 if input["query"]
                     .as_str()
-                    .is_some_and(|query| query.contains("WakingIdentity")) =>
+                    .is_some_and(|query| query.contains("RightWakeIdentity")) =>
             {
                 json!({"data":{"viewer":{"id":if state.mode=="identity_mismatch" {"18"}else{"17"}}}})
             }
@@ -314,7 +339,10 @@ mod native_socket {
         };
         let app = Router::new().fallback(any(handler)).with_state(fake);
         let task = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
-        let env = format!("WAKING_NATIVE_TEST_TOKEN_{}", uuid::Uuid::new_v4().simple());
+        let env = format!(
+            "RIGHT_WAKE_NATIVE_TEST_TOKEN_{}",
+            uuid::Uuid::new_v4().simple()
+        );
         std::env::set_var(&env, "lin_api_synthetic");
         source.token_env = Some(env.clone());
         let time = now_ms();

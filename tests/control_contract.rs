@@ -1,9 +1,6 @@
 //! Operator controls keep ownership stable and never turn a pause into a new session.
 use clap::Parser;
-use serde_json::{json, Value};
-use std::{path::Path, time::Duration};
-use tempfile::TempDir;
-use waking::{
+use right_wake::{
     cli::{self, Cli},
     config::{Config, HostConfig, RouterConfig},
     db::Db,
@@ -11,6 +8,9 @@ use waking::{
     host::{DispatchOutcome, DispatchRequest},
     model::{ContextCard, NormalizedEvent, ProviderKind, ThreadTarget},
 };
+use serde_json::{json, Value};
+use std::{path::Path, time::Duration};
+use tempfile::TempDir;
 
 struct Fixture {
     _dir: TempDir,
@@ -41,7 +41,7 @@ impl Fixture {
                         .join(format!("{host}.calls"))
                         .to_string_lossy()
                         .into_owned(),
-                    env!("CARGO_BIN_EXE_waking").into(),
+                    env!("CARGO_BIN_EXE_right-wake").into(),
                     dir.path().to_string_lossy().into_owned(),
                 ],
                 cwd: None,
@@ -85,7 +85,7 @@ impl Fixture {
             occurred_at_ms: 100,
             received_at_ms: 100,
             source_url: None,
-            content: "@waking continue the original work".into(),
+            content: "@right-wake continue the original work".into(),
             revision: "revision-1".into(),
             actionable: true,
             explicit_trigger: true,
@@ -120,7 +120,7 @@ impl Fixture {
 
     async fn command(&self, arguments: &[&str]) -> Value {
         let mut parsed =
-            Cli::try_parse_from(std::iter::once("waking").chain(arguments.iter().copied()))
+            Cli::try_parse_from(std::iter::once("right-wake").chain(arguments.iter().copied()))
                 .unwrap();
         parsed.data_dir = Some(self.path().to_owned());
         cli::execute(parsed).await.unwrap().unwrap()
@@ -329,16 +329,21 @@ fn host_scope_is_exclusive_and_schema_is_generated_from_clap() {
             vec![verb, "--host", "alpha", "--resource", "issue"],
             vec![verb, "--resource", "issue"],
         ] {
-            assert!(Cli::try_parse_from(std::iter::once("waking").chain(arguments)).is_err());
+            assert!(Cli::try_parse_from(std::iter::once("right-wake").chain(arguments)).is_err());
         }
-        assert!(Cli::try_parse_from(["waking", verb, "--host", "alpha"]).is_ok());
-        assert!(
-            Cli::try_parse_from(["waking", verb, "--source", "source", "--resource", "issue"])
-                .is_ok()
-        );
-        assert!(Cli::try_parse_from(["waking", verb]).is_ok());
+        assert!(Cli::try_parse_from(["right-wake", verb, "--host", "alpha"]).is_ok());
+        assert!(Cli::try_parse_from([
+            "right-wake",
+            verb,
+            "--source",
+            "source",
+            "--resource",
+            "issue"
+        ])
+        .is_ok());
+        assert!(Cli::try_parse_from(["right-wake", verb]).is_ok());
     }
-    let schema = waking::mcp::schema();
+    let schema = right_wake::mcp::schema();
     assert_eq!(schema["configuration_defaults"]["paused_hosts"], json!([]));
     for name in ["pause", "resume"] {
         let command = schema["cli"]["subcommands"]
@@ -370,7 +375,8 @@ async fn unknown_host_is_rejected_and_legacy_configuration_defaults_to_no_host_p
     assert!(config.validate().is_err());
     config.paused_hosts = vec!["alpha".into(), "alpha".into()];
     assert!(config.validate().is_err());
-    let mut invalid = Cli::try_parse_from(["waking", "pause", "--host", "not-registered"]).unwrap();
+    let mut invalid =
+        Cli::try_parse_from(["right-wake", "pause", "--host", "not-registered"]).unwrap();
     invalid.data_dir = Some(fixture.path().into());
     assert!(cli::execute(invalid).await.is_err());
     assert!(Config::load(fixture.path())
