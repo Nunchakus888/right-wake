@@ -10,7 +10,7 @@
 - Remove legacy-name aliases, fallback discovery, historical image-source acceptance, and compatibility/migration advice. Configure 0.2.0 with current names and a fresh profile.
 - Keep event-driven execution, explicit existing-thread ownership, durable queues, scoped context routing, and independent approval boundaries intact.
 
-Validation and publication are pending recorded evidence in [v0.2.0 verification](docs/releases/v0.2.0-verification.md). This entry describes the change; it does not assert a successful release or live provider/model acceptance.
+Published as an [experimental prerelease](https://github.com/Nunchakus888/right-wake/releases/tag/v0.2.0) on **2026-11-04 11:44:14 Asia/Shanghai**, from [`533e575`](https://github.com/Nunchakus888/right-wake/commit/533e57560e36780b7a3688a375c7ec07cf9fb8ef). Each of four native platforms passed **96 tests, 0 failures, 0 ignored**; both Linux Docker/Compose checks passed before publication. A fresh Linux x86_64 installation from the public assets, the real GitHub-cached plugin's launch of that binary, and the public amd64 image archive's checksum/metadata inspection also passed. [v0.2.0 verification](docs/releases/v0.2.0-verification.md) records the exact CI/release runs, public assets, and installation evidence. Live provider and original-thread model acceptance remain separately tracked.
 
 ## Earlier previews
 

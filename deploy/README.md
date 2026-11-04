@@ -4,7 +4,7 @@ Run RightWake natively beside the local agent whose original conversation you wa
 
 The image includes RightWake and **bundled SQLite**. One persistent `/data` volume stores configuration and database state; there is no separate database service. It runs as UID/GID `10001` and publishes only a loopback host port for your HTTPS/WSS reverse proxy.
 
-**v0.2.0 Docker assets are being validated and prepared for publication.** See [verification](../docs/releases/v0.2.0-verification.md) for current build, Compose, and public-download evidence, and [verification levels](#container-verification-levels) for their scope.
+**[v0.2.0 Docker assets are available](https://github.com/Nunchakus888/right-wake/releases/tag/v0.2.0).** Both Linux amd64 and arm64 passed actual image build/run/load and Compose persistence checks. See [verification](../docs/releases/v0.2.0-verification.md) for exact jobs and public-download evidence, and [verification levels](#container-verification-levels) for their scope.
 
 ## Install the release image
 
@@ -121,7 +121,8 @@ Use a new deployment directory outside the source checkout, then follow [initial
 | Check | Evidence and limit |
 | --- | --- |
 | Source container smoke | Run against the intended source commit; results belong in the current verification report. |
-| v0.2.0 release image / Compose | Pending recorded Linux amd64/arm64 evidence for image build/load, non-root startup, signed synthetic receipt, and persistence across restart/recreation; see [verification](../docs/releases/v0.2.0-verification.md). |
+| v0.2.0 release image / Compose | [Release run 41768104125](https://github.com/Nunchakus888/right-wake/actions/runs/41768104125) passed on Linux amd64/arm64: actual image build/load, SQLite 3.54.1, non-root UID/GID `10001:10001`, preservation of two original jobs/two drafts, signed loopback receipt, and pending-event persistence across restart/recreation. The real image installer and 18 installer boundary checks also passed on each platform. See [verification](../docs/releases/v0.2.0-verification.md). |
+| Public amd64 archive | The downloaded release archive matched `SHA256SUMS` and GitHub's asset digest. Its `right-wake:0.2.0` tag, `linux/amd64` platform, `10001:10001` user, entrypoint/data directory, and OCI version/title/source/revision labels matched the published source. This was archive inspection; runtime evidence comes from the Linux release jobs above. |
 | Real deployment | Public HTTPS/WSS, provider receipt, offline-local replay, original-thread model continuation, and provider replies require separate authorized integration evidence. |
 
 Repository validation commands are `sh scripts/container-smoke.sh` for the source build, and `sh scripts/compose-smoke.sh right-wake:0.2.0` for an already-built image. The test host needs Docker/Compose and Python 3; the runtime image does not need Python. The release packaging script reuses its native Linux binary, checks the image and Compose behavior, saves the archive, and exercises the real loader against that archive. A passing fixture does not establish a live Codex or provider integration; keep those results separate in [acceptance](../docs/acceptance.md). Earlier release evidence is preserved in the [archive](../docs/archive/README.md).

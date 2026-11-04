@@ -18,7 +18,7 @@ RightWake 以一个原生 Rust 二进制提供 CLI 和 Codex 插件，**内嵌 S
 
 ## 当前状态
 
-**v0.2.0 全面统一 RightWake 命名。** CLI、插件、Skill、服务、数据路径和安装包统一使用 `right-wake` 命名。该版本内嵌 SQLite，面向 macOS / Linux 的 arm64、x86_64 平台，并提供 Linux amd64 / arm64 Docker 部署方式。当前测试与发布证据见 [v0.2.0 验证记录](docs/releases/v0.2.0-verification.md)。
+**[v0.2.0 实验性预览版已发布](https://github.com/Nunchakus888/right-wake/releases/tag/v0.2.0)。** CLI、插件、Skill、服务、数据路径和安装包全面统一为 `right-wake`。四个 macOS / Linux 原生平台均通过 **96 项测试，0 失败、0 忽略**；Linux amd64 / arm64 的 Docker 与 Compose 检查也已通过。安装包内嵌 SQLite 3.54.1，具体运行、发布资产和安装证据见 [v0.2.0 验证记录](docs/releases/v0.2.0-verification.md)。
 
 真实模型续接、桌面并发和平台授权读写仍需分别验收。自动向 Codex 提交工作要求支持的宿主、已落实的独占写入条件与工具权限隔离，详见[宿主兼容性](docs/host-compatibility.md)和[验收记录](docs/acceptance.md)。
 
@@ -30,7 +30,7 @@ RightWake 是独立项目，不是 OpenAI、Linear、GitHub、GitLab 或 Anthrop
 
 **续接本机原会话用原生安装；VPS Relay 用 [Docker + Compose](deploy/README.md)。** 原生安装只需 shell、`curl`、`tar` 和 SHA-256 工具，**无需 Node.js、Python、Docker、Rust 或 sudo**，支持 macOS / glibc Linux 的 arm64 与 x86_64。安装器校验压缩包和版本，安装到 `~/.local/bin`，不自动启动服务。
 
-以下命令固定安装 v0.2.0；下载前可查看[发布状态](docs/releases/v0.2.0-verification.md)：
+安装固定版本 **v0.2.0**：
 
 ```sh
 curl --proto '=https' --tlsv1.2 --fail --location \

@@ -6,14 +6,16 @@
 
 RightWake's ordinary runtime is one Rust binary with bundled SQLite. No separate database service or SQLite command-line installation is needed. It requires no Node.js, Python, Docker, Rust compiler, or elevated installation. The release installer uses system shell tools, `curl`, `tar`, and either `sha256sum` or `shasum`.
 
-The installer is pinned to **v0.2.0**. Validation and publication are tracked in [the current verification report](releases/v0.2.0-verification.md); do not infer package availability from the presence of an installer script.
+The installer is pinned to the published **[v0.2.0 prerelease](https://github.com/Nunchakus888/right-wake/releases/tag/v0.2.0)**. All four native platforms passed **96 tests, 0 failures, 0 ignored**, plus release build and archive/install smoke. [The verification report](releases/v0.2.0-verification.md) records the exact jobs and public installation evidence.
+
+A separate Linux x86_64 check downloaded the public `install.sh` and installed directly from the published assets, without `--from-dir`, into a fresh path containing spaces. The installed 0.2.0 binary passed version/schema, all 11 MCP tools, repeated setup, SQLite 3.54.1 diagnostics, backup, and a signed synthetic two-thread demo. The real GitHub-cached Codex plugin also launched that public binary successfully. These checks used no model or provider credentials.
 
 | Archive target | Build and smoke runner | v0.2.0 validation |
 | --- | --- | --- |
-| `x86_64-unknown-linux-gnu` | Ubuntu 22.04 x86_64 | Pending recorded release evidence; older glibc and musl are not claimed |
-| `aarch64-unknown-linux-gnu` | Ubuntu 22.04 arm64 | Pending recorded release evidence |
-| `x86_64-apple-darwin` | macOS 15 Intel | Pending recorded release evidence; older OS versions are not claimed |
-| `aarch64-apple-darwin` | macOS 15 arm64 | Pending recorded release evidence |
+| `x86_64-unknown-linux-gnu` | Ubuntu 22.04 x86_64 | 96 tests, release build, and install/backup smoke passed; older glibc and musl are not claimed |
+| `aarch64-unknown-linux-gnu` | Ubuntu 22.04 arm64 | 96 tests, release build, and install/backup smoke passed |
+| `x86_64-apple-darwin` | macOS 15 Intel | 96 tests, release build, and install/backup smoke passed; older OS versions are not claimed |
+| `aarch64-apple-darwin` | macOS 15 arm64 | 96 tests, release build, and install/backup smoke passed |
 
 v0.2.0 native artifacts are named `right-wake-v0.2.0-TARGET.tar.gz`. Its `SHA256SUMS` covers four native archives and two Linux Docker image archives. The native installer selects only its matching native archive, then verifies its hash, permitted members, and runnable version before replacing the destination. These checks detect mismatches; checksums hosted with the release are not an independent publisher signature.
 
@@ -36,7 +38,9 @@ Use the native binary beside the local agent whose history you want to continue.
 - `right-wake-v0.2.0-container-linux-amd64.tar.gz`
 - `right-wake-v0.2.0-container-linux-arm64.tar.gz`
 
-The resulting image is tagged `right-wake:0.2.0`. The installer loads the image only; configuration, secrets, volume initialization, and startup are explicit. The supplied Compose service runs `relay serve`, uses a named volume at `/data`, and binds its published port to host loopback for your TLS proxy. No GHCR login or image-registry publication is required. The release workflow attaches both image archives and the deployment files to [v0.2.0](https://github.com/Nunchakus888/right-wake/releases/tag/v0.2.0) after its checks succeed; current publication evidence is recorded separately.
+The resulting image is tagged `right-wake:0.2.0`. The installer loads the image only; configuration, secrets, volume initialization, and startup are explicit. The supplied Compose service runs `relay serve`, uses a named volume at `/data`, and binds its published port to host loopback for your TLS proxy. No GHCR login or image-registry publication is required. Both image archives and deployment files are attached to the published [v0.2.0 release](https://github.com/Nunchakus888/right-wake/releases/tag/v0.2.0). Both Linux platforms passed real image and Compose checks before publication.
+
+After publication, the downloaded amd64 image archive matched both `SHA256SUMS` and GitHub's asset digest. Its tag, architecture, non-root user, entrypoint, environment, and OCI source/revision labels matched the release. This public-download check inspected the archive; actual Docker execution is evidenced by the two Linux release jobs.
 
 The image embeds the same RightWake binary and SQLite library used by the corresponding Linux native release. A separate database container is unnecessary. Cloud receipt does not move local Codex history or execute work while its local host is offline; [deployment choices](deployment.md) explains that boundary.
 

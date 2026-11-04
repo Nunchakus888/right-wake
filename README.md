@@ -18,7 +18,7 @@ Start with [the Codex plugin](#use-from-codex), [Linear setup](docs/linear.md), 
 
 ## Project status
 
-**v0.2.0 uses the complete RightWake namespace.** This version uses `right-wake` consistently across its CLI, plugin, skills, services, state paths, and release packages. It includes bundled SQLite and targets macOS/Linux arm64/x86_64, plus Linux amd64/arm64 Docker deployment. See [v0.2.0 verification](docs/releases/v0.2.0-verification.md) for current test and publication evidence.
+**[v0.2.0 is available as an experimental prerelease](https://github.com/Nunchakus888/right-wake/releases/tag/v0.2.0).** The CLI, plugin, skills, services, state paths, and packages use the complete `right-wake` namespace. Each of the four macOS/Linux native platforms passed **96 tests, 0 failures, 0 ignored**; both Linux Docker/Compose checks also passed. Packages include bundled SQLite 3.54.1. See [v0.2.0 verification](docs/releases/v0.2.0-verification.md) for exact runs, public assets, and installation evidence.
 
 Real model continuation, desktop concurrency, and provider read/write E2E remain separate acceptance work. Automatic Codex dispatch requires a supported host, exclusive writer ownership, and restricted mutation tools; see [host compatibility](docs/host-compatibility.md) and [acceptance](docs/acceptance.md).
 
@@ -30,7 +30,7 @@ The command is `right-wake`; the Codex plugin is `right-wake@right-wake`. v0.2.0
 
 **Use native installation beside your original local agent; use [Docker + Compose](deploy/README.md) for a VPS relay.** Native installation needs a shell, `curl`, `tar`, and a system SHA-256 tool, with **no Node.js, Python, Docker, Rust, or sudo**. It supports macOS and glibc Linux on arm64/x86_64. The installer verifies the archive and version, installs in `~/.local/bin`, and starts no service.
 
-The pinned v0.2.0 installation commands are below; check [publication status](docs/releases/v0.2.0-verification.md) before downloading:
+Install the pinned **v0.2.0** release:
 
 ```sh
 curl --proto '=https' --tlsv1.2 --fail --location \
