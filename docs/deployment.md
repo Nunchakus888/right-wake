@@ -1,10 +1,10 @@
 # Deployment choices and session ownership
 
-Place execution beside the host that owns the existing conversation. A public receiver or relay can run elsewhere, but moving Waking to a VPS does not move a Mac's Codex thread, credentials, worktree, or session history. A thread ID is meaningful only on the host that actually serves it.
+Place execution beside the host that owns the existing conversation. A public receiver or relay can run elsewhere, but moving RightWake to a VPS does not move a Mac's Codex thread, credentials, worktree, or session history. A thread ID is meaningful only on the host that actually serves it.
 
-Recommended starting point: **native Waking on the local computer, Docker + Compose for the VPS relay**. Both include SQLite in the binary, so neither needs a separate database service. The [native installation guide](installation.md) and [container guide](../deploy/README.md) cover the published v0.1.1 packages and explicit setup.
+Recommended starting point: **native RightWake on the local computer, Docker + Compose for the VPS relay**. Both include SQLite in the binary, so neither needs a separate database service. The [native installation guide](installation.md) and [container guide](../deploy/README.md) cover the published v0.1.1 packages and explicit setup.
 
-Waking currently has two host adapters: Codex App Server over an explicitly configured Unix-domain WebSocket, and a trusted fixed executable implementing the GenericCommand JSON contract. It has no implemented or accepted adapter that attaches to an existing managed Codex Cloud task. See the [host compatibility guide](host-compatibility.md) for the exact protocol and remaining real-host validation boundaries.
+RightWake currently has two host adapters: Codex App Server over an explicitly configured Unix-domain WebSocket, and a trusted fixed executable implementing the GenericCommand JSON contract. It has no implemented or accepted adapter that attaches to an existing managed Codex Cloud task. See the [host compatibility guide](host-compatibility.md) for the exact protocol and remaining real-host validation boundaries.
 
 ## Choose the shape
 
@@ -15,17 +15,17 @@ Waking currently has two host adapters: Codex App Server over an explicitly conf
 | Self-hosted cloud VM/container | A persistent receiver or relay deployment behind TLS | An explicitly accessible supported host, with its own persistent state | You own lifecycle, storage, identity, network policy, and session compatibility. A container image alone supplies none of the user's Codex sessions. |
 | Cloud relay plus local worker | Cloud `relay serve` commits webhooks | Local `relay connect` runs the executor beside the original thread | The local machine initiates outbound WSS; admitted events can wait durably while it is offline. |
 
-These are placement choices, not automatic migration or provisioning commands. Waking does not create a tunnel, DNS entry, TLS certificate, Linear webhook, hosted account, Codex login, or replacement thread. For Linear's source setup and exact identifiers, use [the Linear guide](linear.md).
+These are placement choices, not automatic migration or provisioning commands. RightWake does not create a tunnel, DNS entry, TLS certificate, Linear webhook, hosted account, Codex login, or replacement thread. For Linear's source setup and exact identifiers, use [the Linear guide](linear.md).
 
 ## Shared prerequisites
 
-Use a private, persistent data directory for each independently running receiver/worker. A Waking profile contains `config.json`, `state.sqlite3`, raw/normalized deliveries, bindings, jobs, drafts, and receipt state. Native installation defaults to `~/.local/share/waking` when no explicit/XDG directory is set; use `--data-dir` or `WAKING_DATA_DIR` for a deliberate profile. The Compose service mounts a named volume at `/data`, with no additional database container. Use local persistent storage, retain any SQLite WAL/SHM sidecars when making an offline copy, and do not concurrently share one profile between unrelated hosts. The daemon/worker lock prevents `serve`, `relay connect`, and manual dispatch from owning the same profile simultaneously.
+Use a private, persistent data directory for each independently running receiver/worker. A RightWake profile contains `config.json`, `state.sqlite3`, raw/normalized deliveries, bindings, jobs, drafts, and receipt state. Native installation defaults to `~/.local/share/waking` when no explicit/XDG directory is set; use `--data-dir` or `WAKING_DATA_DIR` for a deliberate profile. The Compose service mounts a named volume at `/data`, with no additional database container. Use local persistent storage, retain any SQLite WAL/SHM sidecars when making an offline copy, and do not concurrently share one profile between unrelated hosts. The daemon/worker lock prevents `serve`, `relay connect`, and manual dispatch from owning the same profile simultaneously.
 
 Credential values belong in the launching environment or a private `--env-file`, not in source JSON, URLs, images, or the repository. The file must be private on Unix, such as mode `0600`, and uses plain `NAME=VALUE` entries without shell syntax. Configuration contains environment-variable **names**. Editing the file does not change an existing process's environment; restart that process when values change.
 
-For public receipt, terminate valid HTTPS/WSS at a controlled reverse proxy or ingress. Keep Waking's plain HTTP listener private to that proxy or container network. Forward only the intended `/hooks/<source_id>` and, for relay mode, `/relay/<device_id>` routes. Webhooks need their original body bytes and signature headers; relay connections need WebSocket upgrade and the device Authorization header. Never expose a Codex control socket or bridge management interface as the public webhook endpoint.
+For public receipt, terminate valid HTTPS/WSS at a controlled reverse proxy or ingress. Keep RightWake's plain HTTP listener private to that proxy or container network. Forward only the intended `/hooks/<source_id>` and, for relay mode, `/relay/<device_id>` routes. Webhooks need their original body bytes and signature headers; relay connections need WebSocket upgrade and the device Authorization header. Never expose a Codex control socket or bridge management interface as the public webhook endpoint.
 
-Receiving credentials and external-write authority are separate. Protect both Waking state and its trusted configuration from the automatically executing agent, and keep the independent approval private key outside that boundary. The `--exclusive-writer` and `--restricted-tools` host flags record prerequisites; they do not create those isolation properties. See [host requirements](host-compatibility.md#tool-isolation-is-a-separate-deployment-requirement) and [reply approval](approvals.md).
+Receiving credentials and external-write authority are separate. Protect both RightWake state and its trusted configuration from the automatically executing agent, and keep the independent approval private key outside that boundary. The `--exclusive-writer` and `--restricted-tools` host flags record prerequisites; they do not create those isolation properties. See [host requirements](host-compatibility.md#tool-isolation-is-a-separate-deployment-requirement) and [reply approval](approvals.md).
 
 ## Local receiver with an HTTPS tunnel
 
@@ -37,7 +37,7 @@ waking --data-dir /absolute/path/to/local-waking \
   serve --listen 127.0.0.1:7433
 ```
 
-Point your existing tunnel or reverse proxy's public HTTPS URL at this listener and register the public `/hooks/<source_id>` URL with the provider. Do not put `localhost` into Linear's webhook URL. This shape is useful for an online trial or an always-on local machine. If the computer or tunnel is offline, Waking cannot receive the request; provider delivery/retry behavior is then the only upstream protection. Add a durable relay when offline local periods must be covered.
+Point your existing tunnel or reverse proxy's public HTTPS URL at this listener and register the public `/hooks/<source_id>` URL with the provider. Do not put `localhost` into Linear's webhook URL. This shape is useful for an online trial or an always-on local machine. If the computer or tunnel is offline, RightWake cannot receive the request; provider delivery/retry behavior is then the only upstream protection. Add a durable relay when offline local periods must be covered.
 
 The native helper can supervise this direct receiver on a supported logged-in Linux/macOS user session:
 
@@ -54,7 +54,7 @@ The built-in service definition always starts `serve`. It does not launch Codex 
 
 Install the native binary on the VPS, create its private profile, and configure the provider source there. The signing secret must be available to that VPS receiver. The selected App Server, original thread history, authenticated Codex environment, and original worktree must also be present on that VPS and available through the explicit private Unix WebSocket endpoint.
 
-The Waking command remains ordinary `serve`:
+The RightWake command remains ordinary `serve`:
 
 ```sh
 waking --data-dir /absolute/path/to/vps-waking \
@@ -72,7 +72,7 @@ A long-running VM, persistent Linux container deployment, or orchestrated servic
 
 The [Docker + Compose path](../deploy/README.md) loads a checksummed amd64/arm64 image from a published GitHub Release. It runs as UID/GID `10001`, persists state in the Compose project's `waking-data` volume mounted at `/data`, and uses `private.env` for process credentials. The Compose service defaults to `relay serve --listen 0.0.0.0:7433`, publishes `127.0.0.1:7433`, and uses `pull_policy: never` with the explicitly loaded `waking:0.1.1` image. The installer does not start the service or create secrets.
 
-Follow the container guide to initialize the volume, configure the source/device, and start the service. Run management commands as `docker compose run --rm waking ...` in that same Compose project. The native `--data-dir` examples below do not populate a Docker volume; do not accidentally configure a host-side profile and then start an empty container profile. Keep the same project identity during upgrades. Docker Compose's `env_file` supplies process variables; it is separate from passing Waking's own `--env-file` argument.
+Follow the container guide to initialize the volume, configure the source/device, and start the service. Run management commands as `docker compose run --rm waking ...` in that same Compose project. The native `--data-dir` examples below do not populate a Docker volume; do not accidentally configure a host-side profile and then start an empty container profile. Keep the same project identity during upgrades. Docker Compose's `env_file` supplies process variables; it is separate from passing RightWake's own `--env-file` argument.
 
 ### Accessing a host's Codex socket from a container
 
@@ -82,9 +82,9 @@ On Docker Desktop, a macOS host and a Linux container do not share one kernel. D
 
 ### Verified container evidence
 
-[Container smoke run 41619362708](https://github.com/Nunchakus888/waking/actions/runs/41619362708) succeeded for commit [`52dff8a4fd2522c793ef2b6bc709d561922f4790`](https://github.com/Nunchakus888/waking/commit/52dff8a4fd2522c793ef2b6bc709d561922f4790). It built the image, ran the explicit synthetic demo, started the real receiver, and preserved the original two completed job records and two unsent drafts across restart and container replacement with the same volume.
+[Container smoke run 41619362708](https://github.com/Nunchakus888/right-wake/actions/runs/41619362708) succeeded for commit [`52dff8a4fd2522c793ef2b6bc709d561922f4790`](https://github.com/Nunchakus888/right-wake/commit/52dff8a4fd2522c793ef2b6bc709d561922f4790). It built the image, ran the explicit synthetic demo, started the real receiver, and preserved the original two completed job records and two unsent drafts across restart and container replacement with the same volume.
 
-The [v0.1.1 release run](https://github.com/Nunchakus888/waking/actions/runs/41634516676) also passed actual image build/load and Compose checks on Linux amd64 and arm64. It verified SQLite 3.54.1, original jobs/drafts, and a pending synthetic event across restart and container replacement. See [verification](releases/v0.1.1-verification.md) for the exact evidence. These local container checks did not use a real Codex model, provider write, public webhook, or public relay connection.
+The [v0.1.1 release run](https://github.com/Nunchakus888/right-wake/actions/runs/41634516676) also passed actual image build/load and Compose checks on Linux amd64 and arm64. It verified SQLite 3.54.1, original jobs/drafts, and a pending synthetic event across restart and container replacement. See [verification](releases/v0.1.1-verification.md) for the exact evidence. These local container checks did not use a real Codex model, provider write, public webhook, or public relay connection.
 
 ## Cloud relay plus local worker
 
@@ -200,12 +200,12 @@ Keep these receipts distinct:
 | Device `executed` | A successful terminal local job was recorded; no publication is implied. |
 | Provider `sent` result | The separate approved outbound action was confirmed by the provider. |
 
-Offline retention covers events the running relay actually admitted while storage was available. Queue/storage limits are bounded; a full or unavailable store rejects admission instead of acknowledging lost work. Backups do not prune the queue. Maintain capacity and retain the relay's persistent directory/volume across restarts. If the relay itself is offline, Waking has not received the delivery and cannot promise to retain it.
+Offline retention covers events the running relay actually admitted while storage was available. Queue/storage limits are bounded; a full or unavailable store rejects admission instead of acknowledging lost work. Backups do not prune the queue. Maintain capacity and retain the relay's persistent directory/volume across restarts. If the relay itself is offline, RightWake has not received the delivery and cannot promise to retain it.
 
 A timeout after possible model or provider acceptance produces `unknown`, which requires reconciliation rather than blind resubmission. The protocol does not promise global exactly-once execution or external publication. See [relay delivery and recovery](relay-protocol.md) and [states](states.md).
 
 ## Managed Codex Cloud is a separate integration question
 
-[Codex Cloud environment documentation](https://learn.chatgpt.com/docs/environments/cloud-environments) describes its managed task environment and lifecycle. Installing a CLI or starting a process inside such a task does not establish a supported 24/7 public Waking receiver, durable relay operation, or the ability to resume an arbitrary existing managed cloud task from Waking.
+[Codex Cloud environment documentation](https://learn.chatgpt.com/docs/environments/cloud-environments) describes its managed task environment and lifecycle. Installing a CLI or starting a process inside such a task does not establish a supported 24/7 public RightWake receiver, durable relay operation, or the ability to resume an arbitrary existing managed cloud task from RightWake.
 
 This release has no managed Codex Cloud adapter or acceptance result for that continuation path. It does not automatically fall back from a local thread to a cloud task, and it does not migrate a local thread merely because a receiver is cloud-hosted. A future cloud adapter needs its own public task/session addressing, authorization, event delivery, lifecycle, completion, and recovery contract. Until then, use an implemented host adapter on the host that actually owns the original thread, and complete its target-machine acceptance checks before relying on automatic continuation.

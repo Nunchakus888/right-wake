@@ -2,7 +2,7 @@
 
 ## Implemented contract
 
-Waking connects to an **explicit existing Unix socket**, using the WebSocket
+RightWake connects to an **explicit existing Unix socket**, using the WebSocket
 HTTP Upgrade handshake described by the Codex App Server protocol. It sends
 `initialize`, then `initialized`, and retains one connection for RPC replies and
 notifications. It does not launch Codex, start a daemon, discover private session
@@ -65,7 +65,7 @@ validated; this implementation does not silently fall back to that command.
 
 An explicitly owned, dedicated routing thread can use this adapter. It is a
 persistent conversation, not an endlessly running model: external events cause
-new turns, and idle periods cause no turn submissions. Waking does not activate
+new turns, and idle periods cause no turn submissions. RightWake does not activate
 Codex goals to simulate a daemon.
 
 ## Tool isolation is a separate deployment requirement
@@ -74,7 +74,7 @@ An exclusive writer does not stop an existing thread from invoking a previously
 enabled remote write tool. The application's separate `restricted_tools` host
 gate defaults to false. Setting it is an operator assertion that an actual tool
 and credential boundary has been established and tested; it is not proof that
-Waking dynamically restricts the thread's tools.
+RightWake dynamically restricts the thread's tools.
 
 The stable schema generated from Codex CLI 0.166.0 has no per-turn MCP tool
 allowlist. `disabledPluginIds` changes the thread's disabled-plugin list;
@@ -103,7 +103,7 @@ reported separately.
 
 An acceptance timeout, connection loss, notification overflow, protocol mismatch
 after submission, or missing completion returns `unknown`. Where available the
-turn ID is included. Waking does not retry or interrupt that turn automatically:
+turn ID is included. RightWake does not retry or interrupt that turn automatically:
 the host may still be executing it. The caller must persist this state and
 reconcile stored history before deciding whether another submission is safe.
 The dispatch ID in tool output supports reconciliation but is not a server-side
@@ -127,7 +127,7 @@ with a literal argument vector. One JSON request is written to stdin; external
 event content is never substituted into a command string or argument. The
 configured program is trusted executable code, not a sandbox. It must honor the
 same existing-thread and approval contract. An administrator can explicitly
-configure an interpreter, but Waking itself never selects one automatically.
+configure an interpreter, but RightWake itself never selects one automatically.
 
 The optional host-level `cwd` must be an absolute path to an existing directory.
 When configured, every child process starts in that directory. If omitted, it

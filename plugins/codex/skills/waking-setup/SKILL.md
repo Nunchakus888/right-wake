@@ -1,9 +1,9 @@
 ---
 name: waking-setup
-description: Install and configure Waking for event-driven continuation of an existing Codex work thread, including Linear webhook onboarding. Use for one-invocation setup, connecting an issue, reusing existing MCP access, configuring a receiver or local host, diagnosing setup, or resuming an incomplete installation.
+description: Install and configure RightWake for event-driven continuation of an existing Codex work thread, including Linear webhook onboarding. Use for one-invocation setup, connecting an issue, reusing existing MCP access, configuring a receiver or local host, diagnosing setup, or resuming an incomplete installation.
 ---
 
-# Waking setup
+# RightWake setup
 
 Carry the user's setup request through discovery, configuration, startup, and verification. Reuse available authorization and concrete choices; do not ask the user to run a checklist or reconfirm already-authorized steps. Complete independent work before requesting the smallest genuinely missing input. Keep replies as local drafts.
 

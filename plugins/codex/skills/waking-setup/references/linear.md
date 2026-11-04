@@ -1,6 +1,6 @@
 # Linear onboarding
 
-Use this reference with `waking-setup` in a local Agent that can run the native CLI. The Waking MCP management tools alone do not install services, add sources/hosts, or register provider webhooks. Reuse the user's existing Linear connection within its actual capabilities.
+Use this reference with `waking-setup` in a local Agent that can run the native CLI. The RightWake MCP management tools alone do not install services, add sources/hosts, or register provider webhooks. Reuse the user's existing Linear connection within its actual capabilities.
 
 ## Discover before asking
 
@@ -28,15 +28,15 @@ query WakingIdentity($issue: String!) {
 }
 ```
 
-Use the true organization UUID as Waking's tenant. The canonical issue key is `linear:https://linear.app:ORGANIZATION_UUID:ISSUE_UUID`; the provider origin stays `https://linear.app` even when the receiver uses another domain. Limit a new source to the requested issue or explicitly authorized broader scope. An empty `allowed_resources` list allows the tenant's supported resources; it is not a disabled source.
+Use the true organization UUID as RightWake's tenant. The canonical issue key is `linear:https://linear.app:ORGANIZATION_UUID:ISSUE_UUID`; the provider origin stays `https://linear.app` even when the receiver uses another domain. Limit a new source to the requested issue or explicitly authorized broader scope. An empty `allowed_resources` list allows the tenant's supported resources; it is not a disabled source.
 
 ## Choose the existing deployment
 
-**Direct local receiver:** reuse a public HTTPS route to the local receiver, normally `127.0.0.1:7433`. The public webhook path must be `/hooks/SOURCE_ID`. Check that the proxy preserves raw request bytes and `Linear-Signature` / `Linear-Delivery` headers. Starting Waking alone does not create a public URL.
+**Direct local receiver:** reuse a public HTTPS route to the local receiver, normally `127.0.0.1:7433`. The public webhook path must be `/hooks/SOURCE_ID`. Check that the proxy preserves raw request bytes and `Linear-Signature` / `Linear-Delivery` headers. Starting RightWake alone does not create a public URL.
 
 **Cloud relay plus local worker:** keep two distinct profiles. Register the provider webhook and signing secret at the cloud receiver; configure the local source with the same provider/organization identity and matching or narrower resource scope. The local worker uses its own host, exact thread binding, and authorized device token for outbound WSS. A relay-only local worker need not hold the provider signing-secret value, although its source still declares the `secret_env` field. Reuse the selected relay/device; do not create an unrelated hosted account or move local session history into the cloud.
 
-If deployment infrastructure is missing, complete independent installation/discovery and report `public_endpoint_required` or `relay_access_required`. Provision an already-authorized tunnel/proxy/VPS when the available tools and scope support it. Do not pick a paid provider or an unowned URL automatically. For full operator details, use the [published deployment guide](https://github.com/Nunchakus888/waking/blob/v0.1.1/docs/deployment.md).
+If deployment infrastructure is missing, complete independent installation/discovery and report `public_endpoint_required` or `relay_access_required`. Provision an already-authorized tunnel/proxy/VPS when the available tools and scope support it. Do not pick a paid provider or an unowned URL automatically. For full operator details, use the [published deployment guide](https://github.com/Nunchakus888/right-wake/blob/v0.1.1/docs/deployment.md).
 
 ## Preserve local configuration
 
@@ -47,7 +47,7 @@ Read `source list`, `host list`, `bindings`, and status with `--json` in the cho
 3. When changing an existing source is necessary, retain the full object, modify only requested fields, and pass a private JSON file to `source add --file`. Re-read state if another writer changed it. Do not use `sed`/`awk` to patch JSON or rebuild an existing source from minimal flags.
 4. Reuse a supported host/socket in the owning environment. For a new host, register it for inspection first, then run `doctor --probe` and paginate `host threads`. Inspect `codex app-server --help` if an explicitly authorized owning App Server must be started; use that installed version's supported Unix-domain WebSocket. Do not guess a Desktop socket or launch a substitute host with no access to the original thread.
 5. Verify the exact existing work thread and its worktree through that host. A UUID-shaped string and a successful handshake are insufficient. For an explicit request to attach the current original work conversation, trusted `waking_identity` metadata may supply the ID; null identity or an onboarding-only conversation requires another source of exact identity.
-6. Establish actual exclusive writer ownership and restricted mutation tools before setting their host declarations. A writable Linear MCP connected to an automatic execution host may bypass Waking's draft approval. Inspect the actual deployment; preserve the user's MCP configuration and report `host_prerequisites_missing` when conditions are not established. Do not invent a new history/thread to resolve this.
+6. Establish actual exclusive writer ownership and restricted mutation tools before setting their host declarations. A writable Linear MCP connected to an automatic execution host may bypass RightWake's draft approval. Inspect the actual deployment; preserve the user's MCP configuration and report `host_prerequisites_missing` when conditions are not established. Do not invent a new history/thread to resolve this.
 7. Reuse an enabled exact binding. For an absent binding, use `--expected-version 0`; for an explicitly authorized rebind, use the current version and preserve the requested scope. Read it back. Preserve a target that is busy/offline; do not route it elsewhere.
 
 Keep CLI and MCP pointed at the same local worker profile. Source/host creation, binding, and provider webhook registration are separate operations; retain completed work when a later operation is blocked.
@@ -68,7 +68,7 @@ For a management-capable API path:
 
 At the schema checked on 2026-11-03, `WebhookUpdateInput` supports URL, resource types, label, enabled state and secret, but **not team scope**. Do not silently replace a webhook or treat a team change as an ordinary update. Keep unmatched registrations untouched and report a precise conflict.
 
-The native Waking binary does not implement this provider registration itself; the skill must actually use an available authorized management client. If none exists, return `webhook_management_unavailable` or `webhook_admin_required`, naming the already-finished local steps and the one missing capability. Re-authenticating an ordinary MCP connection is not guaranteed to grant it.
+The native RightWake binary does not implement this provider registration itself; the skill must actually use an available authorized management client. If none exists, return `webhook_management_unavailable` or `webhook_admin_required`, naming the already-finished local steps and the one missing capability. Re-authenticating an ordinary MCP connection is not guaranteed to grant it.
 
 ## Start and verify without posting a message
 
@@ -82,7 +82,7 @@ Keep the report staged:
 | Host readiness | Supported transport, original thread exists, actual ownership/tool prerequisites |
 | Registration | Provider returned/read-back webhook ID, exact scope/URL, enabled state; secret stored privately |
 | Receiver/worker running | Correct command/profile/environment and actual process/service status |
-| Real receipt | Authentic in-scope Linear delivery committed by Waking, with its delivery/event ID |
+| Real receipt | Authentic in-scope Linear delivery committed by RightWake, with its delivery/event ID |
 | Same-thread completion | That event's job used the intended host/thread and reached a successful terminal state, with dispatch/turn evidence |
 
 `doctor` deliberately does not prove public delivery or model execution. A local synthetic test remains synthetic; use a disposable profile and avoid real host dispatch. Webhook registration alone is not delivery evidence. Do not claim a public webhook test/replay API unless the current exposed contract actually provides one; the checked public schema supplies no such mutation.
@@ -97,4 +97,4 @@ Return exact completed stages and blockers, not a generic "all connected". One t
 - [Linear webhook permissions, endpoint and API requirements](https://linear.app/developers/webhooks)
 - [Official webhook creation example, including a returned secret](https://github.com/linear/linear-solutions/blob/main/integration_guides/scenarios/03-webhooks/README.md)
 - [Checked official GraphQL schema](https://github.com/linear/linear/blob/3ce13b6f334da16399ffc6c53c73a73366f728d6/packages/sdk/src/schema.graphql)
-- [Waking's detailed Linear guide](https://github.com/Nunchakus888/waking/blob/main/docs/linear.md)
+- [RightWake's detailed Linear guide](https://github.com/Nunchakus888/right-wake/blob/main/docs/linear.md)

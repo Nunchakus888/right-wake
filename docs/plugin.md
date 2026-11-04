@@ -2,12 +2,14 @@
 
 The repository marketplace is `.agents/plugins/marketplace.json`. Its source path `./plugins/codex` is relative to the repository root. The plugin uses the portable `plugin.json` and `mcp.json` format with OpenAI-specific onboarding metadata under `extensions.com.openai`.
 
+The display name is **RightWake**. Its marketplace and plugin identifiers remain `waking`, so installation uses `waking@waking`:
+
 ```sh
-codex plugin marketplace add https://github.com/Nunchakus888/waking
+codex plugin marketplace add https://github.com/Nunchakus888/right-wake
 codex plugin add waking@waking --json
 ```
 
-In a compatible local Codex host, open `/plugins` and install Waking. The package has three concise skills:
+In a compatible local Codex host, open `/plugins` and install RightWake. The package has three concise skills:
 
 | Skill | Purpose |
 | --- | --- |
@@ -27,7 +29,7 @@ codex plugin add waking@waking --json
 codex plugin list --marketplace waking --json
 ```
 
-This sequence was verified with official Codex CLI **0.166.0**, using an isolated existing installation and the real GitHub URL. Inspect the returned marketplace errors and installed/enabled state; the install result identifies the actual cached package. Do not assume an old cache updates merely because the repository changed. An unfamiliar host version should first be checked with its `--help` rather than substituting an invented update command. Updating this skill does not require reinstalling the Waking native binary, changing its profile, or re-authorizing Linear.
+This sequence was verified with official Codex CLI **0.166.0**, using an isolated existing installation and the real GitHub URL. Inspect the returned marketplace errors and installed/enabled state; the install result identifies the actual cached package. Do not assume an old cache updates merely because the repository changed. An unfamiliar host version should first be checked with its `--help` rather than substituting an invented update command. Updating this skill does not require reinstalling the RightWake native binary, changing its profile, or re-authorizing Linear.
 
 ## Agent-led Linear setup
 
@@ -84,13 +86,13 @@ env -i PATH="$PATH" LANG=C.UTF-8 \
   codex plugin list --marketplace waking --json
 ```
 
-Separately, the **cached package's** `scripts/mcp.sh` launched the real Waking 0.1.0 binary with an isolated data directory. MCP initialization, listing 11 tools, `waking_setup`, and `waking_status` passed. This was a direct cached-launcher protocol check; it did not involve a Codex model invoking a tool.
+Separately, the **cached package's** `scripts/mcp.sh` launched the real RightWake 0.1.0 binary with an isolated data directory. MCP initialization, listing 11 tools, `waking_setup`, and `waking_status` passed. This was a direct cached-launcher protocol check; it did not involve a Codex model invoking a tool.
 
-A second fresh isolated profile successfully installed the real Git marketplace URL `https://github.com/Nunchakus888/waking` at commit `a9e8f2878dc4f82bb5a9f320b2c0a4b49fb9934d`. The official CLI reported `marketplaceSource.sourceType: git`, `installed: true`, and `enabled: true`. All three cached skills were present. The cached launcher again passed MCP initialization, 11 tools, setup, and status using the local 0.1.0 release binary. Standard existing proxy and CA variables were preserved for network transport; no API credential or login was inherited.
+Before the repository rename, a second fresh isolated profile successfully installed this repository from its real Git marketplace at commit `a9e8f2878dc4f82bb5a9f320b2c0a4b49fb9934d`. The official CLI reported `marketplaceSource.sourceType: git`, `installed: true`, and `enabled: true`. All three cached skills were present. The cached launcher again passed MCP initialization, 11 tools, setup, and status using the local 0.1.0 release binary. Standard existing proxy and CA variables were preserved for network transport; no API credential or login was inherited.
 
 ### Recorded same-version Linear skill update
 
-On 2026-11-03, official Codex CLI **0.166.0** installed the real GitHub marketplace at `a4fe87f145b4745357f1846a8a0272e4bf298f81` in a separate credential-free profile, then refreshed it to [`e9c656d37446674a85d0cb4f143de40681ba16c4`](https://github.com/Nunchakus888/waking/commit/e9c656d37446674a85d0cb4f143de40681ba16c4) with the commands above. The plugin manifest and native installer remained **0.1.1** throughout. The upgrade returned `errors: []`; the subsequent add/list reported installed and enabled. No model, MCP server, provider request, user profile, or native reinstall was involved in this update probe.
+On 2026-11-03, official Codex CLI **0.166.0** installed the real GitHub marketplace at `a4fe87f145b4745357f1846a8a0272e4bf298f81` in a separate credential-free profile, then refreshed it to [`e9c656d37446674a85d0cb4f143de40681ba16c4`](https://github.com/Nunchakus888/right-wake/commit/e9c656d37446674a85d0cb4f143de40681ba16c4) with the commands above. The plugin manifest and native installer remained **0.1.1** throughout. The upgrade returned `errors: []`; the subsequent add/list reported installed and enabled. No model, MCP server, provider request, user profile, or native reinstall was involved in this update probe.
 
 In this actual run, `marketplace upgrade` already refreshed the installed cache; `plugin add` succeeded and retained the new content. The old setup skill hash was `9c6f14f1181b7445f6d4758b8391b507e26f4bfda5878625fdd1a08aabebd4e3`, with no Linear reference. After both operations, the cache matched the source:
 

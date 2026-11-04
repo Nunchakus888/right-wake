@@ -1,29 +1,31 @@
-# Waking
+# RightWake
 
-**Wake the right thread. 把事件送回正确的工作会话。**
+**Wake the right thread, right away. 及时唤醒正确的工作会话。**
 
 [English](README.md)
 
-Waking 在工作事件到来时，唤醒正确的**已有 Agent 会话**。把 Linear、GitHub、GitLab 中的新讨论送回正在负责这项工作的会话，让后续工作沿着原有上下文继续。
+RightWake 在工作事件到来时，唤醒正确的**已有 Agent 会话**。把 Linear、GitHub、GitLab 中的新讨论送回正在负责这项工作的会话，让后续工作沿着原有上下文继续。
 
-- **有事件才唤醒，减少无效 token 消耗。** 由 Webhook 触发工作；空闲且没有待处理任务时，Waking 不调用模型，不做定时模型轮询。
+- **有事件才唤醒，减少无效 token 消耗。** 由 Webhook 触发工作；空闲且没有待处理任务时，RightWake 不调用模型，不做定时模型轮询。
 - **把事件归到对应会话。** 优先复用讨论级、Issue 级归属绑定；归属未知时，可由事件触发语义路由，比较权限范围内的上下文卡片，推荐一个已有会话供一次性认领。
 - **续接原工作上下文。** 始终定位同一个 Host 和 Thread，通过支持的宿主继续其保留的原始历史。上下文卡片帮助找到目标，工作仍在原会话中继续，不自动另开替代会话。
 - **支持本地与自己的云端服务器。** 可以在本机执行、在 VPS 上执行，或让云端 Relay 在线接收事件，本机恢复在线后继续原工作。
 
-Waking 以一个原生 Rust 二进制提供 CLI 和 Codex 插件，**内嵌 SQLite，无需另装数据库服务**。归属绑定持久记录 **工作对象 → Host → Thread**，切换窗口不会改变目标。宿主忙碌、暂停或离线时保留队列，归属不明时等待认领；对外回复默认是草稿，经独立审批后才能发送。
+RightWake 以一个原生 Rust 二进制提供 CLI 和 Codex 插件，**内嵌 SQLite，无需另装数据库服务**。归属绑定持久记录 **工作对象 → Host → Thread**，切换窗口不会改变目标。宿主忙碌、暂停或离线时保留队列，归属不明时等待认领；对外回复默认是草稿，经独立审批后才能发送。
 
 从 [Codex 插件](#在-codex-中使用)、[Linear 接入](docs/linear.md)或[部署说明](docs/deployment.md)开始。
 
 ## 当前状态
 
-**[v0.1.1 实验性预览版已发布](https://github.com/Nunchakus888/waking/releases/tag/v0.1.1)。** 包含内嵌 SQLite 3.54.1、四个平台的原生安装包，以及 Linux amd64/arm64 Docker 镜像和 Compose 配置。每个原生平台均通过 **94 项测试，0 失败、0 忽略**；两个 Linux 平台的真实 Docker/Compose 检查也已通过。具体运行证据见[验证记录](docs/releases/v0.1.1-verification.md)，真实平台集成边界仍见[验收记录](docs/acceptance.md)。
+**[v0.1.1 实验性预览版已发布](https://github.com/Nunchakus888/right-wake/releases/tag/v0.1.1)。** 包含内嵌 SQLite 3.54.1、四个平台的原生安装包，以及 Linux amd64/arm64 Docker 镜像和 Compose 配置。每个原生平台均通过 **94 项测试，0 失败、0 忽略**；两个 Linux 平台的真实 Docker/Compose 检查也已通过。具体运行证据见[验证记录](docs/releases/v0.1.1-verification.md)，真实平台集成边界仍见[验收记录](docs/acceptance.md)。
 
 已记录的 v0.1.0 验证中，官方 **Codex CLI 0.166.0** 通过了无模型宿主探测，以及隔离空配置中的本地仓库和**真实 GitHub marketplace URL** 插件安装；缓存 MCP 的启动、工具发现、setup 和 status 也已通过。真实模型续接、桌面并发和平台授权读写仍需分别验收。自动向 Codex 提交工作要求支持的宿主、已落实的独占写入条件与工具权限隔离，详见[宿主兼容性](docs/host-compatibility.md)。
 
-Waking 是独立项目，不是 OpenAI、Linear、GitHub、GitLab 或 Anthropic 的官方产品。
+RightWake 是独立项目，不是 OpenAI、Linear、GitHub、GitLab 或 Anthropic 的官方产品。
 
 ## 安装
+
+当前 v0.1.x 安装包继续使用 `waking` 命令、`waking@waking` 插件标识和 `$waking-setup` 等技能名，已有配置与数据目录可直接沿用。
 
 **续接本机原会话用原生安装；VPS Relay 用 [Docker + Compose](deploy/README.md)。** 原生安装只需 shell、`curl`、`tar` 和 SHA-256 工具，**无需 Node.js、Python、Docker、Rust 或 sudo**，支持 macOS / glibc Linux 的 arm64 与 x86_64。安装器校验压缩包和版本，安装到 `~/.local/bin`，不自动启动服务。
 
@@ -32,7 +34,7 @@ Waking 是独立项目，不是 OpenAI、Linear、GitHub、GitLab 或 Anthropic 
 ```sh
 curl --proto '=https' --tlsv1.2 --fail --location \
   --output waking-install.sh \
-  https://github.com/Nunchakus888/waking/releases/download/v0.1.1/install.sh
+  https://github.com/Nunchakus888/right-wake/releases/download/v0.1.1/install.sh
 # 查看下载的安装脚本后执行。
 sh waking-install.sh --version v0.1.1
 export PATH="$HOME/.local/bin:$PATH"
@@ -57,13 +59,13 @@ waking --json doctor
 添加仓库 marketplace：
 
 ```sh
-codex plugin marketplace add https://github.com/Nunchakus888/waking
+codex plugin marketplace add https://github.com/Nunchakus888/right-wake
 codex plugin add waking@waking --json
 ```
 
-也可以在支持该插件格式的本地 Codex 中通过 `/plugins` 安装 **Waking**。接入 Linear 时，在**准备续接的本地已有工作会话**中调用，把示例 Issue 替换成真实对象：
+也可以在支持该插件格式的本地 Codex 中通过 `/plugins` 安装 **RightWake**。接入 Linear 时，在**准备续接的本地已有工作会话**中调用，把示例 Issue 替换成真实对象：
 
-> 使用 $waking-setup 安装并配置 Waking，把 Linear 的 ENG-123 绑定到当前这个已有工作会话。复用已授权连接和现有配置，启动所需的本地接收服务，逐步验证。默认只生成草稿；遇到确实缺失的条件再告诉我。
+> 使用 $waking-setup 安装并配置 RightWake，把 Linear 的 ENG-123 绑定到当前这个已有工作会话。复用已授权连接和现有配置，启动所需的本地接收服务，逐步验证。默认只生成草稿；遇到确实缺失的条件再告诉我。
 
 现有 setup 技能已包含 [Linear 配置流程](docs/linear.md#agent-led-setup)：发现可复用条件、安装、配置并检查结果。权限、接收入口与准确的 Host/Thread 齐备时，Agent 可在一次调用中推进；首次登录、缺少公网入口或归属不明时，才需要一次有具体原因的交互。
 
@@ -83,7 +85,7 @@ waking --json demo
 
 最小闭环需要一个合法事件源、一个可访问的事件接收入口、一个可安全续接的执行 Host，以及一个指向该 Host 已有工作会话的显式绑定。
 
-**已经连接 Linear MCP？** 这提供的是访问 Linear 的工具能力。Waking 仍需要单独配置签名 Webhook、可达的接收入口、事件源和 Thread 绑定；连接 MCP 本身不会建立这条事件投递链路。具体步骤见 [Linear 接入说明](docs/linear.md)。
+**已经连接 Linear MCP？** 这提供的是访问 Linear 的工具能力。RightWake 仍需要单独配置签名 Webhook、可达的接收入口、事件源和 Thread 绑定；连接 MCP 本身不会建立这条事件投递链路。具体步骤见 [Linear 接入说明](docs/linear.md)。
 
 ```sh
 waking --json schema
@@ -129,7 +131,7 @@ sh scripts/smoke.sh target/debug/waking
 python3 scripts/check-plugin.py
 ```
 
-Python 用于仓库与发布检查，以及独立审阅设备上的可选工具，不是已安装 Waking 的运行时依赖。Rust 工具链固定在 [rust-toolchain.toml](rust-toolchain.toml)。日常 CI 只跑 Linux；本仓库 main 的成功 CI 会为尚未发布的版本运行四平台原生验证并发布预览版，已发布版本跳过该矩阵。仍支持 tag 和手动 release，具体保护条件见[发布流程](docs/installation.md#release-process)。
+Python 用于仓库与发布检查，以及独立审阅设备上的可选工具，不是已安装 RightWake 的运行时依赖。Rust 工具链固定在 [rust-toolchain.toml](rust-toolchain.toml)。日常 CI 只跑 Linux；本仓库 main 的成功 CI 会为尚未发布的版本运行四平台原生验证并发布预览版，已发布版本跳过该矩阵。仍支持 tag 和手动 release，具体保护条件见[发布流程](docs/installation.md#release-process)。
 
 ## 文档与许可
 

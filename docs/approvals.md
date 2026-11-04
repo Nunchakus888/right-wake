@@ -1,8 +1,8 @@
 # Independently approve one exact reply
 
-Waking creates drafts by default. Sending a draft requires an Ed25519 signature from an independent reviewer. This guide provides a manual, usable approval path for v0.1.0; there is no approval button exposed to the worker or its agent.
+RightWake creates drafts by default. Sending a draft requires an Ed25519 signature from an independent reviewer. This guide provides a manual, usable approval path for v0.1.0; there is no approval button exposed to the worker or its agent.
 
-The Waking service remains a native binary with no Python dependency. The optional [review-prepare.py](../scripts/review-prepare.py) utility uses only Python 3's standard library **on a separate Linux/macOS reviewer device**. The signing commands below require OpenSSL 3. Check `openssl version`; the system `openssl` on some machines may be a different implementation.
+The RightWake service remains a native binary with no Python dependency. The optional [review-prepare.py](../scripts/review-prepare.py) utility uses only Python 3's standard library **on a separate Linux/macOS reviewer device**. The signing commands below require OpenSSL 3. Check `openssl version`; the system `openssl` on some machines may be a different implementation.
 
 The private key and its passphrase must never enter the worker, agent filesystem, environment, repository, or chat. The reviewer runs the signing commands personally on their trusted device. The prepare utility never reads a key, signs, contacts a provider, or sends a reply.
 
@@ -20,7 +20,7 @@ openssl pkey -in reviewer-private.pem -pubout -out reviewer-public.pem
 openssl pkey -pubin -in reviewer-public.pem -outform DER -out reviewer-public.der
 ```
 
-Waking expects standard base64 of the **32 raw public-key bytes**, rather than base64 of a PEM or complete DER file. This extraction checks the Ed25519 SubjectPublicKeyInfo prefix and length before writing the public value:
+RightWake expects standard base64 of the **32 raw public-key bytes**, rather than base64 of a PEM or complete DER file. This extraction checks the Ed25519 SubjectPublicKeyInfo prefix and length before writing the public value:
 
 ```sh
 python3 - <<'PY'
@@ -38,11 +38,11 @@ print(value)
 PY
 ```
 
-Keep an encrypted backup of the private key under the reviewer's control. Only the public value is transferred to the Waking operator. The command formats follow OpenSSL's [genpkey](https://docs.openssl.org/3.0/man1/openssl-genpkey/) and [pkey](https://docs.openssl.org/3.0/man1/openssl-pkey/) documentation; the Ed25519 public-key encoding is specified in [RFC 8410](https://www.rfc-editor.org/rfc/rfc8410.html#section-10.1).
+Keep an encrypted backup of the private key under the reviewer's control. Only the public value is transferred to the RightWake operator. The command formats follow OpenSSL's [genpkey](https://docs.openssl.org/3.0/man1/openssl-genpkey/) and [pkey](https://docs.openssl.org/3.0/man1/openssl-pkey/) documentation; the Ed25519 public-key encoding is specified in [RFC 8410](https://www.rfc-editor.org/rfc/rfc8410.html#section-10.1).
 
 ## 2. Configure the public key and sending identity
 
-On the Waking machine, the trusted operator obtains the existing source configuration with `waking --json source list`, copies the relevant source object into a separate `source.json`, and adds these fields while preserving its existing tenant, triggers, scope, and other settings:
+On the RightWake machine, the trusted operator obtains the existing source configuration with `waking --json source list`, copies the relevant source object into a separate `source.json`, and adds these fields while preserving its existing tenant, triggers, scope, and other settings:
 
 ```json
 {
@@ -52,7 +52,7 @@ On the Waking machine, the trusted operator obtains the existing source configur
 }
 ```
 
-This is a field fragment, **not a complete source file**. `source add --file` replaces the source with the same ID; importing only this fragment would omit required settings. The sending identity is the provider's account ID, not a display name. Waking checks it against the account returned by the provider before sending. Configure the referenced provider token through the protected environment file already used by the service, then import the complete source object:
+This is a field fragment, **not a complete source file**. `source add --file` replaces the source with the same ID; importing only this fragment would omit required settings. The sending identity is the provider's account ID, not a display name. RightWake checks it against the account returned by the provider before sending. Configure the referenced provider token through the protected environment file already used by the service, then import the complete source object:
 
 ```sh
 waking --data-dir /path/to/waking-data source add --file /path/to/source.json
@@ -62,7 +62,7 @@ The public key is trusted operator configuration. An executing agent that can re
 
 ## 3. Export the draft, then prepare the review independently
 
-On the Waking machine, substitute the exact draft ID from `waking drafts list`:
+On the RightWake machine, substitute the exact draft ID from `waking drafts list`:
 
 ```sh
 set -eu
@@ -72,7 +72,7 @@ waking --data-dir /path/to/waking-data --env-file /path/to/waking.env --json \
   drafts export EXACT_DRAFT_ID --expires-in 3600 > draft-export.json
 ```
 
-The export contains plaintext reply content and identifiers, plus a credential fingerprint and environment-variable name; it does not contain the API token. Transfer the file to the reviewer through your trusted transfer channel. Obtain the prepare utility from a reviewed Waking revision independently of the draft export. Run it on the reviewer device with a fresh output directory:
+The export contains plaintext reply content and identifiers, plus a credential fingerprint and environment-variable name; it does not contain the API token. Transfer the file to the reviewer through your trusted transfer channel. Obtain the prepare utility from a reviewed RightWake revision independently of the draft export. Run it on the reviewer device with a fresh output directory:
 
 ```sh
 python3 /path/to/waking/scripts/review-prepare.py draft-export.json --out review-001
@@ -156,6 +156,6 @@ waking --data-dir /path/to/waking-data --env-file /path/to/waking.env --json \
   drafts send EXACT_DRAFT_ID --approval /path/to/approval.json
 ```
 
-Waking verifies the signature, current content, target, identity, configuration and revisions before the provider mutation. It also performs a remote preflight. A changed or expired action requires a new independent review. `sent` means the provider confirmed the write; `unknown` requires reconciliation and must not be automatically resent. Exporting, preparing, and signing do not themselves send a platform message.
+RightWake verifies the signature, current content, target, identity, configuration and revisions before the provider mutation. It also performs a remote preflight. A changed or expired action requires a new independent review. `sent` means the provider confirmed the write; `unknown` requires reconciliation and must not be automatically resent. Exporting, preparing, and signing do not themselves send a platform message.
 
 This manual workflow establishes exact-message approval. It does not establish unrestricted agent tool safety or replace the [host deployment prerequisites](architecture.md#codex-host-contract).

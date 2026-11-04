@@ -33,7 +33,7 @@ jobs:
   plan:
     name: Validate source and plan version
     if: >-
-      ${{ github.repository == 'Nunchakus888/waking' &&
+      ${{ github.repository == 'Nunchakus888/right-wake' &&
           (github.event_name != 'workflow_run' ||
           (github.event.workflow_run.conclusion == 'success' &&
            github.event.workflow_run.event == 'push' &&
@@ -265,7 +265,7 @@ jobs:
                 printf 'All four native platform jobs and both Linux Docker/Compose checks passed before assembly. [Release workflow](https://github.com/%s/actions/runs/%s) · [Source commit](https://github.com/%s/commit/%s).\n\n' "$GH_REPO" "$GITHUB_RUN_ID" "$GH_REPO" "$RELEASE_SHA"
                 cat "docs/releases/$RELEASE_TAG.md"
               } > release-notes.md
-              gh release create "$RELEASE_TAG" --target "$RELEASE_SHA" --draft --prerelease --title "Waking $RELEASE_TAG" --notes-file release-notes.md
+              gh release create "$RELEASE_TAG" --target "$RELEASE_SHA" --draft --prerelease --title "RightWake $RELEASE_TAG" --notes-file release-notes.md
               ;;
             *) exit 1 ;;
           esac

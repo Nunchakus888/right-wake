@@ -5,7 +5,7 @@ set -eu
 version=${WAKING_VERSION:-v0.1.1}
 bin_dir=${WAKING_INSTALL_DIR:-"$HOME/.local/bin"}
 from_dir=
-repository=Nunchakus888/waking
+repository=Nunchakus888/right-wake
 tmp=
 staged=
 
@@ -17,7 +17,7 @@ Usage: install.sh [--version v0.1.1] [--bin-dir DIR] [--from-dir DIR]
 Install the matching native binary for macOS or glibc Linux, arm64 or x86_64.
 The default release is pinned; no daemon starts and no Codex config is changed.
 --from-dir reads the release archive and SHA256SUMS from a local directory.
-An existing Waking executable is backed up as waking.previous.
+An existing RightWake executable is backed up as waking.previous.
 USAGE
 }
 while [ "$#" -gt 0 ]; do
@@ -72,7 +72,7 @@ if [ -n "$from_dir" ]; then
 else
   command -v curl >/dev/null 2>&1 || fail 'curl is required for release downloads'
   base=https://github.com/$repository/releases/download/$version
-  printf 'Downloading Waking %s for %s\n' "$version" "$target"
+  printf 'Downloading RightWake %s for %s\n' "$version" "$target"
   curl --proto '=https' --tlsv1.2 --fail --location --retry 3 --connect-timeout 10 --max-time 300 --output "$tmp/$asset" "$base/$asset" || fail 'download failed; check the release exists or use --from-dir'
   curl --proto '=https' --tlsv1.2 --fail --location --retry 3 --connect-timeout 10 --max-time 60 --output "$tmp/SHA256SUMS" "$base/SHA256SUMS" || fail 'checksum download failed'
 fi

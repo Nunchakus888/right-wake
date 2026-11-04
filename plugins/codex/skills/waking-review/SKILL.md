@@ -1,9 +1,9 @@
 ---
 name: waking-review
-description: Inspect Waking events, jobs, routing decisions, and pending output drafts. Use to explain stuck delivery, review a draft, export a review request, or reconcile an uncertain outcome. Do not approve or send external content on the user's behalf without the configured independent approval.
+description: Inspect RightWake events, jobs, routing decisions, and pending output drafts. Use to explain stuck delivery, review a draft, export a review request, or reconcile an uncertain outcome. Do not approve or send external content on the user's behalf without the configured independent approval.
 ---
 
-# Waking review
+# RightWake review
 
 1. Discover `waking --json schema` or the MCP tool list. Read `status`, relevant events/jobs, and drafts. Separate received, durably queued, delivered to host, completed, and externally sent; these are different states.
 2. Explain an unresolved route or blocked host with its recorded reason. Retry only when the outcome is known safe and the user has authorized recovery. An `unknown` submission requires reconciliation, not blind replay or routing to a different thread.

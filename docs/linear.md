@@ -1,12 +1,12 @@
 # Connect Linear to an existing local thread
 
-Waking receives signed Linear webhooks, stores them durably, and routes relevant events to an explicitly configured existing host/thread. The normal result is a local reply draft. Registering a webhook, obtaining its signing secret, establishing a reachable HTTPS endpoint, and assigning the existing thread are separate setup steps.
+RightWake receives signed Linear webhooks, stores them durably, and routes relevant events to an explicitly configured existing host/thread. The normal result is a local reply draft. Registering a webhook, obtaining its signing secret, establishing a reachable HTTPS endpoint, and assigning the existing thread are separate setup steps.
 
-If Linear MCP is already connected to your agent, keep that connection for its permitted tool operations. It does **not** automatically create Waking's webhook, public endpoint, signing-secret configuration, source scope, or thread binding. Waking does not import or reuse the MCP connection's OAuth credentials. Linear's [MCP documentation](https://linear.app/docs/mcp) describes that tool integration, including its read-only endpoint; Linear's [webhook documentation](https://linear.app/developers/webhooks) describes the event transport used here.
+If Linear MCP is already connected to your agent, keep that connection for its permitted tool operations. It does **not** automatically create RightWake's webhook, public endpoint, signing-secret configuration, source scope, or thread binding. RightWake does not import or reuse the MCP connection's OAuth credentials. Linear's [MCP documentation](https://linear.app/docs/mcp) describes that tool integration, including its read-only endpoint; Linear's [webhook documentation](https://linear.app/developers/webhooks) describes the event transport used here.
 
 Receiving events and producing drafts do not require a Linear API token. They require the webhook signing secret at the receiver and a separately working execution host. Sending a draft adds an independently configured API credential, verified sending identity, and human Ed25519 approval.
 
-Install the published [v0.1.1 native release](https://github.com/Nunchakus888/waking/releases/tag/v0.1.1) using the [installation guide](installation.md), then use `waking --json schema` to inspect the installed command contract.
+Install the published [v0.1.1 native release](https://github.com/Nunchakus888/right-wake/releases/tag/v0.1.1) using the [installation guide](installation.md), then use `waking --json schema` to inspect the installed command contract.
 
 ## Agent-led setup
 
@@ -31,7 +31,7 @@ The skill coordinates the existing native CLI commands. The native service helpe
 
 ## 1. Choose where the receiver runs
 
-For an online local trial, run Waking beside the host that owns the conversation and give its receiver a public HTTPS route through your existing tunnel or reverse proxy. The internal listener can remain `127.0.0.1:7433`; Linear must reach the public HTTPS URL, not that loopback address.
+For an online local trial, run RightWake beside the host that owns the conversation and give its receiver a public HTTPS route through your existing tunnel or reverse proxy. The internal listener can remain `127.0.0.1:7433`; Linear must reach the public HTTPS URL, not that loopback address.
 
 If the computer may be offline, use the [cloud relay plus local worker deployment](deployment.md#cloud-relay-plus-local-worker). The relay receives and stores webhooks while the local worker reconnects over outbound WSS. The original thread remains on its original host.
 
@@ -41,10 +41,10 @@ This guide first shows direct local receipt. The same source identity is used on
 
 | Value | Meaning and source |
 | --- | --- |
-| `linear-work` | An operator-chosen Waking source ID. It selects `/hooks/linear-work`; it is not a Linear workspace ID. |
+| `linear-work` | An operator-chosen RightWake source ID. It selects `/hooks/linear-work`; it is not a Linear workspace ID. |
 | Organization UUID | The exact Linear `organizationId` in webhook data. Copy the underlying organization ID, not a workspace name or URL slug. |
 | Issue UUID | The exact `data.issueId` for a Comment event, or `data.id` for an Issue event. A display identifier such as `ENG-123` is not this UUID. |
-| `mac-codex` | An operator-chosen Waking host ID for one explicitly configured App Server. |
+| `mac-codex` | An operator-chosen RightWake host ID for one explicitly configured App Server. |
 | Thread UUID | The exact existing thread ID returned by that host. A conversation title, another client's family/session label, or a managed cloud task ID is not a substitute. |
 | `WAKING_LINEAR_WEBHOOK_SECRET` | An environment-variable **name**. Its value is the webhook signing secret, kept outside the source configuration. |
 
@@ -88,7 +88,7 @@ Read `source list` before creating a source. Reuse an equivalent existing source
 
 ## 4. Register the Linear webhook and its secret
 
-Linear documents workspace-admin or appropriately scoped OAuth-admin authorization for webhook administration. The Waking binary has no registration command. An agent can perform registration when its available tools expose authorized webhook management, or through a separately authorized admin API client. Inspect the actual capability and existing registrations first, and reuse a matching webhook instead of duplicating it. An existing Linear MCP connection alone does not establish that capability, and its OAuth cache must not be exported. If no authorized management path is available, create the webhook in Linear's API settings with an account that has the required permission.
+Linear documents workspace-admin or appropriately scoped OAuth-admin authorization for webhook administration. The RightWake binary has no registration command. An agent can perform registration when its available tools expose authorized webhook management, or through a separately authorized admin API client. Inspect the actual capability and existing registrations first, and reuse a matching webhook instead of duplicating it. An existing Linear MCP connection alone does not establish that capability, and its OAuth cache must not be exported. If no authorized management path is available, create the webhook in Linear's API settings with an account that has the required permission.
 
 Set the webhook URL to your receiver's real public HTTPS address, preserving the exact source path, for example:
 
@@ -109,13 +109,13 @@ chmod 600 "$WAKING_LINEAR_DATA/private.env"
 
 Use a trusted local editor or authorized secret mechanism to place the actual signing secret in that file as `WAKING_LINEAR_WEBHOOK_SECRET`. An agent may reuse an existing private file or securely store a secret obtained through an authorized client without printing it. The file format is plain `NAME=VALUE`, one entry per line: no `export`, shell expansion, or surrounding shell quotes. Keep the actual value out of command arguments, chat, the repository, and logs. Do not paste its contents into a diagnostic report.
 
-The public proxy must preserve the request body bytes and the `Linear-Signature` and `Linear-Delivery` headers. Waking verifies HMAC over the original bytes and checks the signed `webhookTimestamp`; the default Linear timestamp window is 60 seconds. Keep the receiving machine's clock synchronized. A valid receipt is committed before Waking responds successfully, and model execution is not part of that HTTP acknowledgement. Proxy timeouts and body-size limits still need to permit that delivery path; see [Linear's current delivery requirements](https://linear.app/developers/webhooks).
+The public proxy must preserve the request body bytes and the `Linear-Signature` and `Linear-Delivery` headers. RightWake verifies HMAC over the original bytes and checks the signed `webhookTimestamp`; the default Linear timestamp window is 60 seconds. Keep the receiving machine's clock synchronized. A valid receipt is committed before RightWake responds successfully, and model execution is not part of that HTTP acknowledgement. Proxy timeouts and body-size limits still need to permit that delivery path; see [Linear's current delivery requirements](https://linear.app/developers/webhooks).
 
 The webhook signing secret is loaded when the process starts. Editing `private.env` or exporting a variable in a different terminal does not update an already running receiver; restart the process after changing secret values.
 
 ## 5. Select the actual existing host and thread
 
-Waking does not start or log in to Codex. First establish an App Server endpoint owned by the intended host, using the installed Codex version's supported transport. Its socket must already be a **Unix-domain WebSocket** endpoint, reachable by the Waking process. Consult `codex app-server --help` and the [host compatibility guide](host-compatibility.md); a generic Unix stream, an HTTP URL, and a managed cloud task are different interfaces.
+RightWake does not start or log in to Codex. First establish an App Server endpoint owned by the intended host, using the installed Codex version's supported transport. Its socket must already be a **Unix-domain WebSocket** endpoint, reachable by the RightWake process. Consult `codex app-server --help` and the [host compatibility guide](host-compatibility.md); a generic Unix stream, an HTTP URL, and a managed cloud task are different interfaces.
 
 Codex CLI 0.166.0 advertises this Unix listen syntax when you deliberately operate the owning App Server:
 
@@ -123,7 +123,7 @@ Codex CLI 0.166.0 advertises this Unix listen syntax when you deliberately opera
 codex app-server --listen unix:///absolute/path/to/owned-codex.sock
 ```
 
-Run it only in the intended host environment containing the original sessions. If that host already exists, use its supported endpoint instead of starting another server or guessing private history paths. Waking's `--socket` takes the filesystem path below, not the `unix://` URL. The supported `stdio://` and TCP `ws://` Codex modes do not replace Waking's current Unix adapter.
+Run it only in the intended host environment containing the original sessions. If that host already exists, use its supported endpoint instead of starting another server or guessing private history paths. RightWake's `--socket` takes the filesystem path below, not the `unix://` URL. The supported `stdio://` and TCP `ws://` Codex modes do not replace RightWake's current Unix adapter.
 
 Read `host list` first and reuse a matching host. `host add` replaces the whole entry with that ID, including its declarations and timeout; do not rerun the following new-host example against an existing configured host. For a new host, register it and inspect its available threads without enabling automatic submission:
 
@@ -159,7 +159,7 @@ waking --data-dir "$WAKING_LINEAR_DATA" --json bindings
 
 Use the worktree path observed by that App Server, which must also be available to the executor. Read `bindings` first and skip an equivalent enabled assignment. `--expected-version 0` creates only a previously absent binding; it will conflict when repeated after creation. If the intended change affects an existing binding, use its observed version and exact target. The two host flags assert conditions you have established; they do not configure an OS sandbox, disable MCP tools, or create an atomic lock across Codex clients. Preserve the existing host's other fields when adding these declarations.
 
-A narrower discussion binding takes precedence over the issue binding. A known target that is busy, offline, or paused keeps its assignment; Waking does not silently choose another conversation. A configured semantic router can suggest an existing candidate for unbound work, but this release still requires a trusted binding/claim before that candidate owns the resource.
+A narrower discussion binding takes precedence over the issue binding. A known target that is busy, offline, or paused keeps its assignment; RightWake does not silently choose another conversation. A configured semantic router can suggest an existing candidate for unbound work, but this release still requires a trusted binding/claim before that candidate owns the resource.
 
 ## 6. Start receipt and verify each stage
 
@@ -182,7 +182,7 @@ waking --data-dir "$WAKING_LINEAR_DATA" --json jobs list
 waking --data-dir "$WAKING_LINEAR_DATA" --json drafts list
 ```
 
-For an explicitly authorized comment test, create one deliberate comment in the selected issue from an allowed human actor, containing the plain-text token `@waking` and the requested follow-up. An agent must not post this comment solely because installation was requested. **`@waking` is a configured text trigger, not a Linear bot identity that Waking registers.** Do not assume selecting a similarly named mention automatically emits that literal token in the webhook body. The native source supports Issue and Comment events; it does not provision a Linear agent or claim full personal Inbox/agent-session coverage.
+For an explicitly authorized comment test, create one deliberate comment in the selected issue from an allowed human actor, containing the plain-text token `@waking` and the requested follow-up. An agent must not post this comment solely because installation was requested. **`@waking` is a configured text trigger, not a Linear bot identity that RightWake registers.** Do not assume selecting a similarly named mention automatically emits that literal token in the webhook body. The native source supports Issue and Comment events; it does not provision a Linear agent or claim full personal Inbox/agent-session coverage.
 
 After an issue/discussion is bound, actionable follow-up comments can reuse the binding without repeating the token. Ordinary status updates do not become new requests merely because an older description contains `@waking`. A model turn may conclude that no reply is needed.
 
@@ -209,7 +209,7 @@ Continue with [Independently approve one exact reply](approvals.md). Configure t
 - `review_public_key` containing the independent reviewer's Ed25519 public key.
 - Appropriate `bot_actor_ids` so comments from the sending identity do not create a self-trigger loop. Filtering an actor excludes that actor's requests too; choose the account and policy deliberately.
 
-Waking verifies the actual sender and source discussion before sending, then rechecks the current local draft/configuration. It does not implement automatic OAuth acquisition or refresh from an existing MCP connection. The signing private key stays on the independent reviewer device, outside the worker and agent access boundary.
+RightWake verifies the actual sender and source discussion before sending, then rechecks the current local draft/configuration. It does not implement automatic OAuth acquisition or refresh from an existing MCP connection. The signing private key stays on the independent reviewer device, outside the worker and agent access boundary.
 
 Configure sending identity before generating drafts intended for publication. Drafts generated with no sending identity do not become publishable just because a token is added later; generate and review a fresh draft under the intended configuration. Exporting or signing an approval alone does not publish a reply.
 

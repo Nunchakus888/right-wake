@@ -1,5 +1,11 @@
 # Changelog
 
+## RightWake naming update after 0.1.1
+
+- Use **RightWake** as the product display name and **Wake the right thread, right away.** as its slogan; move canonical repository and documentation links to `Nunchakus888/right-wake`.
+- Update plugin/skill display metadata, installer download URLs, and the release workflow's repository check for the renamed repository.
+- Keep the current `waking` executable, plugin/skill IDs, environment variables, data paths, and published v0.1.1 asset names compatible. The container installer accepts the historical source label only for v0.1.1; subsequent releases use the new repository label.
+
 ## Plugin workflow update after 0.1.1
 
 - Extend the existing `waking-setup` skill with a bundled Linear onboarding reference: discover and reuse authorization/profile/source/host/binding state, configure available delivery, and report exact unresolved prerequisites.
@@ -15,7 +21,7 @@
 - Raise source-build MSRV to Rust 1.89 for the dependency update; the pinned Rust 1.99.1 toolchain is unchanged.
 - Make native package smoke invoke the actual backup CLI and inspect its snapshot, in addition to the existing core backup regression tests.
 
-Published as an [experimental prerelease](https://github.com/Nunchakus888/waking/releases/tag/v0.1.1) on 2026-11-03. All four native platforms passed 94 tests each, and both Linux Docker/Compose release checks passed. Exact runs and publication evidence are recorded in [v0.1.1 verification](docs/releases/v0.1.1-verification.md); real host/provider integration remains separately tracked.
+Published as an [experimental prerelease](https://github.com/Nunchakus888/right-wake/releases/tag/v0.1.1) on 2026-11-03. All four native platforms passed 94 tests each, and both Linux Docker/Compose release checks passed. Exact runs and publication evidence are recorded in [v0.1.1 verification](docs/releases/v0.1.1-verification.md); real host/provider integration remains separately tracked.
 
 ## 0.1.0 — initial preview
 

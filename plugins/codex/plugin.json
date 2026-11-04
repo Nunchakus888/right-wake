@@ -7,8 +7,8 @@
     "name": "Nunchakus888",
     "url": "https://github.com/Nunchakus888"
   },
-  "homepage": "https://github.com/Nunchakus888/waking",
-  "repository": "https://github.com/Nunchakus888/waking",
+  "homepage": "https://github.com/Nunchakus888/right-wake",
+  "repository": "https://github.com/Nunchakus888/right-wake",
   "license": "Apache-2.0",
   "keywords": ["events", "webhooks", "routing", "codex", "local"],
   "extensions": {
@@ -16,17 +16,17 @@
       "requires_local_executor": true,
       "onboardingSkill": "./skills/waking-setup/SKILL.md",
       "interface": {
-        "displayName": "Waking",
-        "shortDescription": "Wake the right agent thread",
+        "displayName": "RightWake",
+        "shortDescription": "Wake the right thread, right away.",
         "longDescription": "Connect verified work events to explicitly bound existing local Codex threads. Inspect routing, diagnose delivery, and review drafts before any authorized external write.",
         "developerName": "Nunchakus888",
         "category": "Productivity",
         "capabilities": ["Read", "Write"],
-        "websiteURL": "https://github.com/Nunchakus888/waking",
+        "websiteURL": "https://github.com/Nunchakus888/right-wake",
         "defaultPrompt": [
-          "Set up Waking for an existing Codex work thread",
-          "Show my Waking routing and delivery status",
-          "Review pending Waking drafts"
+          "Set up RightWake for an existing Codex work thread",
+          "Show my RightWake routing and delivery status",
+          "Review pending RightWake drafts"
         ]
       }
     }

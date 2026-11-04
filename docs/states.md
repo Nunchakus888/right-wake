@@ -10,7 +10,7 @@ This is the user-facing state vocabulary. Runtime JSON state strings are defined
 | 等待设备上线 / Host offline | Bound host unreachable | Work remains assigned to its original thread | Restore this host/connection | Inspect host diagnostics | On an authenticated supported reconnect |
 | 等待会话完成 / Thread busy | Bound thread has an active turn | Work will not interrupt the current turn | Wait for completion | Inspect queue | On a supported completion/idle signal |
 | 已暂停 / Paused | Global/source/binding/host pause applies | Processing was intentionally stopped | Resume the same scope | View pending work | No |
-| 会话已归档 / Archived | Target is archived | Waking will not replace its destination | Restore it if intended | Explicitly rebind | No |
+| 会话已归档 / Archived | Target is archived | RightWake will not replace its destination | Restore it if intended | Explicitly rebind | No |
 | 找不到会话 / Missing thread | Public host cannot find it | The original target could not be resolved | Verify the correct host/thread | Explicitly choose another existing target | No blind fallback |
 | 工作目录失效 / Invalid work directory | Expected directory missing or different | The target's execution context has changed | Restore/verify the directory | Update the authorized binding | No |
 | 宿主能力不支持 / Unsupported host | Safe continuation/concurrency unavailable | The selected host cannot establish this required capability | Read the specific compatibility gap | Use a supported existing host | After verified capability change |
@@ -35,7 +35,7 @@ Machine responses should include an error code, a specific message, a concrete n
 
 Examples of intended wording:
 
-- “This issue is still assigned to thread A on your local host. That host is offline. Reconnect it; Waking has not moved the work.”
+- “This issue is still assigned to thread A on your local host. That host is offline. Reconnect it; RightWake has not moved the work.”
 - “Two existing threads are candidates. A owns this issue; B only references it. Confirm the intended owner once to reuse that choice for later events.”
 - “The draft changed after review. The previous approval is invalid for revision 3. Review the current text and destination before sending.”
 - “The provider request timed out after dispatch. The reply may already exist. Reconcile this send before trying again.”

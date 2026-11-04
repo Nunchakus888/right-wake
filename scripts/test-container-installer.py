@@ -18,6 +18,7 @@ with open(os.environ["FAKE_CALLS"], "a") as log:
     log.write(json.dumps(args) + "\n")
 state = Path(os.environ["FAKE_STATE"])
 platform = os.environ.get("FAKE_PLATFORM", "linux/amd64")
+version = os.environ.get("WAKING_VERSION", "v0.1.1")[1:]
 if args == ["version", "--format", "{{.Server.Os}}/{{.Server.Arch}}"]:
     if os.environ.get("FAKE_OFFLINE"):
         sys.exit(1)
@@ -25,13 +26,13 @@ if args == ["version", "--format", "{{.Server.Os}}/{{.Server.Arch}}"]:
 elif args[:2] == ["image", "inspect"]:
     if not state.exists() and not os.environ.get("FAKE_EXISTING"):
         sys.exit(1)
-    print(os.environ.get("FAKE_METADATA", platform + " 0.1.1 https://github.com/Nunchakus888/waking"))
+    print(os.environ.get("FAKE_METADATA", platform + " " + version + " https://github.com/Nunchakus888/right-wake"))
 elif args[:2] == ["image", "load"]:
     assert args[2] == "--input" and Path(args[3]).is_file(), args
     if os.environ.get("FAKE_LOAD_FAIL"):
         sys.exit(1)
     state.write_text("loaded")
-    print("Loaded image: " + os.environ.get("FAKE_LOADED_TAG", "waking:0.1.1"))
+    print("Loaded image: " + os.environ.get("FAKE_LOADED_TAG", "waking:" + version))
 else:
     raise SystemExit("unexpected Docker operation: " + repr(args))
 '''
@@ -41,7 +42,8 @@ from pathlib import Path
 args = sys.argv[1:]
 with open(os.environ["FAKE_URLS"], "a") as log:
     log.write(json.dumps(args) + "\n")
-assert args[-1].startswith("https://github.com/Nunchakus888/waking/releases/download/v0.1.1/"), args
+version = os.environ.get("WAKING_VERSION", "v0.1.1")
+assert args[-1].startswith("https://github.com/Nunchakus888/right-wake/releases/download/" + version + "/"), args
 if os.environ.get("FAKE_DOWNLOAD_FAIL"):
     raise SystemExit(22)
 destination = args[args.index("--output") + 1]
@@ -69,10 +71,14 @@ class InstallerContract(unittest.TestCase):
                         TMPDIR=str(self.work), WAKING_VERSION="v0.1.1",
                         FAKE_CALLS=str(self.calls), FAKE_STATE=str(self.root / "loaded"),
                         FAKE_URLS=str(self.root / "urls.jsonl"), FAKE_DOWNLOADS=str(self.source))
+        self.prepare_release("v0.1.1")
+
+    def prepare_release(self, version):
+        self.env["WAKING_VERSION"] = version
         self.assets = {}
         lines = []
         for arch in ("amd64", "arm64"):
-            asset = self.source / f"waking-v0.1.1-container-linux-{arch}.tar.gz"
+            asset = self.source / f"waking-{version}-container-linux-{arch}.tar.gz"
             asset.write_bytes(b"mock image payload for " + arch.encode())
             self.assets[arch] = asset
             lines.append(hashlib.sha256(asset.read_bytes()).hexdigest() + "  " + asset.name)
@@ -103,6 +109,46 @@ class InstallerContract(unittest.TestCase):
         _, calls = self.run_install(FAKE_PLATFORM="linux/arm64")
         load = next(call for call in calls if call[:2] == ["image", "load"])
         self.assertEqual(Path(load[-1]).name, self.assets["arm64"].name)
+
+    def test_v011_legacy_source_loads_from_canonical_download(self):
+        _, calls = self.run_install(download=True,
+                                    FAKE_METADATA="linux/amd64 0.1.1 https://github.com/Nunchakus888/waking")
+        self.assertEqual(sum(call[:2] == ["image", "load"] for call in calls), 1)
+
+    def test_v011_legacy_existing_image_is_accepted(self):
+        _, calls = self.run_install(FAKE_EXISTING="1", FAKE_PLATFORM="linux/arm64",
+                                    FAKE_METADATA="linux/arm64 0.1.1 https://github.com/Nunchakus888/waking")
+        self.assertEqual(sum(call[:2] == ["image", "load"] for call in calls), 1)
+
+    def test_v011_legacy_source_cannot_hide_wrong_platform(self):
+        result, calls = self.run_install(success=False, FAKE_EXISTING="1",
+                                        FAKE_METADATA="linux/arm64 0.1.1 https://github.com/Nunchakus888/waking")
+        self.assertIn("refusing to replace", result.stderr)
+        self.assertFalse(any(call[:2] == ["image", "load"] for call in calls))
+
+    def test_v011_legacy_source_cannot_hide_wrong_version(self):
+        result, _ = self.run_install(success=False,
+                                     FAKE_METADATA="linux/amd64 0.1.2 https://github.com/Nunchakus888/waking")
+        self.assertIn("loaded image metadata differs", result.stderr)
+
+    def test_later_version_accepts_canonical_source(self):
+        self.prepare_release("v0.1.2")
+        result, _ = self.run_install(download=True, FAKE_EXISTING="1")
+        self.assertIn("Loaded waking:0.1.2 for linux/amd64", result.stdout)
+
+    def test_later_version_rejects_legacy_existing_image_before_load(self):
+        self.prepare_release("v0.1.2")
+        result, calls = self.run_install(success=False, FAKE_EXISTING="1",
+                                        FAKE_METADATA="linux/amd64 0.1.2 https://github.com/Nunchakus888/waking")
+        self.assertIn("refusing to replace", result.stderr)
+        self.assertFalse(any(call[:2] == ["image", "load"] for call in calls))
+
+    def test_later_version_rejects_legacy_loaded_image(self):
+        self.prepare_release("v0.1.2")
+        result, calls = self.run_install(success=False,
+                                        FAKE_METADATA="linux/amd64 0.1.2 https://github.com/Nunchakus888/waking")
+        self.assertIn("loaded image metadata differs", result.stderr)
+        self.assertEqual(sum(call[:2] == ["image", "load"] for call in calls), 1)
 
     def test_checksum_mismatch_never_loads(self):
         self.assets["amd64"].write_bytes(b"corrupt payload")

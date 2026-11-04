@@ -4,7 +4,7 @@ set -eu
 
 version=${WAKING_VERSION:-v0.1.1}
 from_dir=
-repository=Nunchakus888/waking
+repository=Nunchakus888/right-wake
 tmp=
 fail() { printf 'waking container install: %s\n' "$*" >&2; exit 1; }
 usage() {
@@ -62,7 +62,7 @@ if [ -n "$from_dir" ]; then
 else
   command -v curl >/dev/null 2>&1 || fail 'curl is required for release downloads'
   base=https://github.com/$repository/releases/download/$version
-  printf 'Downloading Waking %s container for %s\n' "$version" "$platform"
+  printf 'Downloading RightWake %s container for %s\n' "$version" "$platform"
   curl --proto '=https' --proto-redir '=https' --tlsv1.2 --fail --location --retry 3 --connect-timeout 10 --max-time 600 --output "$tmp/$asset" "$base/$asset" || fail 'image download failed; check the release exists or use --from-dir'
   curl --proto '=https' --proto-redir '=https' --tlsv1.2 --fail --location --retry 3 --connect-timeout 10 --max-time 60 --output "$tmp/SHA256SUMS" "$base/SHA256SUMS" || fail 'checksum download failed'
 fi
@@ -72,13 +72,22 @@ case "$expected" in ''|*[!0-9a-f]*) fail 'missing or ambiguous SHA256SUMS entry'
 [ "$(hash_file "$tmp/$asset")" = "$expected" ] || fail 'checksum mismatch; image was not loaded'
 metadata_format='{{.Os}}/{{.Architecture}} {{index .Config.Labels "org.opencontainers.image.version"}} {{index .Config.Labels "org.opencontainers.image.source"}}'
 expected_metadata="$platform ${version#v} https://github.com/$repository"
+metadata_matches() {
+  if [ "$1" = "$expected_metadata" ]; then
+    return 0
+  fi
+  # The immutable v0.1.1 archives predate the repository rename. No other
+  # release may use this legacy source, and platform/version must still match.
+  [ "$version" = v0.1.1 ] &&
+    [ "$1" = "$platform 0.1.1 https://github.com/Nunchakus888/waking" ]
+}
 if existing=$(docker image inspect --format "$metadata_format" "$image" 2>/dev/null); then
-  [ "$existing" = "$expected_metadata" ] || fail "existing $image has different metadata; refusing to replace it"
+  metadata_matches "$existing" || fail "existing $image has different metadata; refusing to replace it"
 fi
 docker image load --input "$tmp/$asset" > "$tmp/load.log" || fail 'Docker could not load the verified archive'
 # A pre-existing matching tag must not disguise an archive carrying other tags.
 awk -v expected="Loaded image: $image" '$0 == expected {found=1} END {exit !found}' "$tmp/load.log" || fail "archive did not report the expected tag $image; inspect Docker images before retrying"
 metadata=$(docker image inspect --format "$metadata_format" "$image") || fail 'loaded image tag is missing'
-[ "$metadata" = "$expected_metadata" ] || fail 'loaded image metadata differs from the requested version/platform'
+metadata_matches "$metadata" || fail 'loaded image metadata differs from the requested version/platform'
 printf 'Loaded %s for %s. No container was started.\n' "$image" "$platform"
 printf 'Next: prepare private.env and compose.yaml, then docker compose run --rm waking setup.\n'

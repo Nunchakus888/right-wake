@@ -5,7 +5,7 @@ edition = "2021"
 rust-version = "1.89"
 description = "Event-driven work continuity for local agents"
 license = "Apache-2.0"
-repository = "https://github.com/Nunchakus888/waking"
+repository = "https://github.com/Nunchakus888/right-wake"
 default-run = "waking"
 
 [dependencies]

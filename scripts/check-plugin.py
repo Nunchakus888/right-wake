@@ -20,7 +20,7 @@ def check():
     require(manifest["name"] == "waking", "plugin name differs from binary")
     require(manifest["version"] == version, "plugin version differs from crate")
     require(manifest["$schema"] == "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", "portable plugin schema missing")
-    require(manifest["repository"] == "https://github.com/Nunchakus888/waking", "repository URL differs")
+    require(manifest["repository"] == "https://github.com/Nunchakus888/right-wake", "repository URL differs")
     require(manifest["license"] == "Apache-2.0", "license differs")
     extension = manifest["extensions"]["com.openai"]
     onboarding = extension["onboardingSkill"]

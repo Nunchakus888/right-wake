@@ -1,14 +1,14 @@
 # Docker + Compose for a VPS relay
 
-Run Waking natively beside the local agent whose original conversation you want to continue. Use this Docker deployment for an online VPS relay: it accepts verified events while the local worker is offline, then delivers them over the worker's outbound connection. A cloud container does not import local Codex history, credentials, or worktrees.
+Run RightWake natively beside the local agent whose original conversation you want to continue. Use this Docker deployment for an online VPS relay: it accepts verified events while the local worker is offline, then delivers them over the worker's outbound connection. A cloud container does not import local Codex history, credentials, or worktrees.
 
-The image includes Waking and **bundled SQLite**. One persistent `/data` volume stores configuration and database state; there is no separate database service. It runs as UID/GID `10001` and publishes only a loopback host port for your HTTPS/WSS reverse proxy.
+The image includes RightWake and **bundled SQLite**. One persistent `/data` volume stores configuration and database state; there is no separate database service. It runs as UID/GID `10001` and publishes only a loopback host port for your HTTPS/WSS reverse proxy.
 
-**[v0.1.1 Docker release assets are available](https://github.com/Nunchakus888/waking/releases/tag/v0.1.1).** Both Linux amd64 and arm64 passed actual image and Compose release checks. See [verification](../docs/releases/v0.1.1-verification.md) for the exact runs and [verification levels](#container-verification-levels) for their scope.
+**[v0.1.1 Docker release assets are available](https://github.com/Nunchakus888/right-wake/releases/tag/v0.1.1).** Both Linux amd64 and arm64 passed actual image and Compose release checks. See [verification](../docs/releases/v0.1.1-verification.md) for the exact runs and [verification levels](#container-verification-levels) for their scope.
 
 ## Install the release image
 
-Prerequisites: an available Linux amd64 or arm64 Docker daemon, Docker Compose v2, shell tools, `curl`, and `sha256sum` or `shasum`. Waking does not install or reconfigure Docker. Ordinary native users do not need Docker.
+Prerequisites: an available Linux amd64 or arm64 Docker daemon, Docker Compose v2, shell tools, `curl`, and `sha256sum` or `shasum`. RightWake does not install or reconfigure Docker. Ordinary native users do not need Docker.
 
 On your VPS, use a new deployment directory:
 
@@ -17,10 +17,10 @@ mkdir waking-relay
 cd waking-relay
 curl --proto '=https' --tlsv1.2 --fail --location \
   --output install-container.sh \
-  https://github.com/Nunchakus888/waking/releases/download/v0.1.1/install-container.sh
+  https://github.com/Nunchakus888/right-wake/releases/download/v0.1.1/install-container.sh
 curl --proto '=https' --tlsv1.2 --fail --location \
   --output compose.yaml \
-  https://github.com/Nunchakus888/waking/releases/download/v0.1.1/compose.yaml
+  https://github.com/Nunchakus888/right-wake/releases/download/v0.1.1/compose.yaml
 # Inspect the installer and Compose configuration before running them.
 sh install-container.sh --version v0.1.1
 ```
@@ -118,12 +118,12 @@ Use a new deployment directory outside the source checkout, then follow [initial
 
 ## Container verification levels
 
-The historical [Container smoke run 41619362708](https://github.com/Nunchakus888/waking/actions/runs/41619362708) succeeded for v0.1.0 commit [`52dff8a4fd2522c793ef2b6bc709d561922f4790`](https://github.com/Nunchakus888/waking/commit/52dff8a4fd2522c793ef2b6bc709d561922f4790). It built the source image and verified the synthetic demo, real receiver startup, restart, and original two completed jobs/two unsent drafts across container replacement with the same volume. It did not exercise the new release-image installer or Compose package.
+The historical [Container smoke run 41619362708](https://github.com/Nunchakus888/right-wake/actions/runs/41619362708) succeeded for v0.1.0 commit [`52dff8a4fd2522c793ef2b6bc709d561922f4790`](https://github.com/Nunchakus888/right-wake/commit/52dff8a4fd2522c793ef2b6bc709d561922f4790). It built the source image and verified the synthetic demo, real receiver startup, restart, and original two completed jobs/two unsent drafts across container replacement with the same volume. It did not exercise the new release-image installer or Compose package.
 
 | Check | Evidence and limit |
 | --- | --- |
 | Source container smoke | The historical v0.1.0 run passed. New-version results must identify their own commit. |
-| v0.1.1 release image / Compose | [Release run 41634516676](https://github.com/Nunchakus888/waking/actions/runs/41634516676) passed on Linux amd64/arm64: image build/load, SQLite 3.54.1, relay startup, signed synthetic receipt, and unchanged jobs/drafts and pending-event state across restart and container replacement. |
+| v0.1.1 release image / Compose | [Release run 41634516676](https://github.com/Nunchakus888/right-wake/actions/runs/41634516676) passed on Linux amd64/arm64: image build/load, SQLite 3.54.1, relay startup, signed synthetic receipt, and unchanged jobs/drafts and pending-event state across restart and container replacement. |
 | Real deployment | Public HTTPS/WSS, provider receipt, offline-local replay, original-thread model continuation, and provider replies require separate authorized integration evidence. |
 
 Repository validation commands are `sh scripts/container-smoke.sh` for the source build, and `sh scripts/compose-smoke.sh waking:0.1.1` for an already-built image. The test host needs Docker/Compose and Python 3; the runtime image does not need Python. The release packaging script reuses its native Linux binary, checks the image and Compose behavior, saves the archive, and exercises the real loader against that archive. A passing fixture does not establish a live Codex or provider integration; keep those results separate in [acceptance](../docs/acceptance.md).

@@ -4,11 +4,11 @@ Status: v0.1.0 product contract. Implementation and actual validation are tracke
 
 ## Purpose
 
-Waking brings new work events back to the existing agent conversation that owns the work. Its primary user is a developer who has several active local Codex threads and receives follow-up questions or changes through Linear, GitHub, or GitLab.
+RightWake brings new work events back to the existing agent conversation that owns the work. Its primary user is a developer who has several active local Codex threads and receives follow-up questions or changes through Linear, GitHub, or GitLab.
 
 The activation outcome is one verified real event reaching its correct existing thread and producing an inspectable local result. The five-minute activation target begins **after** the user has the necessary provider permissions, credentials, reachable ingress, and a supported host. It is a target to measure, not an established performance claim.
 
-The user's later requirements override the original prompt's optional automatic thread creation: Waking must not create or fork a work thread when ownership is missing. The former “create once, then reuse” scenario becomes “claim an existing thread once, then reuse.” This change is explicit in the acceptance ledger.
+The user's later requirements override the original prompt's optional automatic thread creation: RightWake must not create or fork a work thread when ownership is missing. The former “create once, then reuse” scenario becomes “claim an existing thread once, then reuse.” This change is explicit in the acceptance ledger.
 
 ## Scope and boundaries
 
@@ -39,7 +39,7 @@ Slack support, a general workflow canvas, organizational task management, and br
 
 ## First installation: Codex plugin
 
-1. Add the repository marketplace and install Waking in a supported local Codex host.
+1. Add the repository marketplace and install RightWake in a supported local Codex host.
 2. The setup skill locates the native binary, checks its version, reads `schema`, and runs `doctor`. If the user requested installation and the binary is missing, it uses the pinned release installer.
 3. Connect one source and select its actual workspace/repository/project scope. Ask for a choice only when it cannot be established from trusted configuration. Credentials remain outside chat as environment or supported secret references.
 4. Choose an existing work destination. A newly opened plugin setup conversation is not automatically that destination. If the current thread's identity cannot be established through a public host interface, present known existing candidates or request the intended destination; never guess from the title.
@@ -104,6 +104,6 @@ Measure actual first-event setup time after prerequisites are ready, correctly c
 
 [Claude Tag](https://claude.com/resources/articles/claude-tag-now-reads-even-more-of-the-room) uses channel context to decide whether to respond, start deeper work, route a message to work already in progress, or stay silent. That validates a similar user need for semantic participation and workstream continuity. Its [documented Slack memory and identity boundaries](https://support.claude.com/en/articles/15594475-what-is-claude-tag) do not establish an ability to resume arbitrary local Codex threads.
 
-Waking's specific scope is an external work event returning to an explicitly owned existing **local host and thread**, with durable assignment and visible delivery state. It does not attempt to reproduce Claude Tag's shared Slack workspace in v0.1.0.
+RightWake's specific scope is an external work event returning to an explicitly owned existing **local host and thread**, with durable assignment and visible delivery state. It does not attempt to reproduce Claude Tag's shared Slack workspace in v0.1.0.
 
 [OpenAI MCP Events](https://developers.openai.com/plugins/build/mcp-events) is a relevant native subscription path for its supported cloud conversation surfaces. A future adapter may reuse it where the target surface fits. Its existence alone is not proof that local Codex thread continuity, arbitrary existing-thread routing, or a provider's event capability is available.

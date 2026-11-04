@@ -1,8 +1,10 @@
 # Installation and lifecycle
 
+**RightWake** is the product name. The v0.1.1 executable, package filenames, service identifiers, and data paths retain `waking` for compatibility with existing installations.
+
 ## Native release
 
-Waking's ordinary runtime is one Rust binary with bundled SQLite. No separate database service or SQLite command-line installation is needed. It requires no Node.js, Python, Docker, Rust compiler, or elevated installation. The release installer uses system shell tools, `curl`, `tar`, and either `sha256sum` or `shasum`.
+RightWake's ordinary runtime is one Rust binary with bundled SQLite. No separate database service or SQLite command-line installation is needed. It requires no Node.js, Python, Docker, Rust compiler, or elevated installation. The release installer uses system shell tools, `curl`, `tar`, and either `sha256sum` or `shasum`.
 
 The installer is pinned to the published **v0.1.1** prerelease. Each of its four native platforms passed 94 tests with no failures or ignored tests, plus release build and installer smoke. See [verification](releases/v0.1.1-verification.md) for the exact runs.
 
@@ -34,9 +36,9 @@ Use the native binary beside the local agent whose history you want to continue.
 - `waking-v0.1.1-container-linux-amd64.tar.gz`
 - `waking-v0.1.1-container-linux-arm64.tar.gz`
 
-The resulting image is tagged `waking:0.1.1`. The installer loads the image only; configuration, secrets, volume initialization, and startup are explicit. The supplied Compose service runs `relay serve`, uses a named volume at `/data`, and binds its published port to host loopback for your TLS proxy. No GHCR login or image-registry publication is required. Both image archives and the deployment files are attached to the [published v0.1.1 release](https://github.com/Nunchakus888/waking/releases/tag/v0.1.1).
+The resulting image is tagged `waking:0.1.1`. The installer loads the image only; configuration, secrets, volume initialization, and startup are explicit. The supplied Compose service runs `relay serve`, uses a named volume at `/data`, and binds its published port to host loopback for your TLS proxy. No GHCR login or image-registry publication is required. Both image archives and the deployment files are attached to the [published v0.1.1 release](https://github.com/Nunchakus888/right-wake/releases/tag/v0.1.1).
 
-The image embeds the same Waking binary and SQLite library used by the corresponding Linux native release. A separate database container is unnecessary. Cloud receipt does not move local Codex history or execute work while its local host is offline; [deployment choices](deployment.md) explains that boundary.
+The image embeds the same RightWake binary and SQLite library used by the corresponding Linux native release. A separate database container is unnecessary. Cloud receipt does not move local Codex history or execute work while its local host is offline; [deployment choices](deployment.md) explains that boundary.
 
 ## Configuration and secrets
 
@@ -62,7 +64,7 @@ waking service uninstall
 
 The private file must already have appropriate permissions (for example `chmod 600`). The service definition references its path, never embeds secret values. Keep that path available after installation.
 
-Linux uses the current user's `waking.service` under `~/.config/systemd/user` (or `XDG_CONFIG_HOME`). It needs a working systemd user session. Spaces and Unicode in executable paths are supported; systemd's unsupported quoted/backslash executable paths are rejected before writing a definition. macOS uses `~/Library/LaunchAgents/io.github.nunchakus888.waking.plist` in the logged-in GUI user's launchd domain. Installation enables future login startup; `start` explicitly starts now. Repeating installation updates only Waking's owned definition and does not restart an already running process. Stop and start after changing its executable or environment-file path.
+Linux uses the current user's `waking.service` under `~/.config/systemd/user` (or `XDG_CONFIG_HOME`). It needs a working systemd user session. Spaces and Unicode in executable paths are supported; systemd's unsupported quoted/backslash executable paths are rejected before writing a definition. macOS uses `~/Library/LaunchAgents/io.github.nunchakus888.waking.plist` in the logged-in GUI user's launchd domain. Installation enables future login startup; `start` explicitly starts now. Repeating installation updates only RightWake's owned definition and does not restart an already running process. Stop and start after changing its executable or environment-file path.
 
 `stop` stops current execution but leaves configuration and login registration. `uninstall` stops/disables the owned service and removes its definition; it keeps configuration, database, drafts, and external provider webhooks. One service definition belongs to one data directory. A different profile cannot silently take it over.
 
@@ -72,11 +74,11 @@ Service template tests do not prove launchd/systemd operation on a target machin
 
 Stop the receiver, take a complete state backup, and install the next pinned release. The installer preserves the previous recognized binary as `waking.previous`. Run `--version` and `doctor` before restarting. A binary backup alone cannot reverse an incompatible database migration; retain the matching state backup and follow that release's migration notes.
 
-For v0.1.1, the database schema remains version 3; the change upgrades bundled SQLite to a release containing the upstream WAL-reset fix. Updating the host's `sqlite3` package does not update the library embedded in Waking: replace the Waking binary or container image. `waking --json doctor` reports the actual linked library in `data.sqlite.version` and `data.sqlite.version_number`. The application refuses to open its state with a linked SQLite older than 3.51.3. See [v0.1.1 notes](releases/v0.1.1.md) for the resolved versions and validation status.
+For v0.1.1, the database schema remains version 3; the change upgrades bundled SQLite to a release containing the upstream WAL-reset fix. Updating the host's `sqlite3` package does not update the library embedded in RightWake: replace the RightWake binary or container image. `waking --json doctor` reports the actual linked library in `data.sqlite.version` and `data.sqlite.version_number`. The application refuses to open its state with a linked SQLite older than 3.51.3. See [v0.1.1 notes](releases/v0.1.1.md) for the resolved versions and validation status.
 
 For Docker upgrades, load the new image, use the matching reviewed Compose file, and recreate the service with the **same Compose project and data volume**. Keep `private.env` and operator configuration. A container replacement does not require a new database; changing the project name can select a different empty volume. See [container lifecycle](../deploy/README.md#storage-upgrades-and-removal).
 
-To remove the product, first stop and uninstall its service, then remove the installed `waking` binary and optional `waking.previous`. Uninstall the Codex plugin separately. Keep the data directory for recovery, or delete it only after explicitly deciding to discard its events, bindings, and drafts. Removing Waking does not delete provider-side webhook registrations; remove only registrations you created for this product.
+To remove the product, first stop and uninstall its service, then remove the installed `waking` binary and optional `waking.previous`. Uninstall the Codex plugin separately. Keep the data directory for recovery, or delete it only after explicitly deciding to discard its events, bindings, and drafts. Removing RightWake does not delete provider-side webhook registrations; remove only registrations you created for this product.
 
 ## Release process
 

@@ -2,9 +2,9 @@
 # Build with only the tested binary and license; no Rust rebuild here.
 FROM debian:bookworm-slim
 ARG WAKING_VERSION
-LABEL org.opencontainers.image.title="Waking" \
+LABEL org.opencontainers.image.title="RightWake" \
       org.opencontainers.image.version="${WAKING_VERSION}" \
-      org.opencontainers.image.source="https://github.com/Nunchakus888/waking" \
+      org.opencontainers.image.source="https://github.com/Nunchakus888/right-wake" \
       org.opencontainers.image.licenses="Apache-2.0"
 RUN apt-get update \
     && apt-get install --yes --no-install-recommends ca-certificates \

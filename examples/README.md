@@ -1,6 +1,6 @@
 # Configuration and adapter examples
 
-These files contain synthetic identifiers and environment-variable references, never credentials. Replace the organization, instance, and scope with your authorized values. `events.invalid` is deliberately a non-deployed example origin, not a hosted Waking service. Binary/plugin installation uses the real repository and releases linked from the main README.
+These files contain synthetic identifiers and environment-variable references, never credentials. Replace the organization, instance, and scope with your authorized values. `events.invalid` is deliberately a non-deployed example origin, not a hosted RightWake service. Binary/plugin installation uses the real repository and releases linked from the main README.
 
 ## Native Linear source
 
@@ -54,7 +54,7 @@ waking --json host add --id custom \
   --cwd /absolute/path/to/trusted-workspace --timeout 120
 ```
 
-Use repeated `--arg` flags for literal arguments. Waking does not construct a shell command from event text. The program receives one bounded JSON request on stdin; stdout must contain one complete JSON response. Diagnostic output belongs on stderr. The adapter must resolve and continue the specified existing thread itself; missing targets must be rejected without creating a replacement.
+Use repeated `--arg` flags for literal arguments. RightWake does not construct a shell command from event text. The program receives one bounded JSON request on stdin; stdout must contain one complete JSON response. Diagnostic output belongs on stderr. The adapter must resolve and continue the specified existing thread itself; missing targets must be rejected without creating a replacement.
 
 The request is the flat `DispatchRequest`: `dispatch_id`, `target`, `prompt`, `timeout_ms`, and optional `output_schema`. It has no outer request envelope; only the response carries `schema_version`. Inspect the implementation's [wire contract](../src/host.rs) when implementing an adapter. The response is:
 
