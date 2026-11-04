@@ -18,6 +18,8 @@ Start with [the Codex plugin](#use-from-codex), [Linear setup](docs/linear.md), 
 
 ## Project status
 
+This branch prepares **v0.3.1**, adding saved fixed-relay connections, transport recovery, and native relay-worker service management. It reuses the 0.3.0 relay protocol and SQLite store. Until a release is verified, use a source build for the new commands; the published 0.3.0 installer below does not contain them. See [changes and boundaries](docs/releases/v0.3.1.md) and [v0.3.1 evidence](docs/releases/v0.3.1-verification.md).
+
 **[v0.3.0 is available as an experimental prerelease](https://github.com/Nunchakus888/right-wake/releases/tag/v0.3.0)**, with personal Linear watching and opt-in Codex queue delivery. Watch new comments on issues assigned to you and newly assigned tasks, without adding a mention to each comment or freezing today's issue list. Ownership changes update a durable local projection; unknown ownership waits without calling a model. Each of four native platforms passed **129 tests, 0 failures, 0 ignored**; both Linux Docker/Compose checks passed. See [v0.3.0 verification](docs/releases/v0.3.0-verification.md) for exact runs and installation evidence. Earlier results remain in [v0.2.0 verification](docs/releases/v0.2.0-verification.md).
 
 Automatic Codex delivery uses either direct tool-output with actual exclusive writer control, or an explicitly selected experimental queue on the original thread's owning App Server. Both require an appropriate tool/credential boundary; the queue also needs the local dispatch-context MCP tool. Live Desktop continuation and provider E2E remain separate acceptance work. See [host compatibility](docs/host-compatibility.md) and [acceptance](docs/acceptance.md).
@@ -124,6 +126,8 @@ right-wake --json drafts list
 Self-hosted cloud means **your own VPS or server**. There is no OpenAI-hosted Codex Cloud adapter. A Docker relay receives and stores events; your native local worker resumes the original local thread when available. It does not migrate that history or login into the container. Running execution on the VPS instead requires a supported agent host and existing thread on that VPS.
 
 Webhooks need a reachable HTTPS endpoint or an explicitly configured self-hosted relay. There is no assumed public hosted relay. Keep provider credentials and agent login on the execution host where possible; the relay can read the webhook payload it receives. See [deployment and operation](docs/deployment.md) for the appropriate service and relay setup.
+
+For a **fixed endpoint and receipt while the laptop is offline**, use a controlled HTTPS/WSS cloud relay with persistent storage, plus the native local worker. Reuse the existing local profile and paired device. In 0.3.1, `relay configure` saves the connection and `service install --mode relay-connect` supervises it through the existing user service. The service reconnects to the saved URL; it does not provision a domain/server, launch a tunnel or establish a Desktop execution boundary. An anonymous Quick Tunnel is a temporary trial, not this deployment. See [the cloud/local workflow](docs/deployment.md#cloud-relay-plus-local-worker).
 
 ## Development and validation
 

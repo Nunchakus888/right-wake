@@ -2,6 +2,8 @@
 
 **RightWake** uses `right-wake` consistently for its executable, packages, plugin, services, and data paths. v0.3.0 preserves an existing 0.2.0 `right-wake` profile and adds database tables for Linear ownership and queued dispatch context. Back up before upgrading; no legacy-name aliases are provided.
 
+**0.3.1 source/release candidate:** the new saved relay and service-mode commands below require this version. The installer/plugin in this branch pin 0.3.1, but that is not publication evidence. Check [0.3.1 verification](releases/v0.3.1-verification.md) before using its release download paths; source builds are available now. The published 0.3.0 installation evidence below remains historical and separate.
+
 ## Native release
 
 RightWake's ordinary runtime is one Rust binary with bundled SQLite. No separate database service or SQLite command-line installation is needed. It requires no Node.js, Python, Docker, Rust compiler, or elevated installation. The release installer uses system shell tools, `curl`, `tar`, and either `sha256sum` or `shasum`.
@@ -54,6 +56,16 @@ Source configuration stores credential environment-variable names. A foreground 
 
 ## User service
 
+Version 0.3.1 uses one owned service definition for one profile, with these modes:
+
+| Install option | Executed command | Prerequisite |
+| --- | --- | --- |
+| `--mode serve` | `serve` | Direct receiver and configured private listener |
+| `--mode relay-connect` | `relay connect` | Saved paired WSS connection from `relay configure` |
+| `--mode relay-serve` | `relay serve` | Controlled cloud receiver with persistent storage |
+
+Omitting `--mode` preserves an existing installed mode; a new service defaults to `serve`. Legacy definitions are treated as `serve`. No mode manages a tunnel or Codex. Switching modes requires stopping the existing owned service/foreground worker first; the helper refuses a live switch. Preserve the original `--env-file` path when reinstalling: omission is rejected when it would drop an existing reference.
+
 ```sh
 right-wake --env-file /absolute/path/to/private.env service install
 right-wake service start
@@ -66,6 +78,8 @@ The private file must already have appropriate permissions (for example `chmod 6
 
 Linux uses the current user's `right-wake.service` under `~/.config/systemd/user` (or `XDG_CONFIG_HOME`). It needs a working systemd user session. Spaces and Unicode in executable paths are supported; systemd's unsupported quoted/backslash executable paths are rejected before writing a definition. macOS uses `~/Library/LaunchAgents/io.github.nunchakus888.right-wake.plist` in the logged-in GUI user's launchd domain. Installation enables future login startup; `start` explicitly starts now. Repeating installation updates only RightWake's owned definition and does not restart an already running process. Stop and start after changing its executable or environment-file path.
 
+`service status` reports the installed mode and startup conditions. A macOS LaunchAgent resumes after GUI login, not before login or during sleep. Linux startup before login requires an already configured user manager/lingering; changing that OS setting needs its own authorization. A stable relay URL does not depend on whether the laptop is currently running. The relay worker retries transport failures with bounded backoff; systemd/launchd restarts its process after a crash. Neither mechanism authorizes an invalid token or fixes TLS/host isolation.
+
 `stop` stops current execution but leaves configuration and login registration. `uninstall` stops/disables the owned service and removes its definition; it keeps configuration, database, drafts, and external provider webhooks. One service definition belongs to one data directory. A different profile cannot silently take it over.
 
 Service template tests do not prove launchd/systemd operation on a target machine. Actual install/start/stop/restart/uninstall remains a separate acceptance check.
@@ -73,6 +87,8 @@ Service template tests do not prove launchd/systemd operation on a target machin
 ## Upgrade, rollback, and removal
 
 Stop the receiver, take a complete state backup, and install the next pinned release. The installer preserves the previous recognized binary as `right-wake.previous`. Run `--version` and `doctor` before restarting. A binary backup alone cannot reverse an incompatible database migration; retain the matching state backup and follow that release's migration notes.
+
+**0.3.0 → 0.3.1:** use the same profile and database schema **4**. The optional `relay_connection` adds a fixed WSS URL, token environment-variable name and exact source IDs to `config.json`; it does not change a webhook, pair another device, create a host, or lift a pause. Sources, bindings, raw events, receipts, jobs, drafts, secret files and the original onboarding file remain. Inspect `relay show` first. Save an already-authorized connection only when missing or deliberately changing it. If switching the existing service from direct receipt to a relay worker, stop it, configure the saved connection, install `--mode relay-connect` with its original private environment file, and start it. Retain a full backup for any rollback and explicitly restore the old `serve` definition if using a pre-0.3.1 binary; that binary does not understand saved no-argument `relay connect`.
 
 **0.2.0 → 0.3.0:** keep the same data directory. Schema **4** adds the Linear issue ownership projection and immutable dispatch-context storage; existing sources, bindings, contexts, jobs, drafts, and secret references remain. Existing Codex hosts default to `tool_output`, so an upgrade does not silently opt into the experimental queue. A saved `linear-onboarding.json` is an input for the setup Agent to inspect, not an automatically trusted import. Convert verified records to the [strict Linear snapshot format](linear.md), retaining the original file.
 

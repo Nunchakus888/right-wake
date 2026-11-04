@@ -2,14 +2,14 @@
 # Verify and load a pinned release into the selected Docker daemon. Never start it.
 set -eu
 
-version=${RIGHT_WAKE_VERSION:-v0.3.0}
+version=${RIGHT_WAKE_VERSION:-v0.3.1}
 from_dir=
 repository=Nunchakus888/right-wake
 tmp=
 fail() { printf 'right-wake container install: %s\n' "$*" >&2; exit 1; }
 usage() {
   cat <<'USAGE'
-Usage: install-container.sh [--version v0.3.0] [--from-dir DIR]
+Usage: install-container.sh [--version v0.3.1] [--from-dir DIR]
 
 Load the checksummed Linux amd64 or arm64 image for the Docker server's platform.
 The default release is pinned. Docker and its daemon must already be available.

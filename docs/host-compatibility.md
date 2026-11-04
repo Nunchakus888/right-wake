@@ -8,6 +8,16 @@ HTTP Upgrade handshake described by the Codex App Server protocol. It sends
 notifications. It does not launch Codex, start a daemon, discover private session
 files, log in, or automatically choose another transport.
 
+The 0.3.1 candidate changes relay connection and service lifecycle behavior; it
+adds no Desktop attachment method or per-automatic-turn tool restriction. Keep
+these checks distinct:
+
+| Check | What it establishes | What remains separate |
+| --- | --- | --- |
+| `doctor --probe` | App Server initialization/handshake | Original Desktop ownership, tool isolation, and model execution |
+| `host inspect` | Exact thread metadata and the selected delivery capability | Whether the original interactive client uses that server |
+| `restricted_tools: true` | The operator recorded a declaration | Actual effective tool, credential, and approval isolation |
+
 The adapter can read stored thread metadata and paginated history without
 invoking a model. A dispatch targets the configured `host_id` and the exact
 persisted `thread_id`. If a working directory was included in the binding, the
@@ -99,6 +109,16 @@ the actual owning socket; RightWake neither launches a replacement server nor
 discovers ownership from private session files. `host inspect` cannot prove
 that an endpoint is the Desktop's owning server.
 
+Use a supported original-client configuration that identifies its actual server
+endpoint, or a controlled App Server to which that original client is already
+connected. The [official transport documentation](https://learn.chatgpt.com/docs/app-server)
+and installed CLI 0.166.0 support explicit Unix WebSockets; CLI
+`app-server proxy --sock PATH` can connect to an existing control socket. Neither
+is proof of this Desktop session's owner. If that supported attachment cannot be
+established, report `desktop_attachment_unsupported` during setup and retain
+receipt-only operation. Starting another App Server over the same session files
+does not resolve it.
+
 ### Immutable context instead of external user instructions
 
 Queue accepts user input only. To keep event text out of that authority level,
@@ -189,6 +209,11 @@ the bridge's database and approval credentials from a model running under the
 same effective identity. A dedicated configuration/service boundary is required
 where same-process or same-user access would bypass those controls. If this has
 not been established, automatic dispatch stays disabled.
+
+If the original thread must retain writable tools and the host cannot restrict
+automatic turns, report `automatic_execution_tools_unrestricted` during setup.
+Keep receiving with execution paused. A declaration, prompt, different thread,
+or replacement App Server cannot supply the missing boundary.
 
 ## Delivery certainty and recovery
 

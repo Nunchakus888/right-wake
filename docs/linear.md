@@ -8,7 +8,7 @@ If Linear MCP is already connected to your agent, keep that connection for its p
 
 Receiving events and producing drafts do not require a Linear API token. They require the webhook signing secret at the receiver and a separately working execution host. Sending a draft adds an independently configured API credential, verified sending identity, and human Ed25519 approval.
 
-The personal-scope commands below require **RightWake 0.3.0**. Use the [installation guide](installation.md) and the matching [release](https://github.com/Nunchakus888/right-wake/releases/tag/v0.3.0), then run `right-wake --version` and `right-wake --json schema` to inspect the installed contract. Local configuration and synthetic checks do not establish a successful live Linear-to-thread integration.
+Personal scope was introduced in **RightWake 0.3.0**; its published [release](https://github.com/Nunchakus888/right-wake/releases/tag/v0.3.0) and verification remain historical evidence. The updated setup skill and saved-relay/service-mode workflow require the **0.3.1 candidate**. Follow the [installation guide](installation.md), preserve the existing profile and cloud deployment, and inspect `right-wake --version` and `right-wake --json schema`. Candidate source guidance does not mean new assets have been published. Local configuration and synthetic checks do not establish a live Linear-to-thread integration.
 
 ## Agent-led setup
 
@@ -20,7 +20,7 @@ For a single issue, name that issue and its intended existing thread instead. Th
 
 | Stage | Automatic work when the prerequisites are available |
 | --- | --- |
-| Install and select state | Reuse the binary and existing profile, install v0.3.0 if needed, run idempotent setup, and align the CLI/MCP data directory. |
+| Install and select state | Preserve the profile and original baseline, use a verified compatible 0.3.1 candidate binary for this workflow, run idempotent setup, and align the CLI/MCP data directory. |
 | Resolve Linear identity | Use permitted MCP/API results to resolve the exact organization, watched user, and issue UUIDs; preserve the intended source scope. |
 | Establish delivery | Reuse an existing HTTPS route or paired relay and signing-secret reference. Inspect and register a webhook only through an available authorized management tool or separately authorized admin API client. |
 | Seed observed ownership | Import timestamped issue ownership facts from authorized read tools, then maintain them through signed Issue events. |
@@ -30,13 +30,13 @@ For a single issue, name that issue and its intended existing thread instead. Th
 
 When the required access, endpoint, and exact target are already available, the agent can carry out these steps without another conversational handoff. It should first discover and reuse what exists, then ask only for a genuinely missing authorization, public route, or ambiguous work destination. A new onboarding conversation is not automatically the target. Reusing Linear MCP means invoking its allowed tools; never export its OAuth cache or treat that credential as the webhook signing secret.
 
-The skill coordinates the existing native CLI commands. The native service helper starts a direct `serve` receiver; a relay client needs the separate lifecycle described in the [deployment guide](deployment.md#d-supervise-the-actual-commands-and-verify-offline-recovery). Configuration checks and local fixtures do not establish live Linear/model continuation, and this workflow has not yet completed that real integration acceptance. Do not send a test comment without explicit authorization; an actual incoming event or an authorized provider delivery test can supply receipt evidence.
+The skill coordinates native CLI commands. The 0.3.1 candidate uses the same owned service lifecycle for a direct receiver and a saved relay worker; see the [deployment guide](deployment.md#d-supervise-the-actual-commands-and-verify-offline-recovery). Configuration checks and local fixtures do not establish live Linear/model continuation, and this workflow has not yet completed that real integration acceptance. Do not send a test comment without explicit authorization; an actual incoming event or an authorized provider delivery test can supply receipt evidence.
 
 ## 1. Choose where the receiver runs
 
 For an online local trial, run RightWake beside the host that owns the conversation and give its receiver a public HTTPS route through your existing tunnel or reverse proxy. The internal listener can remain `127.0.0.1:7433`; Linear must reach the public HTTPS URL, not that loopback address.
 
-If the computer may be offline, use the [cloud relay plus local worker deployment](deployment.md#cloud-relay-plus-local-worker). The relay receives and stores webhooks while the local worker reconnects over outbound WSS. The original thread remains on its original host.
+If the computer may be offline, use the [cloud relay plus local worker deployment](deployment.md#cloud-relay-plus-local-worker). Reuse the chosen cloud HTTPS endpoint, paired device, and existing local profile. Its Compose SQLite volume is sufficient; upgrading the worker does not require a new hosting account or database. The relay receives and stores webhooks while the local worker reconnects over outbound WSS. The original thread remains on its original host. A local tunnel alone provides no RightWake receipt storage while that local receiver is offline.
 
 This guide first shows direct local receipt. In a relay deployment, configure **both relay and worker** with the same source ID, provider origin, exact tenant, and `linear_assignee_id`, and bootstrap the assignment index in each profile that makes admission decisions. A relay configured only for mentions can suppress assignment events before the personal worker receives them. The worker must also bootstrap issues that existed before subscription; a bare Comment event cannot supply their assignment history.
 
@@ -106,7 +106,7 @@ Read `source list` before creating a source. Reuse an equivalent existing source
 
 ## 4. Register the Linear webhook and its secret
 
-Linear documents workspace-admin or appropriately scoped OAuth-admin authorization for webhook administration. The RightWake binary has no registration command. An agent can perform registration when its available tools expose authorized webhook management, or through a separately authorized admin API client. Inspect the actual capability and existing registrations first, and reuse a matching webhook instead of duplicating it. An existing Linear MCP connection alone does not establish that capability, and its OAuth cache must not be exported. If no authorized management path is available, create the webhook in Linear's API settings with an account that has the required permission.
+Linear documents workspace-admin or appropriately scoped OAuth-admin authorization for webhook administration. The RightWake binary has no registration command. An agent can register a webhook through an available authorized management tool or admin API client. First inspect the saved registration draft/journal and current provider registrations. For a new RightWake subscription, create an **independent webhook**; on a resumed attempt reuse the exact owned registration already created for this request. A matching label or URL alone is insufficient ownership evidence. Leave unrelated integrations, secrets, and scope untouched. An existing Linear MCP connection does not establish admin capability, and its OAuth cache must not be exported. If no authorized path is available, prepare the exact registration handoff for a workspace administrator.
 
 Set the webhook URL to your receiver's real public HTTPS address, preserving the exact source path, for example:
 
@@ -114,7 +114,9 @@ Set the webhook URL to your receiver's real public HTTPS address, preserving the
 https://events.example.com/hooks/linear-work
 ```
 
-The hostname is illustrative; use a domain or tunnel URL that you control. Subscribe to **Issues** and **Issue comments** in the intended workspace/team scope. Securely copy the webhook's signing secret into the environment used by the receiving process. Do not use a Linear API token in place of that secret.
+The hostname is illustrative; use the actual authorized stable endpoint. Subscribe to **Issues** and **Issue comments** (`resourceTypes: ["Issue", "Comment"]`) in explicitly selected teams. [Linear's webhook scope](https://linear.app/developers/webhooks) supports one team or all public teams per registration. Several selected teams require separately scoped registrations and the correct receiving source/signing-secret references. Use `allPublicTeams` only when that wider receipt scope was authorized; private-team coverage must be explicit. The webhook has no assignee filter: RightWake's `linear_assignee_id` narrows dispatch after receipt and does not authorize broader team collection.
+
+Prefer a disabled new registration while preparing its receiver, then enable only that owned webhook once durable receipt and its secret are ready. Save each registration ID, exact scope, URL, enabled state, and secret **reference** privately. Reconcile an uncertain create against that journal and provider state before retrying. An existing active registration is not disabled just to rerun setup. Securely store the signing secret in the receiving process's environment; a Linear API token is not a substitute.
 
 Prepare a private environment file without overwriting an existing file:
 
@@ -179,21 +181,17 @@ Signed Issue events continuously update this SQLite projection. Older revisions 
 | `outside_assignment` | The issue is observed assigned elsewhere, unassigned, removed, or the event predates the current assignment interval. Preserve the receipt; it is not runnable work. |
 | `waiting_capacity` | The event is durable but cannot enter the bounded pending queue yet. Actual completion, receipt, import, or control events can recheck capacity; this state does not start an idle polling loop. |
 
-After a known webhook gap, disabled subscription, or uncertain delivery coverage, pause the source and refresh **previously tracked issues as well as currently assigned issues**. An issue missing from today's “assigned to me” list may have been reassigned, removed, or become inaccessible; absence alone is not unassignment evidence. Resolve its actual state through authorized tools before resuming, and leave the source paused if ownership cannot be established safely. Inspect `source linear-state` and its `truncated` flag when preparing the refresh. Import explicit new owners/unassignments where available; restore webhook coverage for future updates. RightWake does not detect every remote delivery gap automatically.
+During first activation, after a known webhook gap or disabled subscription, and after offline/backlog windows requiring current-owner guarantees, hold execution and refresh **previously tracked issues as well as currently assigned issues**. For relay deployment, keep receipt/backfill running while paused and form the recovery set from the original baseline, relay inventory, worker inventory, and current assigned issues. Query their current provider state and import verified revisions into both profiles; revisit the inventory if backfill adds issues. An issue missing from today's “assigned to me” list may have been reassigned, removed, or become inaccessible; absence alone is not unassignment evidence. Inspect `source linear-state` and its `truncated` flag. Import explicit new owners/unassignments where available and keep the source paused if completeness or ownership remains unresolved. Restore webhook coverage for future updates; RightWake does not detect every remote delivery gap automatically.
+
+Relay v1 has **no replay-complete watermark**. A restored WSS connection, `received` ACK, empty local queue, or one completed read cannot prove that the backlog is drained or ownership is current. Reconnection does not query Linear or automatically pause local jobs. Preserve the source's prior pause state and release only a setup-owned pause after the recovery set and actual host prerequisites are verified. Preserve an original `linear-onboarding.json` byte for byte when its format is unknown; save new evidence in a separate private versioned sidecar, with the baseline path/hash, verified stages, and unresolved gaps. Keep import snapshots separate.
 
 “Currently assigned” means **the latest observed assignment evidence at the deciding worker**, from verified webhooks or authorized imports, not an instantaneous Linear API read. A remote change still in transit is not yet known; during relay backlog replay, an earlier comment can arrive before a later assignment change. RightWake rechecks the local projection before routing and immediately before dispatch, and only future, not already running, turns can be stopped by later revocation evidence. Repairing a known gap is an explicit event-driven operation, not periodic polling.
 
 ## 5. Select the actual existing host and thread
 
-RightWake does not start or log in to Codex. First establish an App Server endpoint owned by the intended host, using the installed Codex version's supported transport. Its socket must already be a **Unix-domain WebSocket** endpoint, reachable by the RightWake process. Consult `codex app-server --help` and the [host compatibility guide](host-compatibility.md); a generic Unix stream, an HTTP URL, and a managed cloud task are different interfaces.
+RightWake does not start or log in to Codex. Identify the existing App Server endpoint used by the original client through its supported host configuration. Its socket must already be a **Unix-domain WebSocket** endpoint reachable by RightWake. Inspect the installed `codex app-server --help` without launching another server, and follow the [host compatibility guide](host-compatibility.md). A generic Unix stream, an HTTP URL, and a managed cloud task are different interfaces.
 
-Codex CLI 0.166.0 advertises this Unix listen syntax when you deliberately operate the owning App Server:
-
-```sh
-codex app-server --listen unix:///absolute/path/to/owned-codex.sock
-```
-
-Run it only in the intended host environment containing the original sessions. If that host already exists, use its supported endpoint instead of starting another server or guessing private history paths. RightWake's `--socket` takes the filesystem path below, not the `unix://` URL. The supported `stdio://` and TCP `ws://` Codex modes do not replace RightWake's current Unix adapter.
+For an existing Desktop conversation, a second App Server sharing `CODEX_HOME` and the same thread UUID does not establish shared live ownership. Do not use it as an attachment workaround or guess private sockets/history paths. If the original owning endpoint cannot be verified, report `desktop_attachment_unsupported` and continue receipt-only with execution paused. RightWake's `--socket` takes a filesystem path, not a `unix://` URL. Codex's other advertised transports do not replace this adapter.
 
 Read `host list` first and reuse a matching host. `host add` replaces the whole entry with that ID, including its declarations and timeout; do not rerun the following new-host example against an existing configured host. For a new host, register it and inspect its available threads without enabling automatic submission:
 
@@ -207,7 +205,7 @@ right-wake --data-dir "$RIGHT_WAKE_LINEAR_DATA" --json host threads --host mac-c
 
 Thread listing is paginated. Use `host threads --host mac-codex --cursor NEXT_CURSOR` when the response provides another page. Select the actual thread containing the prior work and record its UUID and working directory. Visibility and a successful handshake are not proof that model continuation has been tested.
 
-The default `tool-output` host example below requires this integration to be the exclusive writer for the selected threads, and the host's actual tools/credentials must prevent automatic turns from bypassing reply approval. A still-concurrently-writable Desktop conversation does not satisfy that exclusive-writer condition. The opt-in `queue` mode has a separate atomic admission and context-read contract; follow the [host compatibility guide](host-compatibility.md) before selecting it. Both modes require the actual restricted-tools boundary. A connected read/write Linear MCP or shell-accessible API token can bypass that boundary; Linear's read-only MCP endpoint can be part of the chosen host setup.
+The default `tool-output` host example below requires this integration to be the exclusive writer for the selected threads, and the host's actual tools/credentials must prevent automatic turns from bypassing reply approval. A still-concurrently-writable Desktop conversation does not satisfy that exclusive-writer condition. The opt-in `queue` mode has a separate atomic admission and context-read contract; follow the [host compatibility guide](host-compatibility.md) before selecting it. Both modes require the actual restricted-tools boundary. A connected read/write Linear MCP or shell-accessible API token can bypass it. If the original thread must retain writable tools and its host cannot restrict automatic turns, report `automatic_execution_tools_unrestricted` and keep execution paused. `--restricted-tools` records a declaration; it does not remove tools or credentials.
 
 Only after those conditions are true, re-register the same host with the declarations below and bind the exact issue to the existing thread:
 
@@ -241,7 +239,7 @@ right-wake --data-dir "$RIGHT_WAKE_LINEAR_DATA" \
   serve --listen 127.0.0.1:7433
 ```
 
-Configure your tunnel or reverse proxy to reach that listener. After completing the index and target setup, resume the source in a separate terminal if it was paused:
+Configure your tunnel or reverse proxy to reach that listener. After completing assignment recovery and verifying the original host/tool boundaries, release only the setup-owned pause in a separate terminal. Preserve a pre-existing user pause:
 
 ```sh
 right-wake --data-dir "$RIGHT_WAKE_LINEAR_DATA" resume --source linear-work
@@ -275,7 +273,7 @@ Inspect a specific event with `events show EVENT_ID` and its job with `jobs show
 
 `doctor` explicitly reports that public webhook delivery is unverified until you perform the actual delivery test. Its local secret/handshake checks do not replace this test. An `unknown` dispatch or send outcome requires reconciliation; do not convert it into a blind retry.
 
-For a background **direct receiver**, follow the [native service lifecycle](installation.md#user-service). The installed service runs `serve`; the hybrid relay client has a different lifecycle described in the deployment guide.
+For background operation, follow the same [native service lifecycle](installation.md#user-service). The 0.3.1 candidate selects direct receipt with `service install --mode serve` or a saved outbound worker with `service install --mode relay-connect`. Stop the old owned receiver/worker before switching modes and pass its original private `--env-file` path when reinstalling. Follow the [relay configuration steps](deployment.md#c-save-and-start-the-outbound-local-worker) before selecting relay mode; `relay show` and service status are configuration/process evidence only.
 
 ## 7. Add external sending only when needed
 
@@ -298,12 +296,14 @@ Configure sending identity before generating drafts intended for publication. Dr
 | Missing secret, bad signature, or stale timestamp | Check the receiver's actual environment-file path, restart after secret changes, preserve raw bytes/headers, and verify its clock. |
 | `tenant_mismatch` or outside-scope event | Compare the real organization UUID and canonical issue key with the source configuration. |
 | `invalid_linear_tenant` | Personal scope requires the explicit organization UUID in `--tenant` / `tenant_id`. |
-| Assignment-only event stays cached | Confirm version 0.3.0, personal mode on both relay and worker, the exact watched user ID, and valid signed assignment-change/version fields. |
+| Assignment-only event stays cached | Confirm version 0.3.0 or newer, personal mode on both relay and worker, the exact watched user ID, and valid signed assignment-change/version fields. |
 | `waiting_assignment` | Import current issue ownership with its real `updatedAt`, or receive a usable Issue update. A Comment payload or static list of issue IDs cannot prove membership. |
 | `outside_assignment` | Inspect the current projected owner, removal/conflict flags, and assignment interval; keep the receipt rather than forcing a retry. |
 | `waiting_capacity` | Inspect pending jobs and capacity. Already stored work is reconsidered on real state changes; idle waiting does not invoke a model. |
 | `unassigned` | Bind the exact existing host/thread; a title or a semantic suggestion is not ownership. |
 | `tools_not_restricted`, ownership gate, or unavailable socket | Establish the documented host prerequisites; changing a flag alone does not establish them. |
+| Setup reports `desktop_attachment_unsupported` or `automatic_execution_tools_unrestricted` | Continue receipt-only with execution held; obtain supported original-owner evidence and an actual permission boundary. A replacement App Server is not a repair. |
+| Relay reconnects after a known gap | Keep the binding and execution hold; reconcile current and all previously tracked issue membership in both profiles. Reconnected/ACK status is not a replay-complete or provider-current signal. |
 | Waiting on a busy/offline host | Keep the binding. Restore that host and use `resume --host mac-codex` for an explicit event-driven recheck where needed. |
 | Draft exists but nothing appears in Linear | This is the default behavior. Complete independent approval and the explicit send command if publication is intended. |
 

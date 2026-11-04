@@ -66,7 +66,7 @@ fn default_candidates() -> usize {
     5
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RelayDevice {
     pub id: String,
     pub token_env: String,
@@ -76,6 +76,34 @@ pub struct RelayDevice {
 }
 fn yes() -> bool {
     true
+}
+
+/// One existing paired relay for this local profile. Credentials remain in the
+/// launching environment/private env file; saving this does not enable work.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RelayConnection {
+    pub url: String,
+    pub token_env: String,
+    pub source_ids: Vec<String>,
+}
+impl RelayConnection {
+    pub fn validate(&self, config: &Config) -> Result<()> {
+        // A persisted service must never inherit a test-only TLS bypass.
+        crate::relay::validate_url(&self.url, false)?;
+        validate_env(&self.token_env)?;
+        if self.source_ids.is_empty() {
+            bail!("relay connection needs an explicit source scope");
+        }
+        let mut ids = std::collections::HashSet::new();
+        for source in &self.source_ids {
+            config.source(source)?;
+            if !ids.insert(source) {
+                bail!("duplicate relay connection source id");
+            }
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -91,6 +119,7 @@ pub struct Config {
     pub hosts: Vec<HostConfig>,
     pub router: Option<RouterConfig>,
     pub relay_devices: Vec<RelayDevice>,
+    pub relay_connection: Option<RelayConnection>,
     pub max_payload_bytes: usize,
     pub max_pending: usize,
     pub max_stored_events: usize,
@@ -107,6 +136,7 @@ impl Default for Config {
             hosts: vec![],
             router: None,
             relay_devices: vec![],
+            relay_connection: None,
             max_payload_bytes: 1024 * 1024,
             max_pending: 10000,
             max_stored_events: 50000,
@@ -273,6 +303,9 @@ impl Config {
             for source in &device.source_ids {
                 self.source(source)?;
             }
+        }
+        if let Some(connection) = &self.relay_connection {
+            connection.validate(self)?;
         }
         if let Some(r) = &self.router {
             self.host(&r.target.host_id)?;

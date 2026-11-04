@@ -1,5 +1,5 @@
 use crate::{
-    config::{CodexDelivery, Config, HostConfig, RouterConfig},
+    config::{CodexDelivery, Config, HostConfig, RelayConnection, RouterConfig},
     db::{Db, LinearStateImport},
     engine::Engine,
     model::*,
@@ -354,7 +354,11 @@ pub enum DraftCommand {
 }
 #[derive(Debug, Subcommand)]
 pub enum ServiceCommand {
-    Install,
+    Install {
+        /// Preserve an installed mode by default; a new service defaults to serve.
+        #[arg(long, value_enum)]
+        mode: Option<crate::service::ServiceMode>,
+    },
     Start,
     Stop,
     Status,
@@ -377,14 +381,27 @@ pub enum RelayCommand {
         #[arg(long)]
         revoke: bool,
     },
-    Connect {
+    /// Save an existing paired relay's fixed WSS endpoint; starts no process.
+    Configure {
         #[arg(long)]
         url: String,
         #[arg(long)]
         token_env: String,
         #[arg(long, required = true)]
         source: Vec<String>,
-        #[arg(long)]
+    },
+    /// Inspect saved connection/device references, without revealing credentials.
+    Show,
+    /// Run the saved connection with automatic transport recovery. All explicit
+    /// connection flags must be supplied together to override it for one run.
+    Connect {
+        #[arg(long, requires_all = ["token_env", "source"])]
+        url: Option<String>,
+        #[arg(long, requires = "url")]
+        token_env: Option<String>,
+        #[arg(long, requires = "url")]
+        source: Vec<String>,
+        #[arg(long, requires = "url")]
         allow_loopback: bool,
     },
 }
@@ -477,7 +494,7 @@ pub async fn execute(cli: Cli) -> Result<Option<Value>> {
     let db = Db::open(&dir)?;
     let engine = Engine::new(dir.clone(), db.clone());
     let value=match cli.command {
-        Command::Status=>{let mut status=db.status()?;status["paused"]=json!(cfg.paused);status["paused_hosts"]=json!(cfg.paused_hosts);status["daemon_running"]=json!(daemon_running(&dir));status["next_action"]=json!("Inspect events/jobs for the exact waiting reason. Received, completed, and sent are separate states.");status}
+        Command::Status=>{let mut status=db.status()?;status["paused"]=json!(cfg.paused);status["paused_hosts"]=json!(cfg.paused_hosts);status["daemon_running"]=json!(daemon_running(&dir));status["relay_connection"]=json!(cfg.relay_connection);status["next_action"]=json!("Inspect events/jobs for the exact waiting reason. Saved relay settings and a running process do not prove connectivity. Received, completed, and sent are separate states.");status}
         Command::Doctor{probe}=>doctor(&engine,&cfg,probe).await?,
         Command::Serve{listen,relay_only}=>{crate::server::serve(engine,listen,relay_only).await?;return Ok(None);}
         Command::Source(SourceCommand::List)=>serde_json::to_value(&cfg.sources)?,
@@ -583,10 +600,32 @@ pub async fn execute(cli: Cli) -> Result<Option<Value>> {
             let (state,reason)=match &result{SendOutcome::Sent{..}=>("sent","Provider confirmed the write"),SendOutcome::Unknown{reason}=>("unknown",reason.as_str()),SendOutcome::Rejected{reason}=>("draft",reason.as_str()),SendOutcome::Failed{reason,..}=>("draft",reason.as_str())};
             db.draft_state(&id,state,reason,&serde_json::to_value(&result)?)?;serde_json::to_value(result)?
         }
-        Command::Service(action)=>{let action=match action{ServiceCommand::Install=>"install",ServiceCommand::Start=>"start",ServiceCommand::Stop=>"stop",ServiceCommand::Status=>"status",ServiceCommand::Uninstall=>"uninstall"};crate::service::manage(action,&dir,&std::env::current_exe()?,cli.env_file.as_deref())?}
+        Command::Service(action)=>{let (action,mode)=match action{ServiceCommand::Install{mode}=>("install",mode),ServiceCommand::Start=>("start",None),ServiceCommand::Stop=>("stop",None),ServiceCommand::Status=>("status",None),ServiceCommand::Uninstall=>("uninstall",None)};crate::service::manage(action,&dir,&std::env::current_exe()?,cli.env_file.as_deref(),mode)?}
         Command::Relay(RelayCommand::Serve{listen})=>{crate::server::serve(engine,listen,true).await?;return Ok(None);}
-        Command::Relay(RelayCommand::Device{id,token_env,source,revoke})=>{crate::config::validate_id(&id)?;crate::config::validate_env(&token_env)?;for s in &source{cfg.source(s)?;}let device=crate::config::RelayDevice{id:id.clone(),token_env,source_ids:source,enabled:!revoke};if let Some(old)=cfg.relay_devices.iter_mut().find(|d|d.id==id){*old=device;}else{cfg.relay_devices.push(device);}cfg.save(&dir)?;crate::server::poke(&dir);json!({"device_id":id,"enabled":!revoke})}
-        Command::Relay(RelayCommand::Connect{url,token_env,source,allow_loopback})=>{crate::relay::connect(engine,&url,&token_env,&source,allow_loopback).await?;return Ok(None);}
+        Command::Relay(RelayCommand::Device{id,token_env,mut source,revoke})=>{crate::config::validate_id(&id)?;crate::config::validate_env(&token_env)?;source.sort();if source.windows(2).any(|pair|pair[0]==pair[1]){bail!("duplicate relay device source id");}for s in &source{cfg.source(s)?;}let device=crate::config::RelayDevice{id:id.clone(),token_env,source_ids:source,enabled:!revoke};let changed=if let Some(old)=cfg.relay_devices.iter_mut().find(|d|d.id==id){let mut previous=old.clone();previous.source_ids.sort();previous.source_ids.dedup();if previous==device{false}else{*old=device;true}}else{cfg.relay_devices.push(device);true};if changed{cfg.save(&dir)?;crate::server::poke(&dir);}json!({"device_id":id,"enabled":!revoke,"changed":changed})}
+        Command::Relay(RelayCommand::Configure{url,token_env,mut source})=>{
+            source.sort();
+            let connection=RelayConnection{url:crate::relay::validate_url(&url,false)?.to_string(),token_env,source_ids:source};
+            connection.validate(&cfg)?;
+            let changed=cfg.relay_connection.as_ref()!=Some(&connection);
+            if changed {
+                // The live process retains its selected connection. Do not make
+                // status disagree with it or silently move receipt provenance.
+                let _lock=acquire_worker_lock(&dir).context("relay_connection_in_use: stop the owned receiver/worker before changing its saved connection")?;
+                cfg.relay_connection=Some(connection.clone());
+                cfg.save(&dir)?;
+            }
+            json!({"state":"configured","connection":connection,"changed":changed,"service_started":false,"webhook_registered":false,"execution_resumed":false,"next_action":"Verify the existing paired device and authorized receive scope on your controlled relay; preserve the profile and pause state. Start relay connect or explicitly install service --mode relay-connect with the same private environment file."})
+        }
+        Command::Relay(RelayCommand::Show)=>json!({"connection":cfg.relay_connection,"devices":cfg.relay_devices,"connected":null,"next_action":"These are saved references, not network verification. Reuse an existing matching relay/device; verify cloud receipt and original-thread execution separately."}),
+        Command::Relay(RelayCommand::Connect{url,token_env,source,allow_loopback})=>{
+            let connection=match (url,token_env) {
+                (Some(url),Some(token_env)) if !source.is_empty()=>RelayConnection{url,token_env,source_ids:source},
+                (None,None) if source.is_empty()&&!allow_loopback=>cfg.relay_connection.clone().context("relay_not_configured: run relay configure for an existing paired WSS endpoint, or supply --url, --token-env, and --source together")?,
+                _=>bail!("relay_connection_arguments: supply --url, --token-env, and --source together; saved and explicit connection fields cannot be mixed"),
+            };
+            crate::relay::connect(engine,&connection.url,&connection.token_env,&connection.source_ids,allow_loopback).await?;return Ok(None);
+        }
         Command::Pause{source,resource,host}=>set_paused(&dir,&db,&mut cfg,source,resource,host,true)?,
         Command::Resume{source,resource,host}=>set_paused(&dir,&db,&mut cfg,source,resource,host,false)?,
         Command::Ingest{source,body,headers}=>{let raw=read_bounded(&body,cfg.max_payload_bytes)?;let headers=serde_json::from_value(read_json(&headers)?)?;match provider::ingest(cfg.source(&source)?,&headers,&raw,now_ms())?{IngestOutcome::Event(e)=>{let receipt=db.receive(&e,&raw,&cfg)?;crate::server::poke(&dir);receipt},IngestOutcome::Ignored{reason}=>json!({"state":"ignored","reason":reason})}}
@@ -689,7 +728,9 @@ async fn doctor(engine: &Engine, cfg: &Config, probe: bool) -> Result<Value> {
                 "outside_assignment":state["outside_assignment"],
                 "waiting_capacity":state["waiting_capacity"],
                 "inspection_command":"source linear-state --id SOURCE",
-                "subscription_verified":false
+                "subscription_verified":false,
+                "receive_scope_verified":false,
+                "recovery_action":"After establishing receipt or a provider coverage gap, refresh both current assignments and every previously tracked issue using authorized read tools; import explicit current owners before resuming. Absence from a current-assignee list does not unassign old issues."
             }))
         } else {
             None
@@ -720,7 +761,7 @@ async fn doctor(engine: &Engine, cfg: &Config, probe: bool) -> Result<Value> {
                 } else {
                     "Establish a single writer for direct tool-output delivery, or explicitly configure supported atomic queue delivery"
                 };
-                json!({"id":host.id(),"kind":"codex","socket":socket,"delivery":delivery,"connected":connected,"exclusive_writer_required":*delivery==CodexDelivery::ToolOutput,"exclusive_writer_declared":exclusive_writer,"restricted_tools_declared":restricted_tools,"dispatch_context_tool_required":*delivery==CodexDelivery::Queue,"thread_execution_verified":false,"next_action":next_action})
+                json!({"id":host.id(),"kind":"codex","socket":socket,"delivery":delivery,"connected":connected,"exclusive_writer_required":*delivery==CodexDelivery::ToolOutput,"exclusive_writer_declared":exclusive_writer,"restricted_tools_declared":restricted_tools,"tool_isolation_verified":false,"original_host_ownership_verified":false,"dispatch_context_tool_required":*delivery==CodexDelivery::Queue,"thread_execution_verified":false,"next_action":next_action})
             }
             HostConfig::Command { program, .. } => {
                 json!({"id":host.id(),"kind":"command","program_exists":program.is_file(),"sandboxed":false,"next_action":"Use a trusted adapter with the stdin correlation contract"})
@@ -729,7 +770,16 @@ async fn doctor(engine: &Engine, cfg: &Config, probe: bool) -> Result<Value> {
         result["paused"] = json!(cfg.host_paused(host.id()));
         hosts.push(result);
     }
+    let relay = cfg.relay_connection.as_ref().map(|connection| {
+        json!({
+            "connection":connection,
+            "token_available":std::env::var(&connection.token_env).is_ok_and(|value|value.len()>=32),
+            "connected":null,
+            "fixed_endpoint_deployment_verified":false,
+            "next_action":"Use relay connect or service install --mode relay-connect for this saved endpoint. Verify its authorized deployment, persistent cloud storage, public TLS routes and real provider receipt separately; configuration does not provision infrastructure."
+        })
+    });
     Ok(
-        json!({"version":env!("CARGO_PKG_VERSION"),"configuration":"valid","sqlite":{"version":rusqlite::version(),"version_number":rusqlite::version_number()},"storage":engine.db.status()?,"daemon_running":daemon_running(&engine.dir),"sources":sources,"hosts":hosts,"model_turns_requested_by_doctor":0,"note":"Configuration and handshake checks do not prove model execution or external reply delivery"}),
+        json!({"version":env!("CARGO_PKG_VERSION"),"configuration":"valid","sqlite":{"version":rusqlite::version(),"version_number":rusqlite::version_number()},"storage":engine.db.status()?,"daemon_running":daemon_running(&engine.dir),"sources":sources,"hosts":hosts,"relay":relay,"model_turns_requested_by_doctor":0,"note":"Configuration and handshake checks do not prove tool isolation, ownership of the Desktop host, model execution or external reply delivery"}),
     )
 }

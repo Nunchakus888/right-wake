@@ -6,11 +6,13 @@ The image includes RightWake and **bundled SQLite**. One persistent `/data` volu
 
 **[v0.3.0 Docker assets are published](https://github.com/Nunchakus888/right-wake/releases/tag/v0.3.0).** Linux amd64 and arm64 both passed actual image/Compose persistence and installer checks. See [verification](../docs/releases/v0.3.0-verification.md) for exact runs and public-download evidence. [Verification levels](#container-verification-levels) explains what each check establishes.
 
+The **0.3.1 candidate** adds saved WSS connections, transport recovery, and a native `relay-connect` service mode for the local worker. This does not require replacing a working 0.3.0 cloud relay or adding a database, hosting account, or volume. Preserve the existing Compose project, endpoint, device, source, and private environment file. Candidate source instructions below do not imply that 0.3.1 assets have been published.
+
 ## Install the release image
 
 Prerequisites: an available Linux amd64 or arm64 Docker daemon, Docker Compose v2, shell tools, `curl`, and `sha256sum` or `shasum`. RightWake does not install or reconfigure Docker. Ordinary native users do not need Docker.
 
-On your VPS, use a new deployment directory:
+For a new VPS relay, use a new deployment directory. For an existing relay, retain its directory, project identity, and volume and follow the upgrade section instead:
 
 ```sh
 mkdir right-wake-relay
@@ -72,7 +74,7 @@ docker compose run --rm right-wake relay device \
 
 Use your trusted editor or secret mechanism to populate `private.env` with the actual `RIGHT_WAKE_LINEAR_WEBHOOK_SECRET` and a device token of at least 32 characters under `RIGHT_WAKE_RELAY_DEVICE_TOKEN`. Source/device configuration stores these **variable names**, not their values. Transfer only the matching device token to the authorized local worker through your trusted channel. A receipt-only relay needs no provider write token, Codex login, or approval private key.
 
-For personal Linear watching, configure the same `linear_assignee_id`, organization, and static exclusions on both relay and local worker, and seed each projection with verified issue state. Subscribe to **Issue and Comment** resources across the intended teams. Do not use today's assigned issue list as a static `--resource` allowlist. The receiver must preserve all valid Issue ownership facts, including reassignment away; a relay still configured for the old mention-only policy cannot supply missing assignment events. See [personal scope and snapshots](../docs/linear.md).
+For personal Linear watching, configure the same `linear_assignee_id`, organization, and static exclusions on both relay and local worker, and seed each projection with verified issue state. Subscribe to **Issue and Comment** resources in explicitly authorized teams. Provider team receipt scope and local assignee filtering are separate; do not default to every public team or use today's assigned issue list as a static `--resource` allowlist. Create an independent RightWake webhook after inspecting the registration draft and provider state; on a resumed attempt reuse that exact owned registration. Leave unrelated integrations untouched. The receiver must retain Issue ownership changes, including reassignment away; a relay still using the old mention-only policy cannot supply missing assignment events. See [personal scope and snapshots](../docs/linear.md).
 
 The [Linear guide](../docs/linear.md) explains webhook permissions and identifiers. Adding a source does not register a provider webhook. An existing Linear MCP connection also does not create this event subscription.
 
@@ -87,9 +89,11 @@ docker compose exec right-wake right-wake --json events list
 
 The supplied command is `relay serve --listen 0.0.0.0:7433`. It receives and queues events without starting model work. The container port is published as `127.0.0.1:7433:7433`; set `RIGHT_WAKE_PORT` for a different host port, retaining that value whenever Compose recreates the service. Configure your TLS proxy to forward only the intended `/hooks/<source_id>` and `/relay/<device_id>` paths. Preserve raw webhook bodies/signature headers and the WebSocket upgrade/device Authorization header. Do not expose a Codex control socket publicly.
 
-The original local worker uses native `right-wake relay connect`, with its **own** persistent profile, source policy, supported host, and exact existing-thread binding. Follow [cloud relay plus local worker](../docs/deployment.md#cloud-relay-plus-local-worker). It initiates outbound WSS to the relay; creating a binding only in the cloud profile does not configure local execution.
+The original local worker uses its **own** persistent profile, source policy, supported host, and exact existing-thread binding. In the 0.3.1 candidate, save the existing paired endpoint with `relay configure --url wss://YOUR_OWNED_HOST/relay/DEVICE_ID --token-env TOKEN_VARIABLE --source SOURCE_ID`, inspect references with `relay show`, and run saved `relay connect`. Use the actual authorized host/device/source and put the token value only in the private environment file. Follow [cloud relay plus local worker](../docs/deployment.md#cloud-relay-plus-local-worker). The worker initiates outbound WSS; creating a binding only in the cloud profile does not configure local execution.
 
-`restart: unless-stopped` supervises the cloud relay. It does not make an offline laptop execute or install a local relay-client supervisor. A live public webhook, device connection, and actual model continuation still require verification in your deployment.
+`restart: unless-stopped` supervises the cloud relay. Manage the local 0.3.1 worker with `service install --mode relay-connect` and the same native `start`, `stop`, `status`, and `uninstall` commands. Stop an old owned `serve` service before switching modes, and preserve its profile and private `--env-file` path. A running service does not prove a live public webhook, device connection, or model continuation.
+
+Keep personal Linear execution paused through initial receipt/backfill and fresh imports for current **and previously tracked** issues in both profiles. Repeat this after known provider gaps or offline/backlog windows requiring current-owner guarantees. Relay v1 has no replay-complete watermark; restored WSS or a receipt ACK cannot prove that a later reassignment has arrived. Transport recovery does not query Linear. Preserve the original onboarding baseline and record recovery evidence separately before releasing a setup-owned pause. An unresolved original Desktop endpoint or actual tool boundary remains an execution blocker.
 
 ## Storage, upgrades, and removal
 
@@ -107,10 +111,10 @@ docker compose up -d
 
 ## Build from source
 
-For development or a custom build, build the optional source Dockerfile from the repository root:
+For development of the 0.3.1 candidate or a custom build, build the optional source Dockerfile from the repository root. This creates a local image, not a published release:
 
 ```sh
-docker build --file deploy/Dockerfile --tag right-wake:0.3.0 .
+docker build --file deploy/Dockerfile --tag right-wake:0.3.1 .
 mkdir "$HOME/right-wake-relay"
 cp deploy/compose.yaml "$HOME/right-wake-relay/compose.yaml"
 cd "$HOME/right-wake-relay"
@@ -127,4 +131,4 @@ Use a new deployment directory outside the source checkout, then follow [initial
 | Public image archives | Downloaded checksum and OCI metadata inspection is recorded separately from actual image execution. An inspected archive alone is not a Docker runtime test. |
 | Real deployment | Public HTTPS/WSS, provider receipt, offline-local replay, original-thread model continuation, and provider replies require separate authorized integration evidence. |
 
-Repository validation commands are `sh scripts/container-smoke.sh` for the source build, and `sh scripts/compose-smoke.sh right-wake:0.3.0` for an already-built image. The test host needs Docker/Compose and Python 3; the runtime image does not need Python. The release packaging script reuses its native Linux binary, checks the image and Compose behavior, saves the archive, and exercises the real loader against that archive. A passing fixture does not establish a live Codex or provider integration; keep those results separate in [acceptance](../docs/acceptance.md). Earlier release evidence is preserved in the [archive](../docs/archive/README.md).
+Repository validation commands are `sh scripts/container-smoke.sh` for the source build, and `sh scripts/compose-smoke.sh right-wake:0.3.1` for an already-built candidate image. The test host needs Docker/Compose and Python 3; the runtime image does not need Python. The release packaging script reuses its native Linux binary, checks the image and Compose behavior, saves the archive, and exercises the real loader against that archive. A passing fixture does not establish a live Codex or provider integration; keep those results separate in [acceptance](../docs/acceptance.md). Earlier release evidence is preserved in the [archive](../docs/archive/README.md).

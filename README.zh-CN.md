@@ -18,6 +18,8 @@ RightWake 以一个原生 Rust 二进制提供 CLI 和 Codex 插件，**内嵌 S
 
 ## 当前状态
 
+当前分支准备 **v0.3.1**：增加固定 relay 连接配置、断线恢复和原生 relay worker 服务管理，复用 0.3.0 的协议与 SQLite。发布前，新命令需使用源码构建；下方已发布的 0.3.0 安装包尚不包含这些改动。参见 [0.3.1 改动及边界](docs/releases/v0.3.1.md)和[验证记录](docs/releases/v0.3.1-verification.md)。
+
 **[v0.3.0 实验性预览版已发布](https://github.com/Nunchakus888/right-wake/releases/tag/v0.3.0)**，新增按 Linear 指派人监听与可选的 Codex 队列投递。 自动接收自己名下 issue 的新评论，以及新指派给自己的任务，无需每条评论加 mention，也不把今天的任务列表固化为永久范围。归属变化更新本地持久记录；归属未知时暂存，不调用模型。四个原生平台均通过 **129 项测试，0 失败、0 忽略**；两个 Linux 平台的 Docker / Compose 检查也已通过。具体运行与安装证据见 [v0.3.0 验证记录](docs/releases/v0.3.0-verification.md)；之前的结果保留在 [v0.2.0 记录](docs/releases/v0.2.0-verification.md)。
 
 自动向 Codex 投递可选两种方式：直接 tool-output 要求实际独占写入；实验性的 Queue 方式使用原会话所属 App Server 的原子入队。两者都需要落实工具与凭证权限边界，Queue 还需要同一配置目录的上下文 MCP 工具。真实桌面原会话续接与平台授权读写仍需分别验收，详见[宿主兼容性](docs/host-compatibility.md)和[验收记录](docs/acceptance.md)。
@@ -124,6 +126,8 @@ right-wake --json drafts list
 这里的云端指**自己的 VPS 或服务器**，当前没有 OpenAI 托管 Codex Cloud 适配器。Docker Relay 接收并保存事件，本地原生执行器在线后续接原 Thread；原会话历史和登录不会迁入容器。如果希望工作也在 VPS 上执行，则需要该 VPS 上支持的宿主及已有会话。
 
 直接 Webhook 需要可达的 HTTPS 入口，否则要明确配置自托管 Relay；产品不假定已有公共托管 Relay。尽可能把平台 API 凭证和 Agent 登录保留在执行 Host，Relay 能读取其接收的事件正文。服务与 Relay 的配置路径见[部署及运行说明](docs/deployment.md)。
+
+需要**固定入口及电脑离线期间收件**时，使用受控的 HTTPS/WSS 云端 relay、持久磁盘和本机原生 worker，保留原 profile 与已配对设备。0.3.1 的 `relay configure` 保存地址，`service install --mode relay-connect` 使用现有用户服务管理 worker。固定域名、服务器和部署授权仍需真实具备；匿名 Quick Tunnel 仅适合临时试验。联网和重连成功不证明 Desktop 原宿主连接或自动任务权限隔离已经完成。[长期接入步骤](docs/deployment.md#cloud-relay-plus-local-worker)。
 
 ## 开发与验证
 

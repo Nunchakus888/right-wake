@@ -556,3 +556,124 @@ async fn bounded_replay_reads_live_events_and_only_replays_its_own_receipts() {
     assert!(engine.db.relay_received_from("relay-a", "live").unwrap());
     task.abort();
 }
+
+#[tokio::test]
+async fn offline_storage_and_lost_ack_survive_both_restarts_without_a_second_job() {
+    let (cloud_dir, cloud, cloud_cfg) = setup();
+    let queued = event("offline");
+    persist(&cloud, &cloud_cfg, &queued);
+    drop(cloud);
+    // A fresh process/profile opening sees the admitted event even though no
+    // local device was online when the cloud accepted it.
+    let cloud = Engine::new(cloud_dir.path().into(), Db::open(cloud_dir.path()).unwrap());
+    assert_eq!(
+        cloud
+            .db
+            .relay_pending("device", &["source".into()], 10)
+            .unwrap()
+            .len(),
+        1
+    );
+
+    let (local_dir, local, _local_cfg) = setup();
+    let (mut peer, client) = sockets().await;
+    let first = tokio::spawn(receive_wire(
+        RelayWire::websocket(client),
+        local.clone(),
+        "stable-device-endpoint".into(),
+        vec!["source".into()],
+        local.completed.subscribe(),
+    ));
+    send(
+        &mut peer,
+        json!({"type":"event","schema_version":1,"event":queued}),
+    )
+    .await;
+    assert_eq!(read(&mut peer).await["phase"], "received");
+    // The worker committed the event but the cloud never received its ACK.
+    drop(peer);
+    assert!(timeout(Duration::from_secs(2), first)
+        .await
+        .unwrap()
+        .unwrap()
+        .is_err());
+    let target = ThreadTarget {
+        host_id: "test".into(),
+        thread_id: "original-thread".into(),
+        cwd: None,
+    };
+    let binding = local
+        .db
+        .bind("source", &queued.resource_key, &target, "explicit", None)
+        .unwrap();
+    let job = local.db.enqueue(&queued, &binding).unwrap().unwrap();
+    assert_eq!(local.db.jobs(None, 10).unwrap().len(), 1);
+    drop(local);
+
+    let local = Engine::new(local_dir.path().into(), Db::open(local_dir.path()).unwrap());
+    assert!(local
+        .db
+        .relay_received_from("stable-device-endpoint", "offline")
+        .unwrap());
+    let (state, variable) = relay_state(&cloud, cloud_cfg);
+    let (server, client) = sockets().await;
+    let (cancel, cancelled) = oneshot::channel();
+    let delivery = tokio::spawn(serve_wire(
+        RelayWire::websocket(server),
+        state,
+        "device".into(),
+        TOKEN.into(),
+        cancelled,
+    ));
+    let reception = tokio::spawn(receive_wire(
+        RelayWire::websocket(client),
+        local.clone(),
+        "stable-device-endpoint".into(),
+        vec!["source".into()],
+        local.completed.subscribe(),
+    ));
+    timeout(Duration::from_secs(2), async {
+        while cloud
+            .db
+            .relay_phase("device", "offline")
+            .unwrap()
+            .as_deref()
+            != Some("received")
+        {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(local.db.events(None, 10).unwrap().len(), 1);
+    assert_eq!(local.db.jobs(None, 10).unwrap().len(), 1);
+    assert_eq!(local.db.jobs(None, 10).unwrap()[0].id, job.id);
+    assert!(local.db.enqueue(&queued, &binding).unwrap().is_none());
+    assert_eq!(
+        local
+            .db
+            .resource_revision("source", &queued.resource_key)
+            .unwrap(),
+        "1"
+    );
+    cancel.send(()).unwrap();
+    assert!(delivery.await.unwrap().is_err());
+    let _ = timeout(Duration::from_secs(2), reception)
+        .await
+        .unwrap()
+        .unwrap();
+    drop(cloud);
+    let cloud_after = Db::open(cloud_dir.path()).unwrap();
+    assert!(cloud_after
+        .relay_pending("device", &["source".into()], 10)
+        .unwrap()
+        .is_empty());
+    assert_eq!(
+        cloud_after
+            .relay_phase("device", "offline")
+            .unwrap()
+            .as_deref(),
+        Some("received")
+    );
+    std::env::remove_var(variable);
+}
