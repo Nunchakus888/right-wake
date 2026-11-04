@@ -2,7 +2,7 @@
 # Install a pinned, checksummed native release. No service or plugin changes.
 set -eu
 
-version=${RIGHT_WAKE_VERSION:-v0.3.0}
+version=${RIGHT_WAKE_VERSION:-v0.3.1}
 bin_dir=${RIGHT_WAKE_INSTALL_DIR:-"$HOME/.local/bin"}
 from_dir=
 repository=Nunchakus888/right-wake
@@ -12,7 +12,7 @@ staged=
 fail() { printf 'right-wake install: %s\n' "$*" >&2; exit 1; }
 usage() {
   cat <<'USAGE'
-Usage: install.sh [--version v0.3.0] [--bin-dir DIR] [--from-dir DIR]
+Usage: install.sh [--version v0.3.1] [--bin-dir DIR] [--from-dir DIR]
 
 Install the matching native binary for macOS or glibc Linux, arm64 or x86_64.
 The default release is pinned; no daemon starts and no Codex config is changed.

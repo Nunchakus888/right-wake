@@ -2,7 +2,9 @@
 
 Place execution beside the host that owns the existing conversation. A public receiver or relay can run elsewhere, but moving RightWake to a VPS does not move a Mac's Codex thread, credentials, worktree, or session history. A thread ID is meaningful only on the host that actually serves it.
 
-Recommended starting point: **native RightWake on the local computer, Docker + Compose for the VPS relay**. Both include SQLite in the binary, so neither needs a separate database service. The [native installation guide](installation.md) and [container guide](../deploy/README.md) cover the v0.3.0 packages and explicit setup; [verification](releases/v0.3.0-verification.md) records their current publication status.
+For durable receipt while a laptop is offline, use **a cloud HTTPS relay and a native local worker connecting over outbound WSS**. Reuse an existing relay, paired device, and local profile. Both binaries include SQLite; the existing Docker + Compose volume is sufficient and no additional database service is needed. The [container guide](../deploy/README.md) and [v0.3.0 verification](releases/v0.3.0-verification.md) retain the published deployment evidence.
+
+**0.3.1 candidate:** saved relay connections, automatic transport recovery, and the selectable native service modes below require the 0.3.1 candidate build. These are source instructions, not a claim that new release assets or a live integration have been published. Preserve the existing 0.3.0 deployment and back up the local profile before an authorized binary upgrade; upgrading the worker does not require a new cloud deployment.
 
 RightWake currently has two host adapters: Codex App Server over an explicitly configured Unix-domain WebSocket, and a trusted fixed executable implementing the GenericCommand JSON contract. It has no implemented or accepted adapter that attaches to an existing managed Codex Cloud task. See the [host compatibility guide](host-compatibility.md) for the exact protocol and remaining real-host validation boundaries.
 
@@ -23,7 +25,7 @@ Use a private, persistent data directory for each independently running receiver
 
 Credential values belong in the launching environment or a private `--env-file`, not in source JSON, URLs, images, or the repository. The file must be private on Unix, such as mode `0600`, and uses plain `NAME=VALUE` entries without shell syntax. Configuration contains environment-variable **names**. Editing the file does not change an existing process's environment; restart that process when values change.
 
-For public receipt, terminate valid HTTPS/WSS at a controlled reverse proxy or ingress. Keep RightWake's plain HTTP listener private to that proxy or container network. Forward only the intended `/hooks/<source_id>` and, for relay mode, `/relay/<device_id>` routes. Webhooks need their original body bytes and signature headers; relay connections need WebSocket upgrade and the device Authorization header. Never expose a Codex control socket or bridge management interface as the public webhook endpoint.
+For public receipt, terminate valid HTTPS/WSS at an authorized reverse proxy or ingress using a domain you control. A stable endpoint depends on keeping that domain, route, process, and persistent storage active. Keep RightWake's plain HTTP listener private to the proxy or container network. Forward only the intended `/hooks/<source_id>` and, for relay mode, `/relay/<device_id>` routes. Webhooks need their original body bytes and signature headers; relay connections need WebSocket upgrade and the device Authorization header. TLS termination can read those plaintext bodies and headers, so include the chosen proxy provider in the deployment's trust boundary. Never expose a Codex control socket or bridge management interface as the public webhook endpoint.
 
 Receiving credentials and external-write authority are separate. Protect both RightWake state and its trusted configuration from the automatically executing agent, and keep the independent approval private key outside that boundary. The `--exclusive-writer` and `--restricted-tools` host flags record prerequisites; they do not create those isolation properties. See [host requirements](host-compatibility.md#tool-isolation-is-a-separate-deployment-requirement) and [reply approval](approvals.md).
 
@@ -39,16 +41,18 @@ right-wake --data-dir /absolute/path/to/local-right-wake \
 
 Point your existing tunnel or reverse proxy's public HTTPS URL at this listener and register the public `/hooks/<source_id>` URL with the provider. Do not put `localhost` into Linear's webhook URL. This shape is useful for an online trial or an always-on local machine. If the computer or tunnel is offline, RightWake cannot receive the request; provider delivery/retry behavior is then the only upstream protection. Add a durable relay when offline local periods must be covered.
 
+[Cloudflare Quick Tunnels](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/) provide temporary trial URLs, with no uptime guarantee; they are not the fixed production endpoint. A [named public Cloudflare Tunnel](https://developers.cloudflare.com/tunnel/get-started/) requires an account and a domain on Cloudflare that you are authorized to use. Cloudflare's [HTTP request path](https://developers.cloudflare.com/data-localization/regional-services/http-requests/) terminates TLS and processes the plaintext request. Neither kind of tunnel supplies RightWake with offline storage when its local receiver is unavailable.
+
 The native helper can supervise this direct receiver on a supported logged-in Linux/macOS user session:
 
 ```sh
 right-wake --data-dir /absolute/path/to/local-right-wake \
-  --env-file /absolute/path/to/local-right-wake/private.env service install
+  --env-file /absolute/path/to/local-right-wake/private.env service install --mode serve
 right-wake --data-dir /absolute/path/to/local-right-wake service start
 right-wake --data-dir /absolute/path/to/local-right-wake service status
 ```
 
-The built-in service definition always starts `serve`. It does not launch Codex or the tunnel, and it does not install `relay connect` or `relay serve`. The [installation guide](installation.md#user-service) describes ownership, stop, and uninstall behavior.
+The native service supports `serve`, `relay-connect`, and `relay-serve` modes through the same owned service identity and lifecycle. A new service defaults to `serve`; reinstalling without `--mode` preserves the installed mode. Stop the owned process before changing modes, and pass its original private `--env-file` when reinstalling. The helper does not launch Codex or the tunnel. See the [installation guide](installation.md#user-service) for ownership, stop, and uninstall behavior.
 
 ## Everything on a VPS
 
@@ -70,7 +74,7 @@ If the original work still belongs to the Mac, use the hybrid deployment below. 
 
 A long-running VM, persistent Linux container deployment, or orchestrated service can host the native receiver or relay. Provide stable storage, a supervised process, controlled TLS ingress, and the exact source/device configuration. Keep the executor and its own session/worktree storage persistent as well if execution also lives there.
 
-The [Docker + Compose path](../deploy/README.md) loads a checksummed amd64/arm64 image from a published GitHub Release. It runs as UID/GID `10001`, persists state in the Compose project's `right-wake-data` volume mounted at `/data`, and uses `private.env` for process credentials. The Compose service defaults to `relay serve --listen 0.0.0.0:7433`, publishes `127.0.0.1:7433`, and uses `pull_policy: never` with the explicitly loaded `right-wake:0.3.0` image. The installer does not start the service or create secrets.
+The published [v0.3.0 Docker + Compose deployment](../deploy/README.md) runs as UID/GID `10001`, persists state in the Compose project's `right-wake-data` volume mounted at `/data`, and uses `private.env` for process credentials. Its service runs `relay serve --listen 0.0.0.0:7433`, publishes `127.0.0.1:7433`, and uses `pull_policy: never` with the explicitly loaded `right-wake:0.3.0` image. Retain this existing deployment when upgrading only the local worker. The installer does not start the service or create secrets.
 
 Follow the container guide to initialize the volume, configure the source/device, and start the service. Run management commands as `docker compose run --rm right-wake ...` in that same Compose project. The native `--data-dir` examples below do not populate a Docker volume; do not accidentally configure a host-side profile and then start an empty container profile. Keep the same project identity during upgrades. Docker Compose's `env_file` supplies process variables; it is separate from passing RightWake's own `--env-file` argument.
 
@@ -89,6 +93,8 @@ Prior native/container checks are retained in the [historical archive](archive/R
 ## Cloud relay plus local worker
 
 Use this shape when the original conversation stays on a local computer but receipt must continue while that computer is offline. The cloud relay holds verified webhook events in its own durable database. The local worker makes an outbound WSS connection, commits received events to its separate local database, and continues the specifically bound original local thread. No inbound connection to the local Codex host is required.
+
+For an existing setup, first inspect its profile, source policy, paired device, private environment-file path, and service status. Preserve source/device IDs, secrets, bindings, pause state, and the original onboarding baseline. On a compatible local worker, `--json relay show` reads saved connection/device references; it does not test the network. Reuse the selected cloud Compose project and volume. Sections A and B show new configuration examples: skip equivalent objects and never replace an existing source with incomplete flags. `relay configure` saves local references only; it provisions no relay, domain, tunnel, or webhook.
 
 ### Credential and configuration placement
 
@@ -162,32 +168,52 @@ chmod 600 "$RIGHT_WAKE_LOCAL_DATA/private.env"
 
 Put the matching `RIGHT_WAKE_RELAY_DEVICE_TOKEN` value in the local file. It need not contain `RIGHT_WAKE_LINEAR_WEBHOOK_SECRET` for this relay-client-only path: the local client validates the authenticated normalized envelope and its local source policy without rechecking an expired webhook timestamp. `doctor` may therefore report `secret_available: false` for direct ingress; that field does not describe device-token authorization.
 
-Configure the actual local App Server and exact binding by following [the Linear host/thread steps](linear.md#5-select-the-actual-existing-host-and-thread), using this local profile path. The host must meet both exclusive-writer and tool-isolation prerequisites. Do not create that binding only on the cloud relay and expect it to select a local session.
+Configure the actual local App Server and exact binding by following [the Linear host/thread steps](linear.md#5-select-the-actual-existing-host-and-thread), using this local profile path. Both delivery modes need a verified tool boundary and the original owning server; direct tool-output delivery also needs exclusive writer control. Keep execution paused while either boundary is unresolved. Do not create that binding only on the cloud relay and expect it to select a local session.
 
 For management through the Codex plugin, set its MCP process's `RIGHT_WAKE_DATA_DIR` to this local profile, not the cloud relay profile. Check the `data_dir` returned by `right_wake_setup` before assigning work. [Plugin profile selection](plugin.md#use-the-same-local-profile) explains terminal and already-running desktop environments.
 
-### C. Start the outbound local worker
+### C. Save and start the outbound local worker
 
 If a `serve` process already owns this local profile, stop it first. For an existing service-managed direct receiver, use `right-wake --data-dir /absolute/path/to/right-wake-local service stop`; do not run both processes against the same profile.
 
 ```sh
 right-wake --data-dir "$RIGHT_WAKE_LOCAL_DATA" \
-  --env-file "$RIGHT_WAKE_LOCAL_DATA/private.env" \
-  relay connect \
+  relay configure \
   --url wss://relay.example.com/relay/mac-work \
   --token-env RIGHT_WAKE_RELAY_DEVICE_TOKEN \
   --source linear-work
+right-wake --data-dir "$RIGHT_WAKE_LOCAL_DATA" --json relay show
+
+# Foreground operation; use the service in section D for background operation.
+right-wake --data-dir "$RIGHT_WAKE_LOCAL_DATA" \
+  --env-file "$RIGHT_WAKE_LOCAL_DATA/private.env" relay connect
 ```
 
-Use your actual relay domain. The token belongs in the environment reference, never in the URL. The command opens one authenticated outbound connection and runs the local event engine; a separate local `serve` is unnecessary. It can execute locally persisted jobs even before a later device receipt is confirmed by the network.
+Use the actual owned relay URL and existing paired token reference. Store the token value in the same private environment file, never in the URL. Repeat `--source` only for additional authorized source IDs. A no-argument `relay connect` uses the saved endpoint, token variable name, and source scope. For a one-run override, supply `--url`, `--token-env`, and `--source` together; partial overrides are rejected and do not modify the saved connection.
+
+The command runs the local event engine and one authenticated outbound connection; a separate local `serve` is unnecessary. It can execute locally persisted jobs even before a later device receipt is confirmed by the network. Starting or reconnecting the worker does not release a source's execution pause.
 
 The client requires WSS. `--allow-loopback` permits plain `ws://` only for explicitly selected loopback tests and is not a production TLS bypass. Each paired device ID has one active connection; a newly authenticated connection replaces the previous one. Separate local workers should use separately scoped device IDs.
 
 ### D. Supervise the actual commands and verify offline recovery
 
-The foreground `relay connect` process exits when transport fails. Use an operator-managed systemd/launchd/container supervisor to restart **that exact command and argument list**, with the same persistent data directory, environment-file path, device URL and source scope, plus an appropriate reconnect backoff. The provided Compose file supervises the cloud `relay serve` process with `restart: unless-stopped`; it does not supervise your separate local worker. The built-in native `service install` helper runs only `serve`, so a native `relay connect` still needs its own explicitly configured supervisor.
+Stop any foreground worker before installing its service. Reuse the existing owned native service with the same persistent profile and private environment-file path:
 
-Transport reconnection and ACK deadlines do not poll Linear or periodically invoke a model. A newly connected worker reconciles stored events and completion receipts in bounded batches. Keep the relay URL/device identity stable for the same deployment, because local receipt provenance is associated with that endpoint.
+```sh
+right-wake --data-dir "$RIGHT_WAKE_LOCAL_DATA" \
+  --env-file "$RIGHT_WAKE_LOCAL_DATA/private.env" \
+  service install --mode relay-connect
+right-wake --data-dir "$RIGHT_WAKE_LOCAL_DATA" service start
+right-wake --data-dir "$RIGHT_WAKE_LOCAL_DATA" --json service status
+```
+
+Use the same `service stop`, `status`, and `uninstall` lifecycle as a direct receiver; status identifies `mode: "relay_connect"`. Reinstallation requires the original `--env-file` when one was recorded. The macOS LaunchAgent starts after GUI login; a Linux user service needs a user session unless separately authorized lingering is configured. There is no need to build another supervisor. The cloud Compose service already uses `restart: unless-stopped`; a deliberately native cloud deployment can instead use `service install --mode relay-serve` with its own relay profile and private environment file.
+
+The worker retains its local engine through transient transport failures and reconnects with exponential backoff and jitter: initially 0.75–1 second, capped at 30 seconds, reset after a connection lasts 60 seconds. It sends a heartbeat every 20 seconds and requires its response within 10 seconds. Authorization, TLS, configuration, protocol, and storage failures are not retried by this transport loop; inspect the blocker before restarting. These checks do not invoke a model or poll Linear.
+
+A newly connected worker reconciles stored events and completion receipts in bounded batches. Keep the relay URL/device identity stable for the same deployment, because local receipt provenance is associated with that endpoint. `relay show` and a running service do not prove connectivity, provider receipt, or original-thread execution.
+
+For personal Linear scope, keep execution paused through initial receipt/backfill and the [current and previously tracked issue refresh](linear.md#bootstrap-and-repair-the-observed-assignment-index), and repeat that recovery after known provider gaps or offline/backlog windows requiring current-owner guarantees. Relay protocol v1 has **no replay-complete watermark**: a restored connection, `received` ACK, or empty local queue does not prove all pending events arrived. A buffered comment can precede a later reassignment, and reconnection performs no Linear API refresh. Disconnection also does not automatically pause locally stored work. Resume only the setup-owned pause after the recovery set and actual host prerequisites are verified; retain a pre-existing user pause.
 
 To verify a real deployment, deliberately take the local worker offline, submit one authorized test event through the provider, and confirm the relay stored it. Reconnect the local worker, then inspect both profiles with `--json status` and `events list`, and inspect local `jobs list` and `drafts list`. Use exact event/job/dispatch IDs to confirm assignment and deduplication. Repeat a controlled reconnect without creating another provider event and verify it does not create a second job. These steps require your actual infrastructure; transport unit tests and the container demo do not substitute for them.
 

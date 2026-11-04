@@ -4,7 +4,25 @@ This ledger preserves the original implementation brief's 32 scenarios. **Implem
 
 The latest user requirement supersedes automatic new work-thread creation. Criterion 15 and the original new-thread demo are replaced by an explicit existing-thread claim; all other incomplete requirements remain visible obligations.
 
-## Evidence snapshot
+## Persistent ingress acceptance: 0.3.1 candidate
+
+This branch implements saved connections, reconnect/liveness and native relay
+service modes. [0.3.1 verification](releases/v0.3.1-verification.md) records this
+branch's tests separately from the published release below.
+
+| Requirement | Evidence boundary |
+| --- | --- |
+| Restart without changing endpoint | Native configuration/process fixtures and owned service definitions; real machine reboot and public DNS/TLS require target-deployment evidence. |
+| Offline receipt and replay | Synthetic signed delivery, persistent relay/local SQLite, ACK recovery and deduplication fixtures; real provider receipt is separate. |
+| Transport reconnect | Startup-offline, bounded backoff, disconnect, silent-loss heartbeat and authorization/TLS failure fixtures; no provider/model polling. |
+| Duplicate delivery does not duplicate work | Lost-ACK/reopen fixtures preserve one canonical event and one job; no global exactly-once external side-effect claim. |
+| Bad signatures rejected | Existing raw-body HMAC/timestamp HTTP/provider tests remain required; HTTPS or a random URL does not replace these checks. |
+| Preserve old configuration | Source/host/binding/device/pause, original onboarding and secret-file preservation checks; no operator profile is altered by the tests. |
+| Personal scope and onboarding gap | Current plus previously tracked issue-owner imports; partial-list omissions do not unassign. No replay watermark or atomic provider-current ownership guarantee. |
+| Original Desktop execution | **Not verified**: actual owning-host attachment and effective tool/credential restrictions remain mandatory. A second App Server or declaration flag is not evidence. |
+| Live integration | **Not verified**: no real Linear comment/issue is created, no existing integration changed and no infrastructure deployed to manufacture a pass. |
+
+## Published 0.3.0 evidence snapshot
 
 This snapshot concerns **v0.3.0**, adding personal Linear watching and optional Codex queue delivery within the current `right-wake` namespace. The [v0.3.0 verification report](releases/v0.3.0-verification.md) is the record of actual new-version runs and public assets. The complete [v0.2.0 evidence](releases/v0.2.0-verification.md) and [earlier archive](archive/README.md) remain unchanged.
 

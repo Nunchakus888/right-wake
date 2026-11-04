@@ -392,6 +392,61 @@ fn imports_preserve_source_pause_and_never_upgrade_static_or_bot_denials() {
     assert!(!f.db.event("denied").unwrap().actionable);
 }
 
+#[tokio::test]
+async fn onboarding_gap_refreshes_current_and_previously_tracked_owners_before_resume() {
+    let mut f = Fixture::new();
+    f.config.paused = true;
+    f.config.save(f._dir.path()).unwrap();
+    f.import(vec![
+        snapshot("still-mine", assigned("watched"), 100),
+        snapshot("formerly-mine", assigned("watched"), 100),
+    ]);
+    let kept = f.event("kept-comment", "still-mine", 400);
+    let removed = f.event("removed-comment", "formerly-mine", 400);
+    let discovered = f.event("new-comment", "newly-discovered", 400);
+    for event in [&kept, &removed, &discovered] {
+        f.receive(event);
+    }
+    let engine = Engine::new(f._dir.path().into(), f.db.clone());
+    assert_eq!(engine.run_once().await.unwrap(), 0);
+    assert!(f.db.jobs(None, 10).unwrap().is_empty());
+
+    // The current assigned-to-me query alone cannot clear old membership.
+    f.import(vec![
+        snapshot("still-mine", assigned("watched"), 300),
+        snapshot("newly-discovered", assigned("watched"), 300),
+    ]);
+    assert_eq!(
+        f.db.event_detail(&removed.event_id).unwrap()["state"],
+        "received"
+    );
+    // Refresh every previous ID explicitly before lifting the execution pause.
+    f.import(vec![snapshot("formerly-mine", assigned("other"), 300)]);
+    assert_eq!(
+        f.db.event_detail(&removed.event_id).unwrap()["state"],
+        "outside_assignment"
+    );
+    assert!(Config::load(f._dir.path()).unwrap().paused);
+    assert_eq!(engine.run_once().await.unwrap(), 0);
+
+    // Restart the store and prove only the two current owners are admissible.
+    let reopened = Db::open(f._dir.path()).unwrap();
+    assert_eq!(
+        reopened.event_detail(&kept.event_id).unwrap()["state"],
+        "received"
+    );
+    assert_eq!(
+        reopened.event_detail(&discovered.event_id).unwrap()["state"],
+        "received"
+    );
+    assert_eq!(
+        reopened.event_detail(&removed.event_id).unwrap()["state"],
+        "outside_assignment"
+    );
+    assert!(reopened.jobs(None, 10).unwrap().is_empty());
+    // No real host or provider write participates in this recovery contract.
+}
+
 #[test]
 fn late_evidence_commits_at_capacity_and_completion_promotes_a_bounded_backlog() {
     let mut f = Fixture::new();

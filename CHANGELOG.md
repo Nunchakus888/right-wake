@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.1 — persistent relay connection and service recovery (unreleased)
+
+- Save one existing paired WSS endpoint, device-token environment reference and explicit source scope with `relay configure`; inspect it with `relay show` and reuse it with no-argument `relay connect`. Repeated equivalent setup preserves the existing configuration and pairing. Changing a running profile's connection requires stopping its worker first.
+- Keep one local worker and profile lock through transport outages. Add bounded exponential reconnect backoff with jitter, bidirectional idle heartbeats and connection deadlines. Reuse the existing SQLite inbox, ACK receipts and deduplication; do not cancel/recover running work on each network failure. Invalid credentials, TLS, protocol or storage remain fail-closed errors.
+- Extend the existing owned systemd/launchd service to explicit `serve`, `relay-connect` or `relay-serve` modes. Preserve the installed mode on upgrades, require a stopped service before switching modes, retain private environment references, and report the actual installed mode and user-session startup limits.
+- Separate fixed infrastructure, provider receipt, personal assignment recovery, original Desktop host attachment and effective tool isolation in diagnostics and setup guidance. Preserve the original onboarding file; reuse only the exact owned RightWake webhook/device, never another integration's configuration or secret.
+- Keep database schema 4 and all locked dependencies unchanged. Add profile/restart/reconnect/receipt and assignment-gap regression evidence. Publication, real provider delivery, actual OS reboot and original Desktop thread execution remain separate checks in [v0.3.1 verification](docs/releases/v0.3.1-verification.md).
+
 ## 0.3.0 — personal Linear scope and queued continuation
 
 - Add `linear_assignee_id` to Linear sources: new comments on assigned issues and genuine new assignments become candidates without requiring a mention. An explicit organization scopes each personal source.

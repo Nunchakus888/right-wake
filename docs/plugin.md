@@ -31,7 +31,7 @@ codex plugin add right-wake@right-wake --json
 codex plugin list --marketplace right-wake --json
 ```
 
-Use these commands for a marketplace already registered as `right-wake`. Inspect returned errors and installed/enabled state; the install result identifies the actual cached package. An unfamiliar host version should first be checked with its `--help`. A skill-only update does not require changing its profile or re-authorizing Linear. Personal Linear filtering and queue delivery require the **0.3.0 native binary** as well as the updated skill. Back up and reuse the existing `right-wake` profile, source IDs, bindings, secrets, and saved onboarding record; a fresh profile would discard that continuity.
+Use these commands for a marketplace already registered as `right-wake`. Inspect returned errors and installed/enabled state; the install result identifies the actual cached package. An unfamiliar host version should first be checked with its `--help`. A skill-only update does not require changing its profile or re-authorizing Linear. Personal Linear filtering and queue delivery require **0.3.0+**; the saved fixed-relay and service-mode workflow requires the **0.3.1 native binary**. This branch prepares that release; confirm publication in [0.3.1 verification](releases/v0.3.1-verification.md), or use a matching source build. Back up and reuse the existing profile, source IDs, bindings, private environment file, installed service mode and original onboarding record.
 
 RightWake has **no background self-updater**. Marketplace refresh updates the plugin package, including skills and artwork; the MCP launcher does not replace the native executable. After refreshing, ask the local Agent to use the newly cached `$right-wake-setup` to back up and upgrade an older native installation in its existing directory, then verify the actual binary version and profile. The setup skill can carry out those steps in one authorized invocation. A running receiver or MCP process must be restarted when needed to use the replacement binary; use the host's supported reload mechanism and retain the original work conversation.
 
@@ -39,7 +39,7 @@ Artwork-only updates may retain the plugin's 0.3.0 version and are retrieved by 
 
 ## Agent-led Linear setup
 
-Invoke `$right-wake-setup` from the **existing local work conversation** you intend to receive follow-ups, explicitly naming the Linear issue and that binding intent. To watch personal work, request new comments on your assigned issues and newly assigned tasks. The skill includes its [Linear reference](../plugins/codex/skills/right-wake-setup/references/linear.md) inside the cached plugin, so it does not depend on a separate repository checkout. It targets the v0.3.0 native CLI and adds no runtime dependency or fourth skill.
+Invoke `$right-wake-setup` from the **existing local work conversation** you intend to receive follow-ups, explicitly naming the Linear issue and that binding intent. To watch personal work, request new comments on your assigned issues and newly assigned tasks. The skill includes its [Linear reference](../plugins/codex/skills/right-wake-setup/references/linear.md) inside the cached plugin, so it does not depend on a separate repository checkout. It targets the v0.3.1 native CLI and adds no runtime dependency or fourth skill. For long-lived ingress, it discovers and reuses the actual relay/device, saves its WSS connection and manages the same owned service in `relay-connect` mode. It does not provision infrastructure, change unrelated webhooks, or certify Desktop ownership/tool isolation from a flag.
 
 The workflow discovers the binary/profile, reads source/host/binding state, resolves exact Linear IDs through permitted tools, establishes the available event-delivery path, verifies the intended host/thread, then applies and reads back the authorized configuration. An installation/start request covers the corresponding service actions; it need not be confirmed again. Equivalent settings are reused. Existing `source add` and `host add` commands replace whole objects, so the agent must not blindly repeat abbreviated examples or reset existing fields. Binding changes use the observed version and intended target.
 
@@ -53,7 +53,7 @@ When an administrator must register the webhook, finish the independent local wo
 
 A single agent invocation orchestrates existing native commands; unattended execution depends on those prerequisites being available. Configuration, authenticated receipt, and continuation of the original thread are reported separately. Do not post a Linear test comment without explicit authorization. Real Linear automated onboarding and real model continuation still need their own acceptance evidence; see [the full setup flow](linear.md#agent-led-setup) and [acceptance](acceptance.md).
 
-Earlier workflow trials are kept in the [historical evidence archive](archive/README.md). New-version validation belongs in [v0.3.0 verification](releases/v0.3.0-verification.md).
+Earlier workflow trials are kept in the [historical evidence archive](archive/README.md). New-version validation belongs in [v0.3.1 verification](releases/v0.3.1-verification.md); published 0.3.0 evidence remains in its own report.
 
 ## Use the same local profile
 
