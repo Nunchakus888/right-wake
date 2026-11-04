@@ -11,7 +11,7 @@
 - Add read-only `host inspect`, concise personal-scope doctor diagnostics, and Agent-friendly schema descriptions. Update the setup Skill to preserve existing profiles/baselines and prepare concrete administrator handoffs.
 - Upgrade current-name 0.2.0 profiles additively to database schema 4; keep bundled SQLite 3.54.1. Native and container installers pin 0.3.0. No registry dependency versions changed.
 
-Release and verification status is recorded in [v0.3.0 verification](docs/releases/v0.3.0-verification.md). Live YCloud registration, public HTTPS reachability, and real original-thread execution remain deployment-specific checks; the release does not invent those missing prerequisites.
+Published as an [experimental prerelease](https://github.com/Nunchakus888/right-wake/releases/tag/v0.3.0) on **2026-11-04 at 05:02:52 UTC**, from [`0d10c54`](https://github.com/Nunchakus888/right-wake/commit/0d10c547bf0f53d91c0ea3685c7ee4ce408aaf9d). Each of four native platforms passed **129 tests, 0 failures, 0 ignored**; both Linux image/Compose checks and 18 container-installer boundary tests passed. Exact runs and installation evidence are recorded in [v0.3.0 verification](docs/releases/v0.3.0-verification.md). Live YCloud registration, public HTTPS reachability, and real original-thread execution remain deployment-specific checks; the release does not invent those missing prerequisites.
 
 ## 0.2.0 — complete RightWake naming
 

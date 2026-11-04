@@ -12,8 +12,8 @@ This snapshot concerns **v0.3.0**, adding personal Linear watching and optional 
 | --- | --- |
 | Personal Linear scope | Implemented provider candidates, durable owner/revision/removal/conflict projection, partial bootstrap, pre-submission checks, bounded event-driven recovery, and relay policy preservation. Signed fixtures and integration suites are listed in the current report; no live user baseline is claimed. |
 | Codex queue | Implemented optional atomic queue on the original owning server, fixed dispatch notice, immutable MCP context/read receipt, exact correlation, guarded submission, and unknown outcomes. Mock protocol and real no-model probe evidence do not prove a live Desktop work turn. |
-| Native core/provider/host tests | Local and four-platform gate results are recorded with the actual source and job IDs in the current report. Prior-version test counts are not reused. |
-| Installer and public packages | Native release jobs, real Linux image/Compose checks, published assets, checksums, and fresh public installation each need their own recorded result. |
+| Native core/provider/host tests | Main CI passed 120 tests with 9 explicit exclusions; every native release platform passed **129 tests, 0 failures, 0 ignored** at `0d10c54`. Exact source, job IDs, and actual log counts are in the current report. |
+| Installer and public packages | Four native installer gates and two Linux image/Compose gates passed. Ten public assets were published; an actual fresh Linux x86_64 install from public assets, cached-plugin MCP launch, signed personal-scope exercise, and public amd64 image checksum/metadata inspection passed. |
 | Plugin and skills | Three bundled skills and twelve local MCP tools. Metadata validation, independent setup scenario review, real GitHub marketplace/cache installation, and actual stdio launcher checks are distinguished in the current report. |
 | Agent-led Linear onboarding | Preserves existing state, configures personal scope, imports verified snapshots, prepares administrator handoff, and reports desired scope/baseline/receipt/execution separately. Live registration and original-thread execution still require actual local capabilities. |
 | Real Codex | The new [0.166.0 Queue probe](../tests/fixtures/codex-0.166.0-queue/README.md) verifies experimental capability and missing-thread behavior without credentials, model calls, or created threads. The [older direct probe](../tests/fixtures/codex-0.166.0/README.md) remains historical evidence. Shared owning-server identity, original-history recall, and tool restrictions need real deployment checks. |
@@ -26,8 +26,8 @@ This snapshot concerns **v0.3.0**, adding personal Linear watching and optional 
 
 | ID | Required outcome | Evidence needed / current qualification |
 | --- | --- | --- |
-| 1 | Fresh native install without Node/Python/Docker/sudo | Four native archive/install/backup gates and a fresh public Linux download must be recorded for this version, including a path with spaces and actual binary/MCP/SQLite checks. End-user-machine installation remains separate. |
-| 2 | Clean Codex marketplace install and binary discovery/install | Verify current GitHub marketplace retrieval, installed/enabled cache identity, and the actual cached MCP launcher with the public binary. Conversational onboarding remains separate. |
+| 1 | Fresh native install without Node/Python/Docker/sudo | All four native archive/install/backup gates passed. A fresh public Linux x86_64 download/install passed, including a path with spaces and actual binary/MCP/SQLite/personal-scope checks. End-user-machine activation remains separate. |
+| 2 | Clean Codex marketplace install and binary discovery/install | Fresh GitHub marketplace install and actual 0.2.0 → 0.3.0 plugin upgrade passed in credential-free Codex CLI 0.166.0 profiles, with exact cached files, skill validation, and real cached-launcher checks including the public binary. Conversational onboarding remains separate. |
 | 3 | Repeated setup creates no duplicates | CLI and MCP repeat-setup tests; live service repetition and full conversational onboarding remain separate. |
 | 4 | Missing permissions, expired credentials, and network failure explain next action | Provider/host failure cases plus actual setup diagnostics |
 | 5 | Stop/upgrade/uninstall touches only owned resources and preserves recovery | Current installer and owned-service/data tests; live managers still require verification. The 0.2.0 current-name profile upgrades additively; no old-name namespace migration is supplied. |
@@ -56,7 +56,7 @@ This snapshot concerns **v0.3.0**, adding personal Linear watching and optional 
 | 28 | Relay receives while local device is offline, then replays completely | Durable relay/device ACK integration tests and actual reconnect demonstration |
 | 29 | Device source scope and revocation are enforced | Cross-source denial and active revocation tests |
 | 30 | Relay restart, disk full, duplicate ACK, reconnect, backlog are bounded | Fault/recovery tests for every case, not just successful delivery |
-| 31 | Single-container cloud keeps state without claiming local-chat inheritance | Linux amd64/arm64 image and Compose gates check original synthetic jobs/drafts and pending relay events across restart/recreation. Current run IDs and outcomes belong in the report. Live agent execution and public ingress remain separate; no local-chat inheritance is claimed. |
+| 31 | Single-container cloud keeps state without claiming local-chat inheritance | Both Linux image/Compose gates passed: the original two synthetic jobs/drafts and pending relay events survived restart/recreation. Current run IDs and outcomes are in the report. Live agent execution and public ingress remain separate; no local-chat inheritance is claimed. |
 | 32 | Generic Webhook is configuration-driven; GenericCommand uses safe stdin | Config-only mapping and fixed executable/argv/JSON stdin tests |
 
 ## Additional brief obligations

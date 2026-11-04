@@ -4,7 +4,7 @@ Run RightWake natively beside the local agent whose original conversation you wa
 
 The image includes RightWake and **bundled SQLite**. One persistent `/data` volume stores configuration and database state; there is no separate database service. It runs as UID/GID `10001` and publishes only a loopback host port for your HTTPS/WSS reverse proxy.
 
-**The deployment files target [v0.3.0](https://github.com/Nunchakus888/right-wake/releases/tag/v0.3.0).** Check [verification](../docs/releases/v0.3.0-verification.md) for actual publication, Linux amd64/arm64 image and Compose results, and public-download evidence. [Verification levels](#container-verification-levels) explains what each check establishes.
+**[v0.3.0 Docker assets are published](https://github.com/Nunchakus888/right-wake/releases/tag/v0.3.0).** Linux amd64 and arm64 both passed actual image/Compose persistence and installer checks. See [verification](../docs/releases/v0.3.0-verification.md) for exact runs and public-download evidence. [Verification levels](#container-verification-levels) explains what each check establishes.
 
 ## Install the release image
 

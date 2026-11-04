@@ -18,7 +18,7 @@ RightWake 以一个原生 Rust 二进制提供 CLI 和 Codex 插件，**内嵌 S
 
 ## 当前状态
 
-**v0.3.0 新增按 Linear 指派人监听与可选的 Codex 队列投递。** 自动接收自己名下 issue 的新评论，以及新指派给自己的任务，无需每条评论加 mention，也不把今天的任务列表固化为永久范围。归属变化更新本地持久记录；归属未知时暂存，不调用模型。测试、发布和公开安装的实际状态见 [v0.3.0 验证记录](docs/releases/v0.3.0-verification.md)；之前的结果保留在 [v0.2.0 记录](docs/releases/v0.2.0-verification.md)。
+**[v0.3.0 实验性预览版已发布](https://github.com/Nunchakus888/right-wake/releases/tag/v0.3.0)**，新增按 Linear 指派人监听与可选的 Codex 队列投递。 自动接收自己名下 issue 的新评论，以及新指派给自己的任务，无需每条评论加 mention，也不把今天的任务列表固化为永久范围。归属变化更新本地持久记录；归属未知时暂存，不调用模型。四个原生平台均通过 **129 项测试，0 失败、0 忽略**；两个 Linux 平台的 Docker / Compose 检查也已通过。具体运行与安装证据见 [v0.3.0 验证记录](docs/releases/v0.3.0-verification.md)；之前的结果保留在 [v0.2.0 记录](docs/releases/v0.2.0-verification.md)。
 
 自动向 Codex 投递可选两种方式：直接 tool-output 要求实际独占写入；实验性的 Queue 方式使用原会话所属 App Server 的原子入队。两者都需要落实工具与凭证权限边界，Queue 还需要同一配置目录的上下文 MCP 工具。真实桌面原会话续接与平台授权读写仍需分别验收，详见[宿主兼容性](docs/host-compatibility.md)和[验收记录](docs/acceptance.md)。
 
