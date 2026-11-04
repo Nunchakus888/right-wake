@@ -9,6 +9,8 @@ codex plugin marketplace add https://github.com/Nunchakus888/right-wake
 codex plugin add right-wake@right-wake --json
 ```
 
+The bundled [RightWake icon](../plugins/codex/assets/right-wake.png) is used in the marketplace listing and composer. Its conversation bubble represents the existing thread; the pulse and right-pointing arrow represent waking and routing. The artwork and its generation prompt are documented in [assets/README.md](../plugins/codex/assets/README.md). The manifest uses the official plugin `logo`, `logoDark`, and `composerIcon` fields with plugin-relative paths, so the image travels with the cached package.
+
 In a compatible local Codex host, open `/plugins` and install RightWake. The package has three concise skills:
 
 | Skill | Purpose |
@@ -30,6 +32,10 @@ codex plugin list --marketplace right-wake --json
 ```
 
 Use these commands for a marketplace already registered as `right-wake`. Inspect returned errors and installed/enabled state; the install result identifies the actual cached package. An unfamiliar host version should first be checked with its `--help`. A skill-only update does not require changing its profile or re-authorizing Linear. Personal Linear filtering and queue delivery require the **0.3.0 native binary** as well as the updated skill. Back up and reuse the existing `right-wake` profile, source IDs, bindings, secrets, and saved onboarding record; a fresh profile would discard that continuity.
+
+RightWake has **no background self-updater**. Marketplace refresh updates the plugin package, including skills and artwork; the MCP launcher does not replace the native executable. After refreshing, ask the local Agent to use the newly cached `$right-wake-setup` to back up and upgrade an older native installation in its existing directory, then verify the actual binary version and profile. The setup skill can carry out those steps in one authorized invocation. A running receiver or MCP process must be restarted when needed to use the replacement binary; use the host's supported reload mechanism and retain the original work conversation.
+
+Artwork-only updates may retain the plugin's 0.3.0 version and are retrieved by the same marketplace refresh commands. If the desktop still displays old artwork or tools, reload the relevant plugin/MCP connection through the host's supported controls, or restart that host and reopen the original conversation. Refreshing the plugin does not itself register a Linear webhook or enable automatic execution.
 
 ## Agent-led Linear setup
 

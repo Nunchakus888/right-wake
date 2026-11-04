@@ -17,6 +17,9 @@
       "onboardingSkill": "./skills/right-wake-setup/SKILL.md",
       "interface": {
         "displayName": "RightWake",
+        "logo": "./assets/right-wake.png",
+        "logoDark": "./assets/right-wake.png",
+        "composerIcon": "./assets/right-wake.png",
         "shortDescription": "Wake the right Agent thread.",
         "longDescription": "Connect verified work events to explicitly bound existing local Codex threads. Inspect routing, diagnose delivery, and review drafts before any authorized external write.",
         "developerName": "Nunchakus888",
